@@ -13,17 +13,32 @@ def pMap(x,p):
     # TODO: dict unpacker
 
     max_time = 5
-    t_span  = [0,5]
+    t0 = 0 # starting time
 
     events = [lambda t,x: fallEvent(t,x,p), lambda t,x: touchdownEvent(t,x,p)]
     for ev in events:
         ev.terminal = True
     
     sol1 = integrate.solve_ivp(fun=lambda t, x: flightDynamics(t, x, p), 
-    t_span = t_span, y0 = x0, events=events, max_step=0.01, dense_output=True)
+    t_span = [t0, t0+max_time], y0 = x0, events=events, max_step=0.01, 
+    dense_output=True)
 
-    events = [fallEvent, liftoffEvent]
-    return sol1
+    
+    events = [lambda t,x: fallEvent(t,x,p), lambda t,x: liftoffEvent(t,x,p)]
+    for ev in events:
+        ev.terminal = True
+    events[1].direction = 1 # only trigger when spring expands
+    sol2 = integrate.solve_ivp(fun=lambda t, x: stanceDynamics(t, x, p), 
+    t_span = [sol1.t[-1], sol1.t[-1]+max_time], y0 = sol1.y[:,-1], 
+    events=events, max_step=0.01, dense_output=True)
+
+    events = [lambda t,x: fallEvent(t,x,p), lambda t,x: apexEvent(t,x,p)]
+    for ev in events:
+        ev.terminal = True
+    sol3 = integrate.solve_ivp(fun=lambda t, x: flightDynamics(t, x, p), 
+    t_span = [sol2.t[-1], sol2.t[-1]+max_time], y0 = sol2.y[:,-1], events=events, max_step=0.01, dense_output=True)
+
+    return [sol1,sol2,sol3]
     
 
 def flightDynamics(t,x,p):
@@ -51,7 +66,7 @@ touchdownEvent.terminal = True
 # direction
 
 def liftoffEvent(t,x,p):
-    return p["resting_length"]**2 - (x[0]**2 + x[1]**2)
+    return (x[0]**2 + x[1]**2) - p["resting_length"]**2
 liftoffEvent.terminal = True
 
 def apexEvent(t,x,p):
