@@ -68,7 +68,7 @@ fallEvent.terminal = True
 
 def touchdownEvent(t,x,p):
     return x[1]- np.cos(p["aoa"])*p["resting_length"]
-touchdownEvent.terminal = True
+touchdownEvent.terminal = True # no longer actually necessary...
 # direction
 
 def liftoffEvent(t,x,p):
@@ -78,3 +78,7 @@ liftoffEvent.terminal = True
 def apexEvent(t,x,p):
     return x[3]
 apexEvent.terminal = True
+
+def computeTotalEnergy(x,p):
+    # TODO: make this accept a trajectory, and output parts as well
+    return p["mass"]/2*(x[2]**2+x[3]**2) + p["gravity"]*p["mass"]*x[1]
