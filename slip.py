@@ -19,7 +19,7 @@ def pMap(x,p):
     for ev in events:
         ev.terminal = True
     
-    sol1 = integrate.solve_ivp(fun=lambda t, x: flightDynamics(t, x, p), 
+    sol = integrate.solve_ivp(fun=lambda t, x: flightDynamics(t, x, p), 
     t_span = [t0, t0+max_time], y0 = x0, events=events, max_step=0.01, 
     dense_output=True)
 
@@ -29,17 +29,23 @@ def pMap(x,p):
         ev.terminal = True
     events[1].direction = 1 # only trigger when spring expands
     sol2 = integrate.solve_ivp(fun=lambda t, x: stanceDynamics(t, x, p), 
-    t_span = [sol1.t[-1], sol1.t[-1]+max_time], y0 = sol1.y[:,-1], 
+    t_span = [sol.t[-1], sol.t[-1]+max_time], y0 = sol.y[:,-1], 
     events=events, max_step=0.01, dense_output=True)
 
     events = [lambda t,x: fallEvent(t,x,p), lambda t,x: apexEvent(t,x,p)]
     for ev in events:
         ev.terminal = True
     sol3 = integrate.solve_ivp(fun=lambda t, x: flightDynamics(t, x, p), 
-    t_span = [sol2.t[-1], sol2.t[-1]+max_time], y0 = sol2.y[:,-1], events=events, max_step=0.01, dense_output=True)
+    t_span = [sol2.t[-1], sol2.t[-1]+max_time], y0 = sol2.y[:,-1], 
+    events=events, max_step=0.01, dense_output=True)
 
-    return [sol1,sol2,sol3]
-    
+    # concatenate all solutions
+    sol.t = np.concatenate((sol.t,sol2.t,sol3.t))
+    sol.y = np.concatenate((sol.y,sol2.y,sol3.y),axis=1)
+    sol.t_events.append(sol2.t_events.append(sol3.t_events))
+    # TODO: mark different phases
+
+    return sol    
 
 def flightDynamics(t,x,p):
     # code in flight dynamics, xdot_ = f()
