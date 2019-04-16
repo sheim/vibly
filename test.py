@@ -14,3 +14,9 @@ plt.plot(sol.t,sol.y[1], color='orange')
 # plt.plot(sol.t,sol.y[0])
 plt.plot(sol.t,sol.y[1], color='blue')
 plt.show()
+
+####
+
+# from viability import computeP
+
+# sol = computeP(1,2,p)
