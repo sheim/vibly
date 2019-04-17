@@ -48,3 +48,29 @@ def projectQ2S_2D(Q):
         if sum(Q[sdx,:]) > 0:
             S[sdx] = 1
     return S
+
+def outside_2D(s, S):
+    ''' 
+    given a level set S, check if s is inside S or not
+    '''
+    
+
+def computeQV_2D(Q_map, s_table, Q_V = None):
+    ''' Starting from the transition map and set of non-failing state-action
+    pairs, compute the viable sets. The input Q_V is referred to as Q_N in the
+    paper when passing it in, but since it is immediately copied to Q_V, we
+    directly use this naming.
+    '''
+
+    # Take Q_map as the non-failing set if Q_N is omitted
+    if Q_V is None:
+        Q_V=Q_map
+        Q_V[Q_V>0] = 1
+        
+    S_old = np.zeros((Q_V.shape[0],1))
+    S_V = projectQ2S_2D(Q_V)
+    while(S_V != S_old)
+        for qdx, is_viable in enumerate(np.nditer(Q_V)):
+            if is_viable: # only check viable (s,a)
+                if outside_2D(Q_map[qdx],S_V):
+                    Q_V[qdx] = 0 # remove
