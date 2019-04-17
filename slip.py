@@ -22,28 +22,35 @@ def step(x,p):
     max_time = 5
     t0 = 0 # starting time
 
+    # FLIGHT: simulate till touchdown
     events = [lambda t,x: fallEvent(t,x,p), lambda t,x: touchdownEvent(t,x,p)]
     for ev in events:
         ev.terminal = True
-    
     sol = integrate.solve_ivp(fun=lambda t, x: flightDynamics(t, x, p), 
     t_span = [t0, t0+max_time], y0 = x0, events=events, max_step=0.01)
-
-    
+    print(computeTotalEnergy(sol.y[:,-1],p))
+    # STANCE: simulate till liftoff
     events = [lambda t,x: fallEvent(t,x,p), lambda t,x: liftoffEvent(t,x,p)]
     for ev in events:
         ev.terminal = True
     events[1].direction = 1 # only trigger when spring expands
+    # discretely update foot position
+    # assuming level ground, hence y[5] = 0
+
+    sol.y[4,-1] = sol.y[0,-1]+np.sin(p['aoa'])*p['resting_length']
     sol2 = integrate.solve_ivp(fun=lambda t, x: stanceDynamics(t, x, p), 
     t_span = [sol.t[-1], sol.t[-1]+max_time], y0 = sol.y[:,-1], 
     events=events, max_step=0.01)
+    print(computeTotalEnergy(sol2.y[:,-1],p))
 
+    # FLIGHT: simulate till apex
     events = [lambda t,x: fallEvent(t,x,p), lambda t,x: apexEvent(t,x,p)]
     for ev in events:
         ev.terminal = True
     sol3 = integrate.solve_ivp(fun=lambda t, x: flightDynamics(t, x, p), 
     t_span = [sol2.t[-1], sol2.t[-1]+max_time], y0 = sol2.y[:,-1], 
     events=events, max_step=0.01)
+    print(computeTotalEnergy(sol3.y[:,-1],p))
 
     # concatenate all solutions
     sol.t = np.concatenate((sol.t,sol2.t,sol3.t))
@@ -63,17 +70,19 @@ def step(x,p):
 
 def flightDynamics(t,x,p):
     # code in flight dynamics, xdot_ = f()
-    return np.array([x[2], x[3], 0, -p["gravity"]])
+    return np.array([x[2], x[3], 0, -p["gravity"], 0, 0])
 
 def stanceDynamics(t, x,p):
     # stance dynamics
-    alpha = np.arctan2(x[1],x[0]) - np.pi/2.0
-    leg_length = np.sqrt(x[0]**2+x[1]**2)
-    xdotdot = - p["stiffness"]/p["mass"]*(p["resting_length"] - 
+    # energy = computeTotalEnergy(x,p)
+    # print(energy)
+    alpha = np.arctan2(x[1]-x[5] , x[0]-x[4]) - np.pi/2.0
+    leg_length = np.sqrt( (x[0]-x[4])**2 + (x[1]-x[5])**2 )
+    xdotdot = -p["stiffness"]/p["mass"]*(p["resting_length"] - 
                 leg_length)*np.sin(alpha)
-    ydotdot = p["stiffness"]/p["mass"]*(p["resting_length"] - 
+    ydotdot =  p["stiffness"]/p["mass"]*(p["resting_length"] - 
                 leg_length)*np.cos(alpha) - p["gravity"]
-    return np.array([x[2], x[3], xdotdot, ydotdot])
+    return np.array([x[2], x[3], xdotdot, ydotdot, 0, 0])
 
 def fallEvent(t,x,p):
     return x[1]
@@ -95,7 +104,11 @@ apexEvent.terminal = True
 
 def computeTotalEnergy(x,p):
     # TODO: make this accept a trajectory, and output parts as well
-    return p["mass"]/2*(x[2]**2+x[3]**2) + p["gravity"]*p["mass"]*x[1]
+    return (p["mass"]/2*(x[2]**2+x[3]**2) + 
+    p["gravity"]*p["mass"]*(x[1]-x[5]))
+    # p["stiffness"]/2*
+    # (p["resting_length"]-np.sqrt((x[0]-x[4])**2 + (x[1]-x[5])**2))**2)
+
     
 
 ### Functions for Viability
