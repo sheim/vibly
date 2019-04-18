@@ -21,14 +21,15 @@ def step(x,p):
 
     max_time = 5
     t0 = 0 # starting time
-
+    # print("energy at start: " + str(computeTotalEnergy(x0,p)))
     # FLIGHT: simulate till touchdown
     events = [lambda t,x: fallEvent(t,x,p), lambda t,x: touchdownEvent(t,x,p)]
     for ev in events:
         ev.terminal = True
     sol = integrate.solve_ivp(fun=lambda t, x: flightDynamics(t, x, p), 
     t_span = [t0, t0+max_time], y0 = x0, events=events, max_step=0.01)
-    print(computeTotalEnergy(sol.y[:,-1],p))
+    # print("energy at touchdown: " + str(computeTotalEnergy(sol.y[:,-1],p)))
+
     # STANCE: simulate till liftoff
     events = [lambda t,x: fallEvent(t,x,p), lambda t,x: liftoffEvent(t,x,p)]
     for ev in events:
@@ -37,20 +38,25 @@ def step(x,p):
     # discretely update foot position
     # assuming level ground, hence y[5] = 0
 
-    sol.y[4,-1] = sol.y[0,-1]+np.sin(p['aoa'])*p['resting_length']
+    # sol.y[4,-1] = sol.y[0,-1]+np.sin(p['aoa'])*p['resting_length']
+    x0 = sol.y[:,-1]
     sol2 = integrate.solve_ivp(fun=lambda t, x: stanceDynamics(t, x, p), 
-    t_span = [sol.t[-1], sol.t[-1]+max_time], y0 = sol.y[:,-1], 
-    events=events, max_step=0.01)
-    print(computeTotalEnergy(sol2.y[:,-1],p))
+    t_span = [sol.t[-1], sol.t[-1]+max_time], y0 = x0, 
+    events=events, max_step=0.0001)
+    # print("energy at liftoff: " + str(computeTotalEnergy(sol2.y[:,-1],p)))
+
 
     # FLIGHT: simulate till apex
     events = [lambda t,x: fallEvent(t,x,p), lambda t,x: apexEvent(t,x,p)]
     for ev in events:
         ev.terminal = True
+    x0 = resetLeg(sol2.y[:,-1],p)
+    # print("energy at reset: " + str(computeTotalEnergy(x0,p)))
+
     sol3 = integrate.solve_ivp(fun=lambda t, x: flightDynamics(t, x, p), 
-    t_span = [sol2.t[-1], sol2.t[-1]+max_time], y0 = sol2.y[:,-1], 
+    t_span = [sol2.t[-1], sol2.t[-1]+max_time], y0 = x0, 
     events=events, max_step=0.01)
-    print(computeTotalEnergy(sol3.y[:,-1],p))
+    # print("energy at end: " + str(computeTotalEnergy(sol3.y[:,-1],p)))
 
     # concatenate all solutions
     sol.t = np.concatenate((sol.t,sol2.t,sol3.t))
@@ -68,9 +74,14 @@ def step(x,p):
     
     return sol    
 
+def resetLeg(x,p):
+    x[4] = x[0]+np.sin(p['aoa'])*p['resting_length']
+    x[5] = x[1]-np.cos(p['aoa'])*p['resting_length']
+    return x
+
 def flightDynamics(t,x,p):
     # code in flight dynamics, xdot_ = f()
-    return np.array([x[2], x[3], 0, -p["gravity"], 0, 0])
+    return np.array([x[2], x[3], 0, -p['gravity'], x[2], x[3]])
 
 def stanceDynamics(t, x,p):
     # stance dynamics
@@ -90,12 +101,13 @@ fallEvent.terminal = True
 # TODO: direction
 
 def touchdownEvent(t,x,p):
-    return x[1]- np.cos(p["aoa"])*p["resting_length"]
+        # x[1]- np.cos(p["aoa"])*p["resting_length"] (which is = x[5])
+    return x[5]
 touchdownEvent.terminal = True # no longer actually necessary...
 # direction
 
 def liftoffEvent(t,x,p):
-    return (x[0]**2 + x[1]**2) - p["resting_length"]**2
+    return ((x[0]-x[4])**2 + (x[1]-x[5])**2) - p["resting_length"]**2
 liftoffEvent.terminal = True
 
 def apexEvent(t,x,p):
@@ -105,11 +117,9 @@ apexEvent.terminal = True
 def computeTotalEnergy(x,p):
     # TODO: make this accept a trajectory, and output parts as well
     return (p["mass"]/2*(x[2]**2+x[3]**2) + 
-    p["gravity"]*p["mass"]*(x[1]-x[5]))
-    # p["stiffness"]/2*
-    # (p["resting_length"]-np.sqrt((x[0]-x[4])**2 + (x[1]-x[5])**2))**2)
-
-    
+    p["gravity"]*p["mass"]*(x[1]) +
+    p["stiffness"]/2*
+    (p["resting_length"]-np.sqrt((x[0]-x[4])**2 + (x[1]-x[5])**2))**2)
 
 ### Functions for Viability
 def map2e(x, p):
