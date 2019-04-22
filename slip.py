@@ -15,6 +15,68 @@ def step(x, p):
     returns a sol object from integrate.solve_ivp, with all phases
     '''
 
+    # * nested functions - scroll down to step code * #
+
+    # unpacking constants
+    AOA = p['angle_of_attack']
+    GRAVITY = p['gravity']
+    MASS = p['mass']
+    RESTING_LENGTH = p['resting_length']
+    STIFFNESS = p['stiffness']
+    TOTAL_ENERGY = p['total_energy']
+    SPECIFIC_STIFFNESS = p['stiffness'] / p['mass']
+    PI_HALF = np.pi / 2.0
+    MAX_TIME = 5
+
+    def flight_dynamics(t, x, p):
+        # code in flight dynamics, xdot_ = f()
+        return np.array([x[2], x[3], 0, -GRAVITY, x[2], x[3]])
+
+    def stance_dynamics(t, x, p):
+        # stance dynamics
+        alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
+        leg_length = np.hypot(x[0]-x[4], x[1]-x[5])
+        xdotdot = -STIFFNESS/MASS*(RESTING_LENGTH -
+                    leg_length)*np.sin(alpha)
+        ydotdot =  STIFFNESS/MASS*(RESTING_LENGTH -
+                    leg_length)*np.cos(alpha) - GRAVITY
+        return np.array([x[2], x[3], xdotdot, ydotdot, 0, 0])
+
+    def fall_event(t, x, p):
+        '''
+        Event function to detect the body hitting the floor (failure)
+        '''
+        return x[1]
+    fall_event.terminal = True
+    # TODO: direction
+
+    def touchdown_event(t, x, p):
+        '''
+        Event function for foot touchdown (transition to stance)
+        '''
+            # x[1]- np.cos(p['angle_of_attack'])*RESTING_LENGTH 
+            # (which is = x[5])
+        return x[5]
+    touchdown_event.terminal = True # no longer actually necessary...
+    # direction
+
+    def liftoff_event(t, x, p):
+        '''
+        Event function to reach maximum spring extension (transition to flight)
+        '''
+        return ((x[0]-x[4])**2 + (x[1]-x[5])**2) - RESTING_LENGTH**2
+    liftoff_event.terminal = True
+    liftoff_event.direction = 1
+
+    def apex_event(t, x, p):
+        '''
+        Event function to reach apex
+        '''
+        return x[3]
+    apex_event.terminal = True
+
+    # * Start of step code * #
+
     # TODO: properly update sol object with all info, not just the trajectories
 
     # take one step (apex to apex)
@@ -79,61 +141,12 @@ def reset_leg(x, p):
     x[5] = x[1] - np.cos(p['angle_of_attack'])*p['resting_length']
     return x
 
-def flight_dynamics(t, x, p):
-    # code in flight dynamics, xdot_ = f()
-    return np.array([x[2], x[3], 0, -p['gravity'], x[2], x[3]])
-
-def stance_dynamics(t, x, p):
-    # stance dynamics
-    # energy = compute_total_energy(x, p)
-    # print(energy)
-    alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
-    leg_length = np.sqrt((x[0] - x[4])**2 + (x[1]-x[5])**2)
-    xdotdot = -p["stiffness"]/p["mass"]*(p["resting_length"] -
-                leg_length)*np.sin(alpha)
-    ydotdot =  p["stiffness"]/p["mass"]*(p["resting_length"] -
-                leg_length)*np.cos(alpha) - p["gravity"]
-    return np.array([x[2], x[3], xdotdot, ydotdot, 0, 0])
-
-def fall_event(t, x, p):
-    '''
-    Event function to detect the body hitting the floor (failure)
-    '''
-    return x[1]
-fall_event.terminal = True
-# TODO: direction
-
-def touchdown_event(t, x, p):
-    '''
-    Event function for foot touchdown (transition to stance)
-    '''
-        # x[1]- np.cos(p["angle_of_attack"])*p["resting_length"] 
-        # (which is = x[5])
-    return x[5]
-touchdown_event.terminal = True # no longer actually necessary...
-# direction
-
-def liftoff_event(t, x, p):
-    '''
-    Event function to reach maximum spring extension (transition to flight)
-    '''
-    return ((x[0]-x[4])**2 + (x[1]-x[5])**2) - p["resting_length"]**2
-liftoff_event.terminal = True
-liftoff_event.direction = 1
-
-def apex_event(t, x, p):
-    '''
-    Event function to reach apex
-    '''
-    return x[3]
-apex_event.terminal = True
-
 def compute_total_energy(x, p):
     # TODO: make this accept a trajectory, and output parts as well
-    return (p["mass"]/2*(x[2]**2+x[3]**2) +
-    p["gravity"]*p["mass"]*(x[1]) +
-    p["stiffness"]/2*
-    (p["resting_length"]-np.sqrt((x[0]-x[4])**2 + (x[1]-x[5])**2))**2)
+    return (p['mass']/2*(x[2]**2+x[3]**2) +
+    p['gravity']*p['mass']*(x[1]) +
+    p['stiffness']/2*
+    (p['resting_length']-np.sqrt((x[0]-x[4])**2 + (x[1]-x[5])**2))**2)
 
 ### Functions for Viability
 def map2e(x, p):
@@ -166,6 +179,6 @@ def mapSA2xp_height_angle(state_action, x, p):
     '''
     Specifically map state_actions to x and p
     '''
-    p['angle_of_attack'] = state_action[1]
+    AOA = state_action[1]
     x = map2x(x, p, state_action[0])
     return x, p
