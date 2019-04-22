@@ -1,5 +1,6 @@
 import numpy as np
 import scipy.integrate as integrate
+from numba import jit
 
 def poincare_map(x, p):
     '''
@@ -25,13 +26,14 @@ def step(x, p):
     STIFFNESS = p['stiffness']
     TOTAL_ENERGY = p['total_energy']
     SPECIFIC_STIFFNESS = p['stiffness'] / p['mass']
-    PI_HALF = np.pi / 2.0
     MAX_TIME = 5
 
+    @jit
     def flight_dynamics(t, x, p):
         # code in flight dynamics, xdot_ = f()
         return np.array([x[2], x[3], 0, -GRAVITY, x[2], x[3]])
 
+    @jit
     def stance_dynamics(t, x, p):
         # stance dynamics
         alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
@@ -42,6 +44,7 @@ def step(x, p):
                     leg_length)*np.cos(alpha) - GRAVITY
         return np.array([x[2], x[3], xdotdot, ydotdot, 0, 0])
 
+    @jit
     def fall_event(t, x, p):
         '''
         Event function to detect the body hitting the floor (failure)
@@ -50,6 +53,7 @@ def step(x, p):
     fall_event.terminal = True
     # TODO: direction
 
+    @jit
     def touchdown_event(t, x, p):
         '''
         Event function for foot touchdown (transition to stance)
@@ -60,6 +64,7 @@ def step(x, p):
     touchdown_event.terminal = True # no longer actually necessary...
     # direction
 
+    @jit
     def liftoff_event(t, x, p):
         '''
         Event function to reach maximum spring extension (transition to flight)
@@ -68,6 +73,7 @@ def step(x, p):
     liftoff_event.terminal = True
     liftoff_event.direction = 1
 
+    @jit
     def apex_event(t, x, p):
         '''
         Event function to reach apex
@@ -87,7 +93,6 @@ def step(x, p):
     # set integration options
 
     x0 = x
-    max_time = 5
     t0 = 0 # starting time
 
     # FLIGHT: simulate till touchdown
@@ -96,7 +101,7 @@ def step(x, p):
     for ev in events:
         ev.terminal = True
     sol = integrate.solve_ivp(fun = lambda t, x: flight_dynamics(t, x, p),
-        t_span = [t0, t0 + max_time], y0 = x0, events = events, max_step = 0.01)
+        t_span = [t0, t0 + MAX_TIME], y0 = x0, events = events, max_step = 0.01)
 
     # STANCE: simulate till liftoff
     events = [lambda t, x: fall_event(t, x, p),
@@ -106,7 +111,7 @@ def step(x, p):
     events[1].direction = 1 # only trigger when spring expands
     x0 = sol.y[:, -1]
     sol2 = integrate.solve_ivp(fun = lambda t, x: stance_dynamics(t, x, p),
-        t_span = [sol.t[-1], sol.t[-1] + max_time], y0 = x0,
+        t_span = [sol.t[-1], sol.t[-1] + MAX_TIME], y0 = x0,
         events=events, max_step=0.001)
 
     # FLIGHT: simulate till apex
@@ -117,7 +122,7 @@ def step(x, p):
 
     x0 = reset_leg(sol2.y[:, -1], p)
     sol3 = integrate.solve_ivp(fun = lambda t, x: flight_dynamics(t, x, p),
-        t_span = [sol2.t[-1], sol2.t[-1] + max_time], y0 = x0,
+        t_span = [sol2.t[-1], sol2.t[-1] + MAX_TIME], y0 = x0,
         events=events, max_step=0.01)
 
     # concatenate all solutions
@@ -156,7 +161,7 @@ def map2e(x, p):
     '''
     assert(np.isclose(x[3], 0))
     potential_energy = p['mass']*p['gravity']*x[1]
-    kinetic_energy = p['mass']/2*x[3]**2
+    kinetic_energy = p['mass']/2*x[2]**2
     return potential_energy/(potential_energy + kinetic_energy)
 
 def map2x(x, p, e):
@@ -179,6 +184,7 @@ def mapSA2xp_height_angle(state_action, x, p):
     '''
     Specifically map state_actions to x and p
     '''
-    AOA = state_action[1]
+    p['angle_of_attack'] = state_action[1]
     x = map2x(x, p, state_action[0])
+    x = reset_leg(x, p)
     return x, p
