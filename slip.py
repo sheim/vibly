@@ -28,13 +28,13 @@ def step(x, p):
     SPECIFIC_STIFFNESS = p['stiffness'] / p['mass']
     MAX_TIME = 5
 
-    @jit
-    def flight_dynamics(t, x, p):
+    @jit(nopython=True)
+    def flight_dynamics(t, x):
         # code in flight dynamics, xdot_ = f()
         return np.array([x[2], x[3], 0, -GRAVITY, x[2], x[3]])
 
-    @jit
-    def stance_dynamics(t, x, p):
+    @jit(nopython=True)
+    def stance_dynamics(t, x):
         # stance dynamics
         alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
         leg_length = np.hypot(x[0]-x[4], x[1]-x[5])
@@ -44,28 +44,28 @@ def step(x, p):
                     leg_length)*np.cos(alpha) - GRAVITY
         return np.array([x[2], x[3], xdotdot, ydotdot, 0, 0])
 
-    @jit
-    def fall_event(t, x, p):
+    @jit(nopython=True)
+    def fall_event(t, x):
         '''
         Event function to detect the body hitting the floor (failure)
         '''
         return x[1]
     fall_event.terminal = True
-    # TODO: direction
+    fall_event.terminal = -1
 
-    @jit
-    def touchdown_event(t, x, p):
+    @jit(nopython=True)
+    def touchdown_event(t, x):
         '''
         Event function for foot touchdown (transition to stance)
         '''
-            # x[1]- np.cos(p['angle_of_attack'])*RESTING_LENGTH 
+            # x[1]- np.cos(p['angle_of_attack'])*RESTING_LENGTH
             # (which is = x[5])
         return x[5]
     touchdown_event.terminal = True # no longer actually necessary...
-    # direction
+    touchdown_event.direction = -1
 
-    @jit
-    def liftoff_event(t, x, p):
+    @jit(nopython=True)
+    def liftoff_event(t, x):
         '''
         Event function to reach maximum spring extension (transition to flight)
         '''
@@ -73,8 +73,8 @@ def step(x, p):
     liftoff_event.terminal = True
     liftoff_event.direction = 1
 
-    @jit
-    def apex_event(t, x, p):
+    @jit(nopython=True)
+    def apex_event(t, x):
         '''
         Event function to reach apex
         '''
@@ -96,32 +96,35 @@ def step(x, p):
     t0 = 0 # starting time
 
     # FLIGHT: simulate till touchdown
-    events = [lambda t, x: fall_event(t, x, p),
-        lambda t, x: touchdown_event(t, x, p)]
-    for ev in events:
-        ev.terminal = True
-    sol = integrate.solve_ivp(fun = lambda t, x: flight_dynamics(t, x, p),
+    # events = [lambda t, x: fall_event(t, x),
+    #     lambda t, x: touchdown_event(t, x)]
+    # for ev in events:
+    #     ev.terminal = True
+    events = [fall_event, touchdown_event]
+    sol = integrate.solve_ivp(flight_dynamics,
         t_span = [t0, t0 + MAX_TIME], y0 = x0, events = events, max_step = 0.01)
 
     # STANCE: simulate till liftoff
-    events = [lambda t, x: fall_event(t, x, p),
-        lambda t, x: liftoff_event(t, x, p)]
-    for ev in events:
-        ev.terminal = True
-    events[1].direction = 1 # only trigger when spring expands
+    # events = [lambda t, x: fall_event(t, x),
+    #     lambda t, x: liftoff_event(t, x)]
+    events = [fall_event, liftoff_event]
+    # for ev in events:
+    #     ev.terminal = True
+    # events[1].direction = 1 # only trigger when spring expands
     x0 = sol.y[:, -1]
-    sol2 = integrate.solve_ivp(fun = lambda t, x: stance_dynamics(t, x, p),
+    sol2 = integrate.solve_ivp(stance_dynamics,
         t_span = [sol.t[-1], sol.t[-1] + MAX_TIME], y0 = x0,
         events=events, max_step=0.001)
 
     # FLIGHT: simulate till apex
-    events = [lambda t, x: fall_event(t, x, p),
-        lambda t, x: apex_event(t, x, p)]
-    for ev in events:
-        ev.terminal = True
+    # events = [lambda t, x: fall_event(t, x),
+    #     lambda t, x: apex_event(t, x)]
+    events = [fall_event, apex_event]
+    # for ev in events:
+    #     ev.terminal = True
 
     x0 = reset_leg(sol2.y[:, -1], p)
-    sol3 = integrate.solve_ivp(fun = lambda t, x: flight_dynamics(t, x, p),
+    sol3 = integrate.solve_ivp(flight_dynamics,
         t_span = [sol2.t[-1], sol2.t[-1] + MAX_TIME], y0 = x0,
         events=events, max_step=0.01)
 
