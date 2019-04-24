@@ -7,7 +7,6 @@ from slip import map2x, map2e
 
 def compute_Q_2D(s_grid, a_grid, poincare_map):
     ''' Compute the transition map of a system with 1D state and 1D action
-
     NOTES
     - s_grid and a_grid have to be iterable lists of lists
     e.g. if they have only 1 dimension, they should be `s_grid = ([1, 2], )`
@@ -28,9 +27,9 @@ def compute_Q_2D(s_grid, a_grid, poincare_map):
     for idx, state_action in enumerate(it.product(s_grid, a_grid)):
         # print(state_action)
         x, p = poincare_map.sa2xp(state_action, poincare_map.x, poincare_map.p)
-        print('*** '+str(idx)+' ***')
-        print(x)
-        print(p['angle_of_attack'])
+        # print('*** '+str(idx)+' ***')
+        # print(x)
+        # print(p['angle_of_attack'])
         x_next, failed = poincare_map(x, p)
 
         if not failed:
@@ -75,7 +74,7 @@ def compute_QV_2D(Q_map, grids, Q_V = None):
 
     # Take Q_map as the non-failing set if Q_N is omitted
     if Q_V is None:
-        Q_V=Q_map
+        Q_V=np.copy(Q_map)
         Q_V[Q_V>0] = 1
 
     S_old = np.zeros((Q_V.shape[0], 1))
