@@ -1,4 +1,4 @@
-from slip import *
+from slippy.slip import *
 import numpy as np
 import matplotlib.pyplot as plt
 

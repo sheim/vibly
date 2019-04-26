@@ -3,7 +3,7 @@
 import itertools as it
 import numpy as np
 # from utilities import map2e, map2x
-from slip import map2x, map2e
+from slippy.slip import map2x, map2e # this should be refactored
 
 def compute_Q_2D(s_grid, a_grid, poincare_map):
     ''' Compute the transition map of a system with 1D state and 1D action
