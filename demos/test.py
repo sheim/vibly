@@ -10,8 +10,8 @@ x0 = np.array([0, # x position
     0, # y velocity
     0, # foot position x
     0]) # foot position y
-p['total_energy'] = compute_total_energy(x0, p)
 x0 = reset_leg(x0, p)
+p['total_energy'] = compute_total_energy(x0, p)
 sol = step(x0, p)
 
 plt.plot(sol.y[0], sol.y[1], color='orange')
