@@ -7,8 +7,23 @@ def poincare_map(x, p):
     Wrapper function for step function, returning only x_next, and -1 if failed
     Essentially, the Poincare map.
     '''
-    sol = step(x, p)
-    return sol.y[:, -1], sol.failed
+    if type(p) is dict:
+        sol = step(x, p)
+        return sol.y[:, -1], sol.failed
+    elif type(p) is tuple:
+        vector_of_x = np.zeros(x.shape) # initialize result array
+        vector_of_fail = np.zeros(x.shape[1])
+        # TODO: for shorthand, allow just a single tuple to be passed in
+        # this can be done easily with itertools
+        for idx, p0 in enumerate(p):
+            sol = step(x[:, idx], p0) # p0 = p[idx]
+            vector_of_x[:, idx] = sol.y[:, -1]
+            vector_of_fail[idx] = sol.failed
+        return (vector_of_x, vector_of_fail)
+    else:
+        print("WARNING: I got a parameter type that I don't understand.")
+        return x
+
 
 def step(x, p):
     '''
