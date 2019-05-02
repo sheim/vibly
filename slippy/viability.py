@@ -23,13 +23,13 @@ def compute_Q_2D(s_grid, a_grid, poincare_map):
 
     # TODO: also compute transitions diff maps etc.
     # QTransition = Q_map
-
+    n = len(s_grid)*len(a_grid)
     for idx, state_action in enumerate(it.product(s_grid, a_grid)):
         # print(state_action)
+        if idx%(n/10)==0:
+            print('.', end=' ')
         x, p = poincare_map.sa2xp(state_action, poincare_map.x, poincare_map.p)
-        # print('*** '+str(idx)+' ***')
-        # print(x)
-        # print(p['angle_of_attack'])
+
         x_next, failed = poincare_map(x, p)
 
         if not failed:
@@ -88,3 +88,49 @@ def compute_QV_2D(Q_map, grids, Q_V = None):
         S_V = project_Q2S_2D(Q_V)
 
     return Q_V, S_V
+
+###### Reimplement everything as N-D
+
+def compute_Q_map(s_grid, a_grid, poincare_map):
+    ''' Compute the transition map of a system with 1D state and 1D action
+    NOTES
+    - s_grid and a_grid have to be iterable lists of lists
+    e.g. if they have only 1 dimension, they should be `s_grid = ([1, 2], )`
+    - use poincare_map to carry parameters
+    '''
+
+    # initialize 1D, reshape later
+    s_bins = np.prod(list(map(np.size, s_grid)))
+    a_bins = np.prod(list(map(np.size, a_grid)))
+    total_bins = s_bins*a_bins
+
+    Q_map = np.zeros((total_bins, 1))
+    Q_F = np.zeros((total_bins, 1))
+
+    # TODO: also compute transitions diff maps etc.
+    # TODO: generate purely with numpy (meshgrids?).
+    # TODO ... since converting lists to np.arrays is slow
+    # QTransition = Q_map
+    for idx, state_action in enumerate(np.array(list(
+            it.product(*s_grid, *a_grid)))):
+
+        # NOTE: requires running python unbuffered (python -u)
+        if idx%(total_bins/10)==0:
+            print('.', end=' ')
+
+        x, p = poincare_map.sa2xp(state_action, poincare_map.x, poincare_map.p)
+
+        x_next, failed = poincare_map(x, p)
+
+        if not failed:
+            s_next = map2e(x_next, p)
+            # note: Q_map is implicitly already excluding transitions that
+            # move straight to a failure. While this is not equivalent to the
+            # algorithm in the paper, for our systems it is a bit more efficient
+            Q_map[idx] = s_next
+        else:
+            Q_F[idx] = 1
+
+    Q_map = Q_map.reshape(list(map(np.size, s_grid))+list(map(np.size, a_grid)))
+    Q_F = Q_F.reshape(list(map(np.size, s_grid))+list(map(np.size, a_grid)))
+    return ( Q_map, Q_F)
