@@ -22,8 +22,9 @@ grids = {'states':s_grid, 'actions':a_grid}
 Q_V, S_V = compute_QV_2D(Q_map, grids)
 
 # save file
-
-np.savez('test_computeQ2D.npz',s_grid, a_grid, Q_map, Q_F, Q_V, S_V)
+data2save = {"s_grid": s_grid, "a_grid": a_grid, "Q_map": Q_map, "Q_F": Q_F,
+    "Q_V": Q_V, "S_V": S_V}
+np.savez('test_computeQ2D.npz', **data2save)
 
 plt.imshow(Q_map)
 plt.show()
