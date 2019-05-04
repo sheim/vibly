@@ -10,6 +10,6 @@ x0 = reset_leg(x0, p)
 p['total_energy'] = compute_total_energy(x0, p)
 sol = step(x0, p)
 
-print(timeit.timeit('lambda x0, p: step', globals=globals()),number=10000)
+print(timeit.timeit('lambda x0, p: step', globals=globals()))
 
 #################
