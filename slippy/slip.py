@@ -3,7 +3,7 @@ import scipy.integrate as integrate
 from numba import jit
 import sys
 
-def limit_cycle(x,p):
+def limit_cycle(x, p, p_key_name, p_key_width):
     '''
     Iterates over the angle of attack of the leg until a limit cycle is reached. 
     '''
@@ -15,16 +15,13 @@ def limit_cycle(x,p):
     limit_cycle_found = False
 
     if type(p) is dict:
-      if p['damping'] > 0:
-        print("limit_cycle: damping is ignored")
+      if p['damping'] > 0 and (p['open_loop_time_force_series'] == False):
+        print("limit_cycle: does not exist - model is damped and has no energy input")
+        limit_cycle_found=False
+        return (p,limit_cycle_found)
 
-      #This will only affect the local copy of p according to
-      #  https://www.python-course.eu/passing_arguments.php
-      damping = p['damping']
-      p['damping'] = 0.
-      
-      #Use the bisection method to get a good initial guess for angle_of_attack
-      angle_delta = np.pi*0.25
+      #Use the bisection method to get a good initial guess for key
+      key_delta = p_key_width
 
       #Initial solution      
       x                 = reset_leg(x,p)
@@ -37,17 +34,17 @@ def limit_cycle(x,p):
       err_left    = 0
       err_right   = 0
 
-      angle_of_attack = p['angle_of_attack']
+      key = p[p_key_name]
 
       #After this for loop returns the angle of attack will be known to
       # a tolerance of pi/4 / 2^(max_iter_bisection)      
       for i in range(0,max_iter_bisection):
-        p['angle_of_attack'] = angle_of_attack-angle_delta
+        p[p_key_name] = key-key_delta
         x = reset_leg(x,p)
         (pm_left, left_step_failed) = poincare_map(x,p)      
         err_left = np.abs(pm_left[1]-x[1])
 
-        p['angle_of_attack'] = angle_of_attack+angle_delta
+        p[p_key_name] = key+key_delta
         x = reset_leg(x,p)
         (pm_right, right_step_failed) = poincare_map(x,p)
         err_right= np.abs(pm_right[1]-x[1])
@@ -55,14 +52,14 @@ def limit_cycle(x,p):
         if( (err_left < err       and left_step_failed==False) and 
             (err_left <= err_right or right_step_failed==True)):
           err = err_left
-          angle_of_attack=angle_of_attack-angle_delta
+          key=key-key_delta
 
         if( (err_right < err     and right_step_failed==False) and 
             (err_right < err_left or left_step_failed==True)):
           err = err_right
-          angle_of_attack = angle_of_attack+angle_delta
+          key = key+key_delta
 
-        angle_delta = 0.5*angle_delta
+        key_delta = 0.5*key_delta
       
       #Polish the root using Newton's method
    
@@ -71,25 +68,25 @@ def limit_cycle(x,p):
       while np.abs(err) > tol_newton and iter < max_iter_newton:
 
         #Compute the error
-        p['angle_of_attack'] = angle_of_attack
+        p[p_key_name] = key
         x = reset_leg(x,p)
         (pm, step_failed) = poincare_map(x,p)      
         err = pm[1]-x[1]
 
-        #Compute D(error)/D(angle_of_attack) using a numerical derivative
-        p['angle_of_attack'] = angle_of_attack-h
+        #Compute D(error)/D(key) using a numerical derivative
+        p[p_key_name] = key-h
         x = reset_leg(x,p)
         (pm, step_failed) = poincare_map(x,p)      
         errL = pm[1]-x[1]
 
-        p['angle_of_attack'] = angle_of_attack+h
+        p[p_key_name] = key+h
         x = reset_leg(x,p)
         (pm, step_failed) = poincare_map(x,p)      
         errR = pm[1]-x[1]
 
         #Compute a Newton step and take it
-        DerrDangle = (errR-errL)/(2*h)
-        angle_of_attack = angle_of_attack -err/DerrDangle
+        DerrDkey = (errR-errL)/(2*h)
+        key = key -err/DerrDkey
         iter=iter+1
 
       if np.abs(err) > tol_newton:
@@ -98,13 +95,11 @@ def limit_cycle(x,p):
       else:
         limit_cycle_found = True
 
-      p['angle_of_attack'] = angle_of_attack
-      p['damping']=damping
+      p[p_key_name] = key
       return (p,limit_cycle_found)
 
-
     else:
-        print("WARNING: I got a parameter type that I don't understand.")
+        print("WARNING: p is not a dict and should be.")
         return p
 
 
