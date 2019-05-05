@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import sys 
 from matplotlib import gridspec
 
+flag_savePlotsToPdf = False
 daslip_height_purturbation= 0.0
 
 # Human readable state index labels and enums. 
@@ -172,10 +173,10 @@ gsBasic= gridspec.GridSpec(1, 2, width_ratios=[1, 1])
 
 ax=plt.subplot(gsBasic[0])
 ax.plot(sol_slip.y[x_c], sol_slip.y[y_c], 
-        color=color_slip, linewidth=linewidth_thick,label='slip')
+        color=color_slip, linewidth=linewidth_thick,label='SLIP')
 ax.plot(sol_daslip.y[x_c],sol_daslip.y[y_c], 
         color=color_daslip, linewidth=linewidth_thin,
-        linestyle='--',label='daslip')
+        linestyle='--',label='DASLIP')
 
 plt.legend()
 plt.legend(frameon=False)
@@ -190,6 +191,8 @@ ax.spines['right'].set_visible(False)
 ax.spines['top'].set_visible(False)
 ax.yaxis.set_ticks_position('left')
 ax.xaxis.set_ticks_position('bottom')   
+
+plt.tight_layout()
 
 #Open-Loop Function
 ax=plt.subplot(gsBasic[1])
@@ -207,7 +210,8 @@ ax.xaxis.set_ticks_position('bottom')
 
 plt.tight_layout()
 
-plt.savefig('fig_slip_daslip_basic.pdf')
+if(flag_savePlotsToPdf==True):
+    plt.savefig('fig_slip_daslip_basic.pdf')
 
 
 #========================================
@@ -220,7 +224,7 @@ gsDebug= gridspec.GridSpec(2, 3, width_ratios=[1, 1, 1])
 #Kinematic Error Between Slip-Daslip
 ax=plt.subplot(gsDebug[0])
 plt.plot(sol_daslip.t, sol_daslip_err, 
-         color=color_daslip, linewidth=linewidth_thin,label='daslip')
+         color=color_daslip, linewidth=linewidth_thin,label='DASLIP')
 
 plt.xlabel('Time (s)')
 plt.ylabel('Distance')
@@ -236,24 +240,26 @@ plt.tight_layout()
 #Energy Balance
 ax=plt.subplot(gsDebug[1])
 ax.plot(sol_slip.t, tvw_slip_error, 
-        color=color_slip, linewidth=linewidth_thick,label='slip')
+        color=color_slip, linewidth=linewidth_thick,label='SLIP')
 ax.plot(sol_daslip.t, tvw_daslip_error, 
-        color=color_daslip, linewidth=linewidth_thin,linestyle='--',label='daslip')        
+        color=color_daslip, linewidth=linewidth_thin,linestyle='--',label='DASLIP')        
 plt.xlabel('Time (s)')
 plt.ylabel('Energy (J)')
-plt.title('$T+V-W - (T_0+V_0)$')
+plt.title('$T+V-W$')
 
 ax.spines['right'].set_visible(False)
 ax.spines['top'].set_visible(False)
 ax.yaxis.set_ticks_position('left')
 ax.xaxis.set_ticks_position('bottom')   
 
+plt.tight_layout()
+
 #Spring Lengths
 ax=plt.subplot(gsDebug[2])
 ax.plot(sol_slip.t, slip_spring_deflection[0], 
-        color=color_slip, linewidth=linewidth_thick,label='slip')
+        color=color_slip, linewidth=linewidth_thick,label='SLIP')
 ax.plot(sol_daslip.t, daslip_spring_deflection[0], 
-        color=color_daslip, linewidth=linewidth_thin,linestyle='--',label='daslip')        
+        color=color_daslip, linewidth=linewidth_thin,linestyle='--',label='DASLIP')        
 plt.xlabel('Time (s)')
 plt.ylabel('Length (m)')
 plt.title('Spring Deflection')
@@ -263,13 +269,14 @@ ax.spines['top'].set_visible(False)
 ax.yaxis.set_ticks_position('left')
 ax.xaxis.set_ticks_position('bottom')   
 
+plt.tight_layout()
 
 #Kinetic Energy
 ax=plt.subplot(gsDebug[3])
 ax.plot(sol_slip.t, tvw_slip[0], 
-        color=color_slip, linewidth=linewidth_thick,label='slip')
+        color=color_slip, linewidth=linewidth_thick,label='SLIP')
 ax.plot(sol_daslip.t,tvw_daslip[0], 
-        color=color_daslip, linewidth=linewidth_thin,linestyle='--',label='daslip')
+        color=color_daslip, linewidth=linewidth_thin,linestyle='--',label='DASLIP')
 plt.xlabel('Time (s)')
 plt.ylabel('Energy (J)')
 plt.title('Kinetic Energy')
@@ -279,12 +286,14 @@ ax.spines['top'].set_visible(False)
 ax.yaxis.set_ticks_position('left')
 ax.xaxis.set_ticks_position('bottom')   
 
+plt.tight_layout()
+
 #Potential Energy
 ax=plt.subplot(gsDebug[4])
 ax.plot(sol_slip.t, tvw_slip[1], 
-        color=color_slip, linewidth=linewidth_thick,label='slip')
+        color=color_slip, linewidth=linewidth_thick,label='SLIP')
 ax.plot(sol_daslip.t,tvw_daslip[1], 
-        color=color_daslip, linewidth=linewidth_thin,linestyle='--',label='daslip')
+        color=color_daslip, linewidth=linewidth_thin,linestyle='--',label='DASLIP')
 plt.xlabel('Time (s)')
 plt.ylabel('Energy (J)')
 plt.title('Potential Energy')
@@ -294,12 +303,14 @@ ax.spines['top'].set_visible(False)
 ax.yaxis.set_ticks_position('left')
 ax.xaxis.set_ticks_position('bottom')  
 
+plt.tight_layout()
+
 #Work
 ax=plt.subplot(gsDebug[5])
 ax.plot(sol_slip.t, tvw_slip[2], 
-        color=color_slip, linewidth=linewidth_thick,label='slip')
+        color=color_slip, linewidth=linewidth_thick,label='SLIP')
 ax.plot(sol_daslip.t,tvw_daslip[2], 
-        color=color_daslip, linewidth=linewidth_thin,linestyle='--',label='daslip')
+        color=color_daslip, linewidth=linewidth_thin,linestyle='--',label='DASLIP')
 plt.xlabel('Time (s)')
 plt.ylabel('Energy (J)')
 plt.title('Work')
@@ -311,6 +322,7 @@ ax.xaxis.set_ticks_position('bottom')
 
 plt.tight_layout()
 
-plt.savefig('fig_slip_daslip_detail.pdf')
+if(flag_savePlotsToPdf==True):
+    plt.savefig('fig_slip_daslip_detail.pdf')
 
 plt.show()
