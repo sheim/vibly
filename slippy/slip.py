@@ -164,8 +164,6 @@ def step(x, p):
     ACTUATOR_SPECIFIC_DAMPING = ACTUATOR_DAMPING/MASS
     ACTUATOR_SPECIFIC_FORCE   = ACTUATOR_FORCE/MASS
 
-    #RESTING_LENGTH  = SPRING_RESTING_LENGTH + ACTUATOR_RESTING_LENGTH
-
 #    @jit(nopython=True)
     def flight_dynamics(t, x):
         # code in flight dynamics, xdot_ = f()
@@ -184,21 +182,18 @@ def step(x, p):
         leg_length = np.hypot(x[0]-x[4], x[1]-x[5])
         output = x
 
+        spring_length = compute_spring_length(x,p)
+        spring_force  = -STIFFNESS*(spring_length-SPRING_RESTING_LENGTH)
+
+        ldotdot = spring_force/MASS 
+        xdotdot = -ldotdot*np.sin(alpha)
+        ydotdot =  ldotdot*np.cos(alpha) - GRAVITY
+        
         if MODEL_TYPE == 0:
-            spring_length = leg_length - ACTUATOR_RESTING_LENGTH
-            spring_force  = -STIFFNESS*(spring_length-SPRING_RESTING_LENGTH)
-
-            ldotdot = spring_force/MASS 
-            xdotdot = -ldotdot*np.sin(alpha)
-            ydotdot =  ldotdot*np.cos(alpha) - GRAVITY
             output = np.array([x[2], x[3], xdotdot, ydotdot, 0, 0])
-
         elif MODEL_TYPE == 1:
-            spring_length = leg_length - x[6]
-            spring_force  = -STIFFNESS*(spring_length-SPRING_RESTING_LENGTH)
-
             actuator_open_loop_force = 0
-            if p['actuator_force'].any():
+            if np.shape(p['actuator_force'])[0] > 0:
                 actuator_open_loop_force = np.interp(t, 
                     p['actuator_force'][0,:],
                     p['actuator_force'][1,:],
@@ -209,12 +204,12 @@ def step(x, p):
             ladot = -actuator_damping_force/ACTUATOR_DAMPING
             wadot = (actuator_damping_force+actuator_open_loop_force)*ladot
 
-            ldotdot = (actuator_open_loop_force+actuator_damping_force)/MASS
-            xdotdot = -ldotdot*np.sin(alpha)
-            ydotdot =  ldotdot*np.cos(alpha) - GRAVITY
-
+            #These forces are identical to the slip: there's no (other) mass 
+            # between the spring and the point mass
+            #ldotdot = (actuator_open_loop_force+actuator_damping_force)/MASS
+            #xdotdot = -ldotdot*np.sin(alpha)
+            #ydotdot =  ldotdot*np.cos(alpha) - GRAVITY
             output = np.array([x[2], x[3], xdotdot, ydotdot, 0, 0, ladot, wadot])
-
         else:
             raise Exception('model_type is not set correctly')
 
@@ -245,16 +240,8 @@ def step(x, p):
         '''
         Event function to reach maximum spring extension (transition to flight)
         '''
-        event_val = 0
-        if MODEL_TYPE == 0:
-            event_val = (((x[0]-x[4])**2 + (x[1]-x[5])**2) - 
-                (SPRING_RESTING_LENGTH+ACTUATOR_RESTING_LENGTH)**2)
-        elif MODEL_TYPE == 1:
-            event_val = (((x[0]-x[4])**2 + (x[1]-x[5])**2) - 
-                (x[6]+SPRING_RESTING_LENGTH)**2)
-        else:
-            raise Exception('model_type is not set correctly')   
-
+        spring_length = compute_spring_length(x,p)
+        event_val = spring_length - SPRING_RESTING_LENGTH
         return event_val            
     liftoff_event.terminal = True
     liftoff_event.direction = 1
@@ -319,7 +306,7 @@ def step(x, p):
     sol.t = np.concatenate((sol.t, sol2.t, sol3.t))
     sol.y = np.concatenate((sol.y, sol2.y, sol3.y), axis = 1)
     sol.t_events += sol2.t_events + sol3.t_events
-
+    
     # TODO: mark different phases
     for fail_idx in (0, 2, 4):
         if sol.t_events[fail_idx].size != 0: # if empty
@@ -335,49 +322,45 @@ def create_actuator_open_loop_time_series(step_sol, p):
     MODEL_TYPE = p['model_type']
     assert( MODEL_TYPE == 0 or MODEL_TYPE == 1)
 
-    SPRING_RESTING_LENGTH = p['spring_resting_length']
-    STIFFNESS = p['stiffness']    
-    ACTUATOR_RESTING_LENGTH = p['actuator_resting_length']
-
     actuator_time_force = np.zeros(shape=(2,len(step_sol.t)))
     for i in range(0, len(step_sol.t)):
-        leg_length = np.sqrt( (step_sol.y[0,i]-step_sol.y[4,i])**2 
-                            + (step_sol.y[1,i]-step_sol.y[5,i])**2)
-        if MODEL_TYPE == 0:
-            spring_length = leg_length - ACTUATOR_RESTING_LENGTH
-        elif MODEL_TYPE == 1:
-            spring_length = leg_length - step_sol.y[6,i]
-
-        spring_force  = -STIFFNESS*(spring_length-SPRING_RESTING_LENGTH)
+        spring_length = compute_spring_length(step_sol.y[:,i],p)
+        spring_force  = -p['stiffness']*(spring_length-p['spring_resting_length'])
         actuator_time_force[0,i] = step_sol.t[i]
         actuator_time_force[1,i] = spring_force
 
     return actuator_time_force
+
+def compute_spring_length(x,p):
+    spring_length = 0    
+    leg_length = np.sqrt( (x[0]-x[4])**2 
+                        + (x[1]-x[5])**2)
+    if p['model_type'] == 0:
+        spring_length = leg_length - p['actuator_resting_length']
+    elif p['model_type'] == 1:
+        spring_length = leg_length - x[6]
+    else:
+        raise Exception('model_type is not set correctly')       
+
+    return spring_length
 
 def reset_leg(x, p):
     x[4] = x[0] + np.sin(p['angle_of_attack'])*(
                     p['spring_resting_length']+p['actuator_resting_length'])
     x[5] = x[1] - np.cos(p['angle_of_attack'])*(
                     p['spring_resting_length']+p['actuator_resting_length'])
+    if(p['model_type'] == 1):
+        x[6] = p['actuator_resting_length']                    
     return x
 
 def compute_total_energy(x, p):
     # TODO: make this accept a trajectory, and output parts as well
     energy = 0
-    if p['model_type'] == 0:
-        energy=(p['mass']/2*(x[2]**2+x[3]**2) + p['gravity']*p['mass']*(x[1]) +
-        p['stiffness']/2*(
-            p['spring_resting_length']+p['actuator_resting_length']
-            -np.sqrt((x[0]-x[4])**2 + (x[1]-x[5])**2))**2)
+    spring_length = compute_spring_length(x,p)
+    energy=(p['mass']/2*(x[2]**2+x[3]**2) 
+    + p['gravity']*p['mass']*(x[1]) + 
+    p['stiffness']/2*(spring_length-p['spring_resting_length'])**2)
             
-    elif p['model_type'] == 1:
-        energy=(p['mass']/2*(x[2]**2+x[3]**2) + p['gravity']*p['mass']*(x[1]) +
-        p['stiffness']/2*(
-            p['spring_resting_length']+x[6] 
-            -np.sqrt((x[0]-x[4])**2 + (x[1]-x[5])**2))**2)
-    else:
-        raise Exception('model_type is not set correctly')       
-
     return energy
         
 def compute_potential_kinetic_work_total(sol,p):
@@ -385,17 +368,12 @@ def compute_potential_kinetic_work_total(sol,p):
     cols = np.shape(sol)[1]
     t_v_w = np.zeros((4,cols))
     for i in range(0, cols):
-
-        t_v_w[0,i] = p['mass']/2*(sol[2,i]**2+sol[3,i]**2)
-
-        leg_length = np.hypot(sol[0,i]-sol[4,i], sol[1,i]-sol[5,i])
-        spring_length = 0
+        spring_length = compute_spring_length(sol[:,i],p)
         work = 0
 
         if p['model_type'] == 0:
-            spring_length = leg_length - p['actuator_resting_length']            
+            work = 0.  
         elif p['model_type'] == 1:
-            spring_length = leg_length - sol[6,i]
             work = sol[7,i]
         else:
             raise Exception('model_type is not set correctly')  
@@ -403,7 +381,8 @@ def compute_potential_kinetic_work_total(sol,p):
         spring_energy  = 0.5*p['stiffness']*(
                 spring_length-p['spring_resting_length'])**2
 
-        t_v_w[1,i] =     p['gravity']*p['mass']*(sol[1,i]) + spring_energy
+        t_v_w[0,i] = p['mass']/2*(sol[2,i]**2+sol[3,i]**2)
+        t_v_w[1,i] = p['gravity']*p['mass']*(sol[1,i]) + spring_energy
         t_v_w[2,i] = work
         t_v_w[3,i] = t_v_w[0,i]+t_v_w[1,i]-t_v_w[2,i]
 
