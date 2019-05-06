@@ -1,4 +1,5 @@
 ./data/
+./scratchpad/
 
 # Compiled python modules.
 *.pyc

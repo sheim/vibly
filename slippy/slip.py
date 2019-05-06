@@ -7,8 +7,23 @@ def poincare_map(x, p):
     Wrapper function for step function, returning only x_next, and -1 if failed
     Essentially, the Poincare map.
     '''
-    sol = step(x, p)
-    return sol.y[:, -1], sol.failed
+    if type(p) is dict:
+        sol = step(x, p)
+        return sol.y[:, -1], sol.failed
+    elif type(p) is tuple:
+        vector_of_x = np.zeros(x.shape) # initialize result array
+        vector_of_fail = np.zeros(x.shape[1])
+        # TODO: for shorthand, allow just a single tuple to be passed in
+        # this can be done easily with itertools
+        for idx, p0 in enumerate(p):
+            sol = step(x[:, idx], p0) # p0 = p[idx]
+            vector_of_x[:, idx] = sol.y[:, -1]
+            vector_of_fail[idx] = sol.failed
+        return (vector_of_x, vector_of_fail)
+    else:
+        print("WARNING: I got a parameter type that I don't understand.")
+        return x
+
 
 def step(x, p):
     '''
@@ -18,7 +33,7 @@ def step(x, p):
 
     # * nested functions - scroll down to step code * #
 
-    # unpacking constants
+    # unpacking constants for faster lookup
     AOA = p['angle_of_attack']
     GRAVITY = p['gravity']
     MASS = p['mass']
@@ -81,13 +96,22 @@ def step(x, p):
         return x[3]
     apex_event.terminal = True
 
+
+    @jit(nopython=True)
+    def reversal_event(t, x):
+        '''
+        Event function for direction reversal
+        '''
+        return x[2]
+    reversal_event.terminal = True
+    reversal_event.direction = -1
+
     # * Start of step code * #
 
     # TODO: properly update sol object with all info, not just the trajectories
 
     # take one step (apex to apex)
-    # the "step" function in MATLAB
-    # x is the state vector, a list or np.array
+    # x is the state vector, or np.array
     # p is a dict with all the parameters
 
     # set integration options
@@ -96,32 +120,19 @@ def step(x, p):
     t0 = 0 # starting time
 
     # FLIGHT: simulate till touchdown
-    # events = [lambda t, x: fall_event(t, x),
-    #     lambda t, x: touchdown_event(t, x)]
-    # for ev in events:
-    #     ev.terminal = True
     events = [fall_event, touchdown_event]
     sol = integrate.solve_ivp(flight_dynamics,
         t_span = [t0, t0 + MAX_TIME], y0 = x0, events = events, max_step = 0.01)
 
     # STANCE: simulate till liftoff
-    # events = [lambda t, x: fall_event(t, x),
-    #     lambda t, x: liftoff_event(t, x)]
-    events = [fall_event, liftoff_event]
-    # for ev in events:
-    #     ev.terminal = True
-    # events[1].direction = 1 # only trigger when spring expands
+    events = [fall_event, liftoff_event, reversal_event]
     x0 = sol.y[:, -1]
     sol2 = integrate.solve_ivp(stance_dynamics,
         t_span = [sol.t[-1], sol.t[-1] + MAX_TIME], y0 = x0,
         events=events, max_step=0.001)
 
     # FLIGHT: simulate till apex
-    # events = [lambda t, x: fall_event(t, x),
-    #     lambda t, x: apex_event(t, x)]
-    events = [fall_event, apex_event]
-    # for ev in events:
-    #     ev.terminal = True
+    events = [apex_event, fall_event]
 
     x0 = reset_leg(sol2.y[:, -1], p)
     sol3 = integrate.solve_ivp(flight_dynamics,
@@ -133,8 +144,8 @@ def step(x, p):
     sol.y = np.concatenate((sol.y, sol2.y, sol3.y), axis = 1)
     sol.t_events += sol2.t_events + sol3.t_events
 
-    # TODO: mark different phases
-    for fail_idx in (0, 2, 4):
+    # TODO: check for failure explicitly instead of based on terminal conditions
+    for fail_idx in (0, 2, 4, 6):
         if sol.t_events[fail_idx].size != 0: # if empty
             sol.failed = True
             break

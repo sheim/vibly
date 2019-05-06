@@ -23,13 +23,13 @@ def compute_Q_2D(s_grid, a_grid, poincare_map):
 
     # TODO: also compute transitions diff maps etc.
     # QTransition = Q_map
-
+    n = len(s_grid)*len(a_grid)
     for idx, state_action in enumerate(it.product(s_grid, a_grid)):
         # print(state_action)
+        if idx%(n/10)==0:
+            print('.', end=' ')
         x, p = poincare_map.sa2xp(state_action, poincare_map.x, poincare_map.p)
-        # print('*** '+str(idx)+' ***')
-        # print(x)
-        # print(p['angle_of_attack'])
+
         x_next, failed = poincare_map(x, p)
 
         if not failed:
@@ -52,7 +52,7 @@ def project_Q2S_2D(Q):
             S[sdx] = 1
     return S
 
-def outside_2D(s, s_grid, S_level_set):
+def is_outside_2D(s, S_level_set, s_grid):
     '''
     given a level set S, check if s is inside S or not
     '''
@@ -82,9 +82,111 @@ def compute_QV_2D(Q_map, grids, Q_V = None):
     while np.array_equal(S_V, S_old):
         for qdx, is_viable in enumerate(np.nditer(Q_V)): # compare with np.enum
             if is_viable: # only check previously viable (s, a)
-                if outside_2D(Q_map[qdx], S_V, grids['states']):
+                if is_outside_2D(Q_map[qdx], S_V, grids['states']):
                     Q_V[qdx] = 0 # remove
         S_old = S_V
         S_V = project_Q2S_2D(Q_V)
 
     return Q_V, S_V
+
+###### Reimplement everything as N-D
+
+def compute_Q_map(s_grid, a_grid, poincare_map):
+    ''' Compute the transition map of a system with 1D state and 1D action
+    NOTES
+    - s_grid and a_grid have to be iterable lists of lists
+    e.g. if they have only 1 dimension, they should be `s_grid = ([1, 2], )`
+    - use poincare_map to carry parameters
+    '''
+
+    # initialize 1D, reshape later
+    s_bins = np.prod(list(map(np.size, s_grid)))
+    a_bins = np.prod(list(map(np.size, a_grid)))
+    total_bins = s_bins*a_bins
+
+    Q_map = np.zeros((total_bins, 1))
+    Q_F = np.zeros((total_bins, 1))
+
+    # TODO: also compute transitions diff maps etc.
+    # TODO: generate purely with numpy (meshgrids?).
+    # TODO ... since converting lists to np.arrays is slow
+    # QTransition = Q_map
+    for idx, state_action in enumerate(np.array(list(
+            it.product(*s_grid, *a_grid)))):
+
+        # NOTE: requires running python unbuffered (python -u)
+        if idx%(total_bins/10)==0:
+            print('.', end=' ')
+
+        x, p = poincare_map.sa2xp(state_action, poincare_map.x, poincare_map.p)
+
+        x_next, failed = poincare_map(x, p)
+
+        if not failed:
+            s_next = map2e(x_next, p)
+            # note: Q_map is implicitly already excluding transitions that
+            # move straight to a failure. While this is not equivalent to the
+            # algorithm in the paper, for our systems it is a bit more efficient
+            Q_map[idx] = s_next
+        else:
+            Q_F[idx] = 1
+
+    Q_map = Q_map.reshape(list(map(np.size, s_grid))+list(map(np.size, a_grid)))
+    Q_F = Q_F.reshape(list(map(np.size, s_grid))+list(map(np.size, a_grid)))
+    return ( Q_map, Q_F)
+
+def project_Q2S(Q, grids, proj_opt = np.any):
+    a_axes = range(Q.ndim - len(grids['actions']), Q.ndim)
+    return proj_opt(Q, a_axes)
+
+def compute_QV(Q_map, grids, Q_V = None):
+    '''
+    Starting from the transition map and set of non-failing state-action
+    pairs, compute the viable sets. The input Q_V is referred to as Q_N in the
+    paper when passing it in, but since it is immediately copied to Q_V, we
+    directly use this naming.
+    '''
+
+    # initialize estimate of Q_V
+    if Q_V is not None:
+        Q_V = np.copy(Q_map) # TODO: is this okay in general?
+        Q_V = Q_V.astype(bool)
+    # initialize empty of S_old
+    S_old = np.zeros_like((map(np.size, grids['states'])))
+    # initialize estimate of S_V
+    S_V = project_Q2S(Q_V, grids)
+
+    # while S_V != S_old
+    while np.array_equal(S_V, S_old):
+        # iterate over all s in S_V
+        for qdx, is_viable in enumerate(np.nditer(Q_V)):
+            # iterate over all a
+            if is_viable:
+                if is_outside(Q_map[qdx], S_V, grids['states'])
+                # s_k = Q_map[s,a]
+                # if s_k isOutside S_V:
+                    # remove (s,a) from Q_V
+
+    # while np.array_equal(S_V, S_old):
+        # for qdx, is_viable in enumerate(np.nditer(Q_V)): # compare with np.enum
+        #     if is_viable: # only check previously viable (s, a)
+        #         if is_outside_2D(Q_map[qdx], S_V, grids['states']):
+        #             Q_V[qdx] = 0 # remove
+        # S_old = S_V
+        # S_V = project_Q2S_2D(Q_V)
+    Q_V = 0
+    S_V = 0
+    return Q_V, S_V
+
+def is_outside(s, s_grid, S_level_set):
+    '''
+    given a level set S, check if s is inside S or not
+    '''
+    if sum(S_level_set) <= 1:
+        return True
+
+    s_min, s_max = s_grid[S_level_set>0][[0, -1]]
+    if s>s_max or s<s_min:
+        return True
+    else:
+        return False
