@@ -173,7 +173,7 @@ def map2e(x, p):
     map an apex state to its dimensionless normalized height
     TODO: make this accept trajectories
     '''
-    assert(np.isclose(x[3], 0))
+    assert np.isclose(x[3], 0), "state x: " + str(x)
     potential_energy = p['mass']*p['gravity']*x[1]
     kinetic_energy = p['mass']/2*x[2]**2
     return potential_energy/(potential_energy + kinetic_energy)
@@ -185,8 +185,8 @@ def map2x(x, p, e):
     if 'total_energy' not in p:
         print('WARNING: you did not initialize your parameters with '
         'total energy. You really should do this...')
-
-    assert(np.isclose(x[3], 0)) # check that we are at apex
+    # check that we are at apex
+    assert np.isclose(x[3], 0), "state x: " + str(x) + " and e: " + str(e)
 
     x_new = x
     x_new[1] = p['total_energy']*e/p['mass']/p['gravity']
