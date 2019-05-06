@@ -52,14 +52,14 @@ def project_Q2S_2D(Q):
             S[sdx] = 1
     return S
 
-def is_outside_2D(s, S_level_set, s_grid):
+def is_outside_2D(s, S_V, s_grid):
     '''
     given a level set S, check if s is inside S or not
     '''
-    if sum(S_level_set) <= 1:
+    if sum(S_V) <= 1:
         return True
 
-    s_min, s_max = s_grid[S_level_set>0][[0, -1]]
+    s_min, s_max = s_grid[S_V>0][[0, -1]]
     if s>s_max or s<s_min:
         return True
     else:
@@ -135,8 +135,10 @@ def compute_Q_map(s_grid, a_grid, poincare_map):
     Q_F = Q_F.reshape(list(map(np.size, s_grid))+list(map(np.size, a_grid)))
     return ( Q_map, Q_F)
 
-def project_Q2S(Q, grids, proj_opt = np.any):
-    a_axes = range(Q.ndim - len(grids['actions']), Q.ndim)
+def project_Q2S(Q, grids, proj_opt = None):
+    if proj_opt is None:
+        proj_opt = np.any
+    a_axes = tuple(range(Q.ndim - len(grids['actions']), Q.ndim))
     return proj_opt(Q, a_axes)
 
 def compute_QV(Q_map, grids, Q_V = None):
@@ -162,9 +164,9 @@ def compute_QV(Q_map, grids, Q_V = None):
         for qdx, is_viable in enumerate(np.nditer(Q_V)):
             # iterate over all a
             if is_viable:
-                if is_outside(Q_map[qdx], S_V, grids['states'])
-                # s_k = Q_map[s,a]
                 # if s_k isOutside S_V:
+                if is_outside(Q_map[qdx], S_V, grids['states']):
+                    Q_V[qdx] = False
                     # remove (s,a) from Q_V
 
     # while np.array_equal(S_V, S_old):
@@ -174,19 +176,30 @@ def compute_QV(Q_map, grids, Q_V = None):
         #             Q_V[qdx] = 0 # remove
         # S_old = S_V
         # S_V = project_Q2S_2D(Q_V)
-    Q_V = 0
-    S_V = 0
+    # Q_V = 0
+    # S_V = 0
     return Q_V, S_V
 
-def is_outside(s, s_grid, S_level_set):
+def is_outside(s, s_grid, S_V):
     '''
     given a level set S, check if s is inside S or not
     '''
-    if sum(S_level_set) <= 1:
-        return True
 
-    s_min, s_max = s_grid[S_level_set>0][[0, -1]]
-    if s>s_max or s<s_min:
-        return True
+    for state_dx, state_val in enumerate(s):
+        bin_idx = np.digitize(state_val, s_grid[state_dx])
+        # if bin_idx isn't outside of s_grid
+        # TODO: this should probably just evaluate to False as well
+        if bin_idx > 0 and bin_idx < s_grid[state_dx].size - 1:
+            # check if closest evaluated states are all viable
+            if not np.all(S_V[state_dx, bin_idx:bin_idx+2]):
+                return False
     else:
-        return False
+        return True
+    # if sum(S_V) <= 1:
+    #     return True
+
+    # s_min, s_max = s_grid[S_V>0][[0, -1]]
+    # if s>s_max or s<s_min:
+    #     return True
+    # else:
+    #     return False
