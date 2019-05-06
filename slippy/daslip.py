@@ -1,7 +1,6 @@
 import numpy as np
 import scipy.integrate as integrate
 from numba import jit
-import sys
 
 def limit_cycle(x, p, p_key_name, p_key_width):
     '''
@@ -65,7 +64,7 @@ def limit_cycle(x, p, p_key_name, p_key_width):
         #Polish the root using Newton's method
 
         iter=0
-        h = np.sqrt(sys.float_info.epsilon)
+        h = np.sqrt(np.finfo('float64').eps)
         while np.abs(err) > tol_newton and iter < max_iter_newton:
 
             #Compute the error
