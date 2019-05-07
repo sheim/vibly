@@ -143,7 +143,7 @@ def step(x, p):
     if MODEL_TYPE == 0 :
         assert(len(x) == 6)
     elif MODEL_TYPE == 1:
-        assert(len(x) == 8)
+        assert(len(x) == 9)
     else:
         raise Exception('model_type is not set correctly')
 
@@ -170,7 +170,7 @@ def step(x, p):
             return np.array([x[2], x[3], 0, -GRAVITY, x[2], x[3]])
         elif(MODEL_TYPE == 1):
             #The actuator length does not change, and no work is done.
-            return np.array([x[2], x[3], 0, -GRAVITY, x[2], x[3], 0, 0])
+            return np.array([x[2], x[3], 0, -GRAVITY, x[2], x[3], 0, 0, 0])
         else:
             raise Exception('model_type is not set correctly')
 
@@ -179,10 +179,10 @@ def step(x, p):
         # stance dynamics
         alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
         leg_length = np.hypot(x[0]-x[4], x[1]-x[5])
-        output = x
+        # output = x
 
         spring_length = compute_spring_length(x, p)
-        spring_force  = -STIFFNESS*(spring_length-SPRING_RESTING_LENGTH)
+        spring_force  = STIFFNESS*(SPRING_RESTING_LENGTH - spring_length)
 
         ldotdot = spring_force/MASS
         xdotdot = -ldotdot*np.sin(alpha)
@@ -198,17 +198,19 @@ def step(x, p):
                     p['actuator_force'][1,:],
                     period=p['actuator_force_period'])
 
-            actuator_damping_force = spring_force-actuator_open_loop_force
+            actuator_damping_force = spring_force - actuator_open_loop_force
 
             ladot = -actuator_damping_force/ACTUATOR_DAMPING
-            wadot = (actuator_damping_force+actuator_open_loop_force)*ladot
+            wadot = actuator_open_loop_force*ladot
+            wddot = actuator_damping_force*ladot
 
             #These forces are identical to the slip: there's no (other) mass
             # between the spring and the point mass
             #ldotdot = (actuator_open_loop_force+actuator_damping_force)/MASS
             #xdotdot = -ldotdot*np.sin(alpha)
             #ydotdot =  ldotdot*np.cos(alpha) - GRAVITY
-            output = np.array([x[2], x[3], xdotdot, ydotdot, 0, 0, ladot, wadot])
+            output = np.array([x[2], x[3], xdotdot, ydotdot, 0, 0, 
+                ladot, wadot, wddot])
         else:
             raise Exception('model_type is not set correctly')
 
@@ -324,7 +326,8 @@ def create_actuator_open_loop_time_series(step_sol, p):
     actuator_time_force = np.zeros(shape=(2,len(step_sol.t)))
     for i in range(0, len(step_sol.t)):
         spring_length = compute_spring_length(step_sol.y[:,i],p)
-        spring_force  = -p['stiffness']*(spring_length-p['spring_resting_length'])
+        spring_force  = -p['stiffness']*(spring_length - 
+            p['spring_resting_length'])
         actuator_time_force[0,i] = step_sol.t[i]
         actuator_time_force[1,i] = spring_force
 
@@ -337,7 +340,7 @@ def compute_spring_length(x, p):
     if p['model_type'] == 0:
         spring_length = leg_length - p['actuator_resting_length']
     elif p['model_type'] == 1:
-        spring_length = leg_length - x[6]
+        spring_length = leg_length - x[6] # actuator length
     else:
         raise Exception('model_type is not set correctly')
 
@@ -365,15 +368,18 @@ def compute_total_energy(x, p):
 def compute_potential_kinetic_work_total(sol,p):
 
     cols = np.shape(sol)[1]
-    t_v_w = np.zeros((4,cols))
+    t_v_w = np.zeros((5,cols))
     for i in range(0, cols):
         spring_length = compute_spring_length(sol[:,i],p)
-        work = 0
+        work_actuator = 0
+        work_damper = 0
 
         if p['model_type'] == 0:
-            work = 0.
+            work_actuator = 0
+            work_damper = 0
         elif p['model_type'] == 1:
-            work = sol[7,i]
+            work_actuator = sol[7,i]
+            work_damper = sol[8,i]
         else:
             raise Exception('model_type is not set correctly')
 
@@ -382,8 +388,9 @@ def compute_potential_kinetic_work_total(sol,p):
 
         t_v_w[0,i] = p['mass']/2*(sol[2,i]**2+sol[3,i]**2)
         t_v_w[1,i] = p['gravity']*p['mass']*(sol[1,i]) + spring_energy
-        t_v_w[2,i] = work
-        t_v_w[3,i] = t_v_w[0,i]+t_v_w[1,i]-t_v_w[2,i]
+        t_v_w[2,i] = work_actuator
+        t_v_w[3,i] = work_damper
+        t_v_w[4,i] = t_v_w[0,i]+t_v_w[1,i] #-t_v_w[2,i]
 
     return t_v_w
 
