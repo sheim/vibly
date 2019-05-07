@@ -150,7 +150,7 @@ def compute_QV(Q_map, grids, Q_V = None):
     '''
 
     # initialize estimate of Q_V
-    if Q_V is not None:
+    if Q_V is None:
         Q_V = np.copy(Q_map) # TODO: is this okay in general?
         Q_V = Q_V.astype(bool)
     # initialize empty of S_old
