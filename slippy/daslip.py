@@ -110,6 +110,8 @@ def poincare_map(x, p):
     Essentially, the Poincare map.
     '''
     if type(p) is dict:
+        if x[5] < 0:
+            return x, True # return failed if foot starts underground
         sol = step(x, p)
         return sol.y[:, -1], sol.failed
     elif type(p) is tuple:
@@ -118,9 +120,13 @@ def poincare_map(x, p):
         # TODO: for shorthand, allow just a single tuple to be passed in
         # this can be done easily with itertools
         for idx, p0 in enumerate(p):
-            sol = step(x[:, idx], p0) # p0 = p[idx]
-            vector_of_x[:, idx] = sol.y[:, -1]
-            vector_of_fail[idx] = sol.failed
+            if x[5] < 0:
+                vector_of_x[:, idx] = x[:, idx]
+                vector_of_fail[idx] = True
+            else:
+                sol = step(x[:, idx], p0) # p0 = p[idx]
+                vector_of_x[:, idx] = sol.y[:, -1]
+                vector_of_fail[idx] = sol.failed
         return (vector_of_x, vector_of_fail)
     else:
         print("WARNING: I got a parameter type that I don't understand.")
