@@ -186,7 +186,7 @@ def map2s(x, p):
 
 def map2x(x, p, s):
     '''
-    map a dssired dimensionless height `e` to it's state-vector
+    map a desired dimensionless height `s` to it's state-vector
     '''
     if 'total_energy' not in p:
         print('WARNING: you did not initialize your parameters with '
@@ -198,6 +198,7 @@ def map2x(x, p, s):
     x_new[1] = p['total_energy']*s/p['mass']/p['gravity']
     x_new[2] = np.sqrt(p['total_energy']*(1-s)/p['mass']*2)
     x_new[3] = 0.0 # shouldn't be necessary, but avoids errors accumulating
+    x = reset_leg(x, p)
     return x_new
 
 def mapSA2xp_height_angle(state_action, x, p):
@@ -206,5 +207,4 @@ def mapSA2xp_height_angle(state_action, x, p):
     '''
     p['angle_of_attack'] = state_action[1]
     x = map2x(x, p, state_action[0])
-    x = reset_leg(x, p)
     return x, p

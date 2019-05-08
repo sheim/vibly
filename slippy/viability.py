@@ -89,6 +89,27 @@ def compute_QV_2D(Q_map, grids, Q_V = None):
 
 ###### Reimplement everything as N-D
 
+def get_state_from_ravel(bin_idx, s_grid):
+    print("TO DO") # TODO
+    return 0
+
+def digitize_s(s, s_grid):
+    '''
+    s_grid is a tuple/list of 1-D grids. digitize_s finds the corresponding
+    index of the grid on S.
+    '''
+    # assert type(s_grid) is tuple or type(s_grid) is list
+    s = np.atleast_1d(s)
+    s_bin = np.zeros((len(s_grid)), dtype = int)
+    for dim_idx, grid in enumerate(s_grid): # TODO: can zip this with s
+        s_bin[dim_idx] = np.digitize(s[dim_idx], grid)
+        # TODO: fix this hack nicely.
+        # digitize deal with going beyond the grid by going one over
+        if s_bin[dim_idx] >= grid.size:
+            print("WARNING: exited grid!")
+            s_bin[dim_idx] = grid.size-1 # saturating at end of grid
+    return np.ravel_multi_index(s_bin, list(map(np.size, s_grid)))
+
 def compute_Q_map(s_grid, a_grid, poincare_map):
     ''' Compute the transition map of a system with 1D state and 1D action
     NOTES
@@ -98,9 +119,9 @@ def compute_Q_map(s_grid, a_grid, poincare_map):
     '''
 
     # initialize 1D, reshape later
-    s_bins = np.prod(list(map(np.size, s_grid)))
-    a_bins = np.prod(list(map(np.size, a_grid)))
-    total_bins = s_bins*a_bins
+    s_shape = list(map(np.size, s_grid)) # shape of state-space grid
+    a_shape = list(map(np.size, a_grid))
+    total_bins = np.prod(s_shape)*np.prod(a_shape)
 
     Q_map = np.zeros((total_bins, 1))
     Q_F = np.zeros((total_bins, 1))
@@ -125,12 +146,14 @@ def compute_Q_map(s_grid, a_grid, poincare_map):
             # note: Q_map is implicitly already excluding transitions that
             # move straight to a failure. While this is not equivalent to the
             # algorithm in the paper, for our systems it is a bit more efficient
-            Q_map[idx] = s_next
+            # bin_idx = np.digitize(state_val, s_grid[state_dx])
+            # sbin = np.digitize(s_next, s)
+            Q_map[idx] = digitize_s(s_next, s_grid)
         else:
             Q_F[idx] = 1
 
-    Q_map = Q_map.reshape(list(map(np.size, s_grid))+list(map(np.size, a_grid)))
-    Q_F = Q_F.reshape(list(map(np.size, s_grid))+list(map(np.size, a_grid)))
+    Q_map = Q_map.reshape(s_shape+a_shape)
+    Q_F = Q_F.reshape(s_shape+a_shape)
     return ( Q_map, Q_F)
 
 def project_Q2S(Q, grids, proj_opt = None):
@@ -182,7 +205,6 @@ def is_outside(s, s_grid, S_V):
     '''
     given a level set S, check if s is inside S or not
     '''
-
     for state_dx, state_val in enumerate(s):
         bin_idx = np.digitize(state_val, s_grid[state_dx])
         # if bin_idx isn't outside of s_grid
