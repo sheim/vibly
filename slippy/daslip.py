@@ -394,37 +394,28 @@ def compute_potential_kinetic_work_total(sol,p):
     return t_v_w
 
 ### Functions for Viability
-def map2e(x, p):
+def map2s(x, p):
     '''
-    map an apex state to its dimensionless normalized height
+    map an apex state to the low-dim state used for the viability comp
     TODO: make this accept trajectories
     '''
-    assert(np.isclose(x[3], 0))
-    potential_energy = p['mass']*p['gravity']*x[1]
-    kinetic_energy = p['mass']/2*x[2]**2
-    return potential_energy/(potential_energy + kinetic_energy)
 
-def map2x(x, p, e):
+    return np.array([x[1],x[2]])
+
+def map2x(x, p, s):
     '''
-    map a desired dimensionless height `e` to it's state-vector
+    map a desired dimensionless height `s` to it's state-vector
     '''
-    if 'total_energy' not in p:
-        print('WARNING: you did not initialize your parameters with '
-        'total energy. You really should do this...')
+    assert s.size == 2
+    x[1] = s[0]
+    x[2] = s[1]
+    x = reset_leg(x, p)
+    return x
 
-    assert(np.isclose(x[3], 0)) # check that we are at apex
-
-    x_new = x
-    x_new[1] = p['total_energy']*e/p['mass']/p['gravity']
-    x_new[2] = np.sqrt(p['total_energy']*(1-e)/p['mass']*2)
-    x_new[3] = 0.0 # shouldn't be necessary, but avoids errors accumulating
-    return x_new
-
-def mapSA2xp_height_angle(state_action, x, p):
+def mapSA2xp_aoa(state_action, x, p):
     '''
     Specifically map state_actions to x and p
     '''
-    p['angle_of_attack'] = state_action[1]
-    x = map2x(x, p, state_action[0])
-    x = reset_leg(x, p)
+    p['angle_of_attack'] = state_action[2]
+    x = map2x(x, p, state_action[0:2])
     return x, p
