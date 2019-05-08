@@ -170,14 +170,25 @@ def step(x, p):
 
 #    @jit(nopython=True)
     def flight_dynamics(t, x):
+        # swing leg retraction
+        vfx = 0
+        vfy = 0
+        if p['swing_type'] == 1 and x[3] <= 0:
+            alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
+            vPerp = p['swing_leg_angular_velocity']*(SPRING_RESTING_LENGTH+ACTUATOR_RESTING_LENGTH)
+            vfx = vPerp*np.cos(alpha)
+            vfy = vPerp*np.sin(alpha)
+
+
         # code in flight dynamics, xdot_ = f()
         if(MODEL_TYPE == 0):
-            return np.array([x[2], x[3], 0, -GRAVITY, x[2], x[3]])
+            return np.array([x[2], x[3], 0, -GRAVITY, x[2]+vfx, x[3]+vfy])
         elif(MODEL_TYPE == 1):
             #The actuator length does not change, and no work is done.
-            return np.array([x[2], x[3], 0, -GRAVITY, x[2], x[3], 0, 0])
+            return np.array([x[2], x[3], 0, -GRAVITY, x[2]+vfx, x[3]+vfy, 0, 0])
         else:
             raise Exception('model_type is not set correctly')
+
 
 #    @jit(nopython=True)
     def stance_dynamics(t, x):
@@ -373,10 +384,20 @@ def compute_leg_force(x, p):
 
     return spring_force
 
+    
 def reset_leg(x, p):
-    x[4] = x[0] + np.sin(p['angle_of_attack'])*(
+    angle_offset = 0
+    if p['swing_type'] == 0:
+        angle_offset = 0
+    elif p['swing_type'] == 1:
+        angle_offset = p['angle_of_attack_offset']
+    else:
+        raise Exception('swing_type is not set correctly')
+
+
+    x[4] = x[0] + np.sin(p['angle_of_attack']+angle_offset)*(
                     p['spring_resting_length']+p['actuator_resting_length'])
-    x[5] = x[1] - np.cos(p['angle_of_attack'])*(
+    x[5] = x[1] - np.cos(p['angle_of_attack']+angle_offset)*(
                     p['spring_resting_length']+p['actuator_resting_length'])
     if p['model_type'] == 1:
         x[6] = p['actuator_resting_length']
