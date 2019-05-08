@@ -31,28 +31,55 @@ daslip_model= 1 #damper-actuator-spring-loaded inverted pendulum
 #  (c)   -center-of-mass-  (c)
 #   -                     -----            -     -
 #   |                     |   |            |     |
-#   |        actuator-    a   d -damper    | la  | lr
+#   |        actuator-    f   d -damper    | la  | lr
 #   |                     |   |            |     |
 #   -                     -----            -     |
 #   /                       /                    |
 #   \ k      -spring-       \ k                  |
 #   /                       /                    |
 #   \                       \                    |
-#    + f     -foot-          + f                 -
+#    +    -contact point-    +                   -
+#
+#
+# The damping model for the daslip has two options:
+#
+# 1. Constant fixed damping.
+#
+# 2. Damping that varies linearly with the force of the actuator. This specific
+#    damping model has been chosen because it emulates the intrinsic damping of
+#    active muscle Since we cannot allow the damping to go to zero for numerical 
+#    reasons we use
+#    
+#    d = max( d_min, A*f )
+#
+#    Where A takes a value of 3.5 (N/N)/(m/s) which comes from Kirch et al.'s 
+#    experimental data which were done on cat soleus. Fig. 12. Note in Fig. 
+#    12 a line of best fit has a slope of approximately 0.0035 [N/(mm/s)]/[N], 
+#    which in units of N/(m/s) becomes 3.5 [N/(mm/s)]/[N]. For d_min we choose 
+#    a value that is some small value, eta, that will scale with the mass of 
+#    the body (M) (and thus the expected peak value of F): d_min = A*(M*g)*eta.
+#
+# Kirsch RF, Boskov D, Rymer WZ. Muscle stiffness during transient and 
+# continuous movements of cat muscle: perturbation characteristics and 
+# physiological relevance. IEEE Transactions on Biomedical Engineering. 
+# 1994 Aug;41(8):758-70.
 
-#Model parameters
-p = { 'model_type':slip_model,
-      'mass':80,
-      'stiffness':8200.0,
-      'spring_resting_length':0.9,
-      'gravity':9.81,
-      'angle_of_attack':1/5*np.pi,
-      'actuator_resting_length':0.1,
-      'actuator_normalized_damping':0.75,
-      'actuator_force':[],
-      'actuator_force_period':10}
 
-
+#Model parameters for both slip/daslip. Parameters only used by daslip are *
+p = { 'model_type':slip_model,            #0 (slip), 1 (daslip)
+      'mass':80,                          #kg       
+      'stiffness':8200.0,                 #K : N/m
+      'spring_resting_length':0.9,        #m      
+      'gravity':9.81,                     #N/kg   
+      'angle_of_attack':1/5*np.pi,        #rad    
+      'actuator_resting_length':0.1,      # m      
+      'actuator_force':[],                # * 2 x M matrix of time and force 
+      'actuator_force_period':10,         # * s        
+      'damping_type':1,                   # * 0 (constant), 1 (linear-with-force)
+      'constant_normalized_damping':0.75,          # *    s   : D/K : [N/m/s]/[N/m]
+      'linear_normalized_damping_coefficient':3.5, # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
+      'linear_minimum_normalized_damping':0.05}    # *   1/A*(kg*N/kg) :
+       
 #===============================================================================
 #Initialization: Slip & Daslip
 #===============================================================================
@@ -76,9 +103,12 @@ sol_slip = step(x0_slip, p_lc)
 
 n = len(sol_slip.t)
 slip_spring_deflection = np.zeros((1,n))
+slip_leg_force = np.zeros((1,n))
 for i in range(0, n):
     slip_spring_deflection[0,i] = (compute_spring_length(sol_slip.y[:,i],p_lc)
     -p_lc['spring_resting_length'])
+    slip_leg_force[0,i] = compute_leg_force(sol_slip.y[:,i],p_lc)
+
 
 #Evaluate the energetics of the solution. Note
 #   t: kinetic energy
@@ -121,10 +151,12 @@ for i in range(0, len(tvw_daslip_error)):
 
 n = len(sol_daslip.t)
 daslip_spring_deflection = np.zeros((1,n))
+daslip_leg_force = np.zeros((1,n))
 for i in range(0, n):
     daslip_spring_deflection[0,i] = (compute_spring_length(
             sol_daslip.y[:,i],p_daslip)
     -p_daslip['spring_resting_length'])
+    daslip_leg_force[0,i] = compute_leg_force(sol_daslip.y[:,i],p_daslip)
 
 
 #===============================================================================
@@ -168,9 +200,9 @@ plotHeight = 3
 #========================================
 #Basic Plots
 #========================================
-plt.figure(figsize=(plotWidth*2,plotHeight))
+plt.figure(figsize=(plotWidth*3,plotHeight*2))
 
-gsBasic= gridspec.GridSpec(1, 2, width_ratios=[1, 1])
+gsBasic= gridspec.GridSpec(2, 3, width_ratios=[1, 1, 1])
 
 ax=plt.subplot(gsBasic[0])
 ax.plot(sol_slip.y[x_c], sol_slip.y[y_c],
@@ -203,6 +235,45 @@ plt.plot(actuator_time_force[0],
 plt.xlabel('Time (s)')
 plt.ylabel('Force (N)')
 plt.title('DASLIP: Actuator Open Loop Force')
+
+ax.spines['right'].set_visible(False)
+ax.spines['top'].set_visible(False)
+ax.yaxis.set_ticks_position('left')
+ax.xaxis.set_ticks_position('bottom')
+
+plt.tight_layout()
+
+#Ground forces of the two models
+ax=plt.subplot(gsBasic[2])
+ax.plot(sol_slip.t, slip_leg_force[0],
+        color=color_slip, linewidth=linewidth_thick, label='SLIP')
+ax.plot(sol_daslip.t, daslip_leg_force[0],
+        color=color_daslip, linewidth=linewidth_thin,
+        linestyle='--', label='DASLIP')
+
+plt.xlabel('Time (s)')
+plt.ylabel('Force (N)')
+plt.title('Leg Force')
+
+ax.spines['right'].set_visible(False)
+ax.spines['top'].set_visible(False)
+ax.yaxis.set_ticks_position('left')
+ax.xaxis.set_ticks_position('bottom')
+
+plt.tight_layout()
+
+#Actuator Length
+ax=plt.subplot(gsBasic[3])
+ax.plot([np.min(sol_slip.t),np.max(sol_slip.t)], 
+        [p['actuator_resting_length'],p['actuator_resting_length']],
+        color=color_slip, linewidth=linewidth_thick, label='SLIP')
+ax.plot(sol_daslip.t, sol_daslip.y[la],
+        color=color_daslip, linewidth=linewidth_thin,
+        linestyle='--', label='DASLIP')
+
+plt.xlabel('Time (s)')
+plt.ylabel('Force (m)')
+plt.title('Actuator Length')
 
 ax.spines['right'].set_visible(False)
 ax.spines['top'].set_visible(False)
