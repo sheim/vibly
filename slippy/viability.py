@@ -2,8 +2,6 @@
 
 import itertools as it
 import numpy as np
-# from utilities import map2e, map2x
-from slippy.slip import map2x, map2e # this should be refactored
 
 def compute_Q_2D(s_grid, a_grid, poincare_map):
     ''' Compute the transition map of a system with 1D state and 1D action
@@ -33,7 +31,7 @@ def compute_Q_2D(s_grid, a_grid, poincare_map):
         x_next, failed = poincare_map(x, p)
 
         if not failed:
-            s_next = map2e(x_next, p)
+            s_next = poincare_map.xp2s(x_next, p)
             # note: Q_map is implicitly already excluding transitions that
             # move straight to a failure. While this is not equivalent to the
             # algorithm in the paper, for our systems it is a bit more efficient
@@ -123,7 +121,7 @@ def compute_Q_map(s_grid, a_grid, poincare_map):
         x_next, failed = poincare_map(x, p)
 
         if not failed:
-            s_next = map2e(x_next, p)
+            s_next = poincare_map.xp2s(x_next, p)
             # note: Q_map is implicitly already excluding transitions that
             # move straight to a failure. While this is not equivalent to the
             # algorithm in the paper, for our systems it is a bit more efficient

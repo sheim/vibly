@@ -174,29 +174,29 @@ def compute_total_energy(x, p):
     (p['resting_length']-np.sqrt((x[0]-x[4])**2 + (x[1]-x[5])**2))**2)
 
 ### Functions for Viability
-def map2e(x, p):
+def map2s(x, p):
     '''
     map an apex state to its dimensionless normalized height
     TODO: make this accept trajectories
     '''
-    assert np.isclose(x[3], 0), "state x: " + str(x)
+    # assert np.isclose(x[3], 0), "state x: " + str(x)
     potential_energy = p['mass']*p['gravity']*x[1]
     kinetic_energy = p['mass']/2*x[2]**2
     return potential_energy/(potential_energy + kinetic_energy)
 
-def map2x(x, p, e):
+def map2x(x, p, s):
     '''
-    map a desired dimensionless height `e` to it's state-vector
+    map a dssired dimensionless height `e` to it's state-vector
     '''
     if 'total_energy' not in p:
         print('WARNING: you did not initialize your parameters with '
         'total energy. You really should do this...')
     # check that we are at apex
-    assert np.isclose(x[3], 0), "state x: " + str(x) + " and e: " + str(e)
+    assert np.isclose(x[3], 0), "state x: " + str(x) + " and e: " + str(s)
 
     x_new = x
-    x_new[1] = p['total_energy']*e/p['mass']/p['gravity']
-    x_new[2] = np.sqrt(p['total_energy']*(1-e)/p['mass']*2)
+    x_new[1] = p['total_energy']*s/p['mass']/p['gravity']
+    x_new[2] = np.sqrt(p['total_energy']*(1-s)/p['mass']*2)
     x_new[3] = 0.0 # shouldn't be necessary, but avoids errors accumulating
     return x_new
 
