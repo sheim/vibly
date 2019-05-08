@@ -163,22 +163,32 @@ def step(x, p):
     SPECIFIC_STIFFNESS = p['stiffness'] / p['mass']
 
     ACTUATOR_RESTING_LENGTH = p['actuator_resting_length']
-    ACTUATOR_DAMPING = p['actuator_normalized_damping']*STIFFNESS
+
+    DAMPING_TYPE = p['damping_type']
     ACTUATOR_FORCE = 0
 
-    ACTUATOR_SPECIFIC_DAMPING = ACTUATOR_DAMPING/MASS
-    ACTUATOR_SPECIFIC_FORCE   = ACTUATOR_FORCE/MASS
 
 #    @jit(nopython=True)
     def flight_dynamics(t, x):
+        # swing leg retraction
+        vfx = 0
+        vfy = 0
+        if p['swing_type'] == 1 and x[3] <= 0:
+            alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
+            vPerp = p['swing_leg_angular_velocity']*(SPRING_RESTING_LENGTH+ACTUATOR_RESTING_LENGTH)
+            vfx = vPerp*np.cos(alpha)
+            vfy = vPerp*np.sin(alpha)
+
+
         # code in flight dynamics, xdot_ = f()
         if(MODEL_TYPE == 0):
-            return np.array([x[2], x[3], 0, -GRAVITY, x[2], x[3]])
+            return np.array([x[2], x[3], 0, -GRAVITY, x[2]+vfx, x[3]+vfy])
         elif(MODEL_TYPE == 1):
             #The actuator length does not change, and no work is done.
-            return np.array([x[2], x[3], 0, -GRAVITY, x[2], x[3], 0, 0])
+            return np.array([x[2], x[3], 0, -GRAVITY, x[2]+vfx, x[3]+vfy, 0, 0])
         else:
             raise Exception('model_type is not set correctly')
+
 
 #    @jit(nopython=True)
     def stance_dynamics(t, x):
@@ -204,9 +214,22 @@ def step(x, p):
                     p['actuator_force'][1,:],
                     period=p['actuator_force_period'])
 
+            actuator_damping_coefficient = 0
+
+            if DAMPING_TYPE == 0:
+                actuator_damping_coefficient = p['constant_normalized_damping']*p['stiffness']
+            elif DAMPING_TYPE == 1:
+                damping_min = (p['linear_normalized_damping_coefficient']
+                *p['mass']*p['gravity']*p['linear_minimum_normalized_damping'])
+                damping_val = (actuator_open_loop_force
+                *p['linear_normalized_damping_coefficient'])                
+                actuator_damping_coefficient = np.maximum([damping_min],[damping_val])[0]
+            else:
+                raise Exception('damping_type is not set correctly')
+
             actuator_damping_force = spring_force-actuator_open_loop_force
 
-            ladot = -actuator_damping_force/ACTUATOR_DAMPING
+            ladot = -actuator_damping_force/actuator_damping_coefficient
             wadot = (actuator_damping_force+actuator_open_loop_force)*ladot
 
             #These forces are identical to the slip: there's no (other) mass
@@ -349,10 +372,32 @@ def compute_spring_length(x, p):
 
     return spring_length
 
+def compute_leg_force(x, p):
+    alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
+    leg_length = np.hypot(x[0]-x[4], x[1]-x[5])
+    output = x
+
+    spring_length = compute_spring_length(x, p)
+
+    #Since both models contact the ground through a serially connected spring:
+    spring_force  = -p['stiffness']*(spring_length-p['spring_resting_length'])
+
+    return spring_force
+
+    
 def reset_leg(x, p):
-    x[4] = x[0] + np.sin(p['angle_of_attack'])*(
+    angle_offset = 0
+    if p['swing_type'] == 0:
+        angle_offset = 0
+    elif p['swing_type'] == 1:
+        angle_offset = p['angle_of_attack_offset']
+    else:
+        raise Exception('swing_type is not set correctly')
+
+
+    x[4] = x[0] + np.sin(p['angle_of_attack']+angle_offset)*(
                     p['spring_resting_length']+p['actuator_resting_length'])
-    x[5] = x[1] - np.cos(p['angle_of_attack'])*(
+    x[5] = x[1] - np.cos(p['angle_of_attack']+angle_offset)*(
                     p['spring_resting_length']+p['actuator_resting_length'])
     if p['model_type'] == 1:
         x[6] = p['actuator_resting_length']
