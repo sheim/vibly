@@ -110,6 +110,8 @@ def poincare_map(x, p):
     Essentially, the Poincare map.
     '''
     if type(p) is dict:
+        if x[5] < 0:
+            return x, True # return failed if foot starts underground
         sol = step(x, p)
         return sol.y[:, -1], sol.failed
     elif type(p) is tuple:
@@ -118,9 +120,13 @@ def poincare_map(x, p):
         # TODO: for shorthand, allow just a single tuple to be passed in
         # this can be done easily with itertools
         for idx, p0 in enumerate(p):
-            sol = step(x[:, idx], p0) # p0 = p[idx]
-            vector_of_x[:, idx] = sol.y[:, -1]
-            vector_of_fail[idx] = sol.failed
+            if x[5] < 0:
+                vector_of_x[:, idx] = x[:, idx]
+                vector_of_fail[idx] = True
+            else:
+                sol = step(x[:, idx], p0) # p0 = p[idx]
+                vector_of_x[:, idx] = sol.y[:, -1]
+                vector_of_fail[idx] = sol.failed
         return (vector_of_x, vector_of_fail)
     else:
         print("WARNING: I got a parameter type that I don't understand.")
@@ -157,22 +163,34 @@ def step(x, p):
     SPECIFIC_STIFFNESS = p['stiffness'] / p['mass']
 
     ACTUATOR_RESTING_LENGTH = p['actuator_resting_length']
-    ACTUATOR_DAMPING = p['actuator_normalized_damping']*STIFFNESS
+
+    DAMPING_TYPE = p['damping_type']
     ACTUATOR_FORCE = 0
 
-    ACTUATOR_SPECIFIC_DAMPING = ACTUATOR_DAMPING/MASS
-    ACTUATOR_SPECIFIC_FORCE   = ACTUATOR_FORCE/MASS
 
 #    @jit(nopython=True)
     def flight_dynamics(t, x):
+        # swing leg retraction
+        vfx = 0
+        vfy = 0
+        if p['swing_type'] == 1 and x[3] <= 0:
+            alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
+            vPerp = p['swing_leg_angular_velocity']*(SPRING_RESTING_LENGTH +
+                ACTUATOR_RESTING_LENGTH)
+            vfx = vPerp*np.cos(alpha)
+            vfy = vPerp*np.sin(alpha)
+
+
         # code in flight dynamics, xdot_ = f()
         if(MODEL_TYPE == 0):
-            return np.array([x[2], x[3], 0, -GRAVITY, x[2], x[3]])
+            return np.array([x[2], x[3], 0, -GRAVITY, x[2]+vfx, x[3]+vfy])
         elif(MODEL_TYPE == 1):
             #The actuator length does not change, and no work is done.
-            return np.array([x[2], x[3], 0, -GRAVITY, x[2], x[3], 0, 0, 0])
+            return np.array([x[2], x[3], 0, -GRAVITY, x[2]+vfx, x[3]+vfy,
+                0, 0, 0])
         else:
             raise Exception('model_type is not set correctly')
+
 
 #    @jit(nopython=True)
     def stance_dynamics(t, x):
@@ -198,9 +216,24 @@ def step(x, p):
                     p['actuator_force'][1,:],
                     period=p['actuator_force_period'])
 
-            actuator_damping_force = spring_force - actuator_open_loop_force
+            actuator_damping_coefficient = 0
 
-            ladot = -actuator_damping_force/ACTUATOR_DAMPING
+            if DAMPING_TYPE == 0:
+                actuator_damping_coefficient = (p['constant_normalized_damping']
+                    *p['stiffness'])
+            elif DAMPING_TYPE == 1:
+                damping_min = (p['linear_normalized_damping_coefficient']
+                *p['mass']*p['gravity']*p['linear_minimum_normalized_damping'])
+                damping_val = (actuator_open_loop_force
+                *p['linear_normalized_damping_coefficient'])
+                actuator_damping_coefficient = np.maximum([damping_min],
+                    [damping_val])[0]
+            else:
+                raise Exception('damping_type is not set correctly')
+
+            actuator_damping_force = spring_force-actuator_open_loop_force
+
+            ladot = -actuator_damping_force/actuator_damping_coefficient
             wadot = actuator_open_loop_force*ladot
             wddot = actuator_damping_force*ladot
 
@@ -209,7 +242,7 @@ def step(x, p):
             #ldotdot = (actuator_open_loop_force+actuator_damping_force)/MASS
             #xdotdot = -ldotdot*np.sin(alpha)
             #ydotdot =  ldotdot*np.cos(alpha) - GRAVITY
-            output = np.array([x[2], x[3], xdotdot, ydotdot, 0, 0, 
+            output = np.array([x[2], x[3], xdotdot, ydotdot, 0, 0,
                 ladot, wadot, wddot])
         else:
             raise Exception('model_type is not set correctly')
@@ -326,7 +359,7 @@ def create_actuator_open_loop_time_series(step_sol, p):
     actuator_time_force = np.zeros(shape=(2,len(step_sol.t)))
     for i in range(0, len(step_sol.t)):
         spring_length = compute_spring_length(step_sol.y[:,i],p)
-        spring_force  = -p['stiffness']*(spring_length - 
+        spring_force  = -p['stiffness']*(spring_length -
             p['spring_resting_length'])
         actuator_time_force[0,i] = step_sol.t[i]
         actuator_time_force[1,i] = spring_force
@@ -346,10 +379,32 @@ def compute_spring_length(x, p):
 
     return spring_length
 
+def compute_leg_force(x, p):
+    alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
+    leg_length = np.hypot(x[0]-x[4], x[1]-x[5])
+    output = x
+
+    spring_length = compute_spring_length(x, p)
+
+    #Since both models contact the ground through a serially connected spring:
+    spring_force  = -p['stiffness']*(spring_length-p['spring_resting_length'])
+
+    return spring_force
+
+
 def reset_leg(x, p):
-    x[4] = x[0] + np.sin(p['angle_of_attack'])*(
+    angle_offset = 0
+    if p['swing_type'] == 0:
+        angle_offset = 0
+    elif p['swing_type'] == 1:
+        angle_offset = p['angle_of_attack_offset']
+    else:
+        raise Exception('swing_type is not set correctly')
+
+
+    x[4] = x[0] + np.sin(p['angle_of_attack']+angle_offset)*(
                     p['spring_resting_length']+p['actuator_resting_length'])
-    x[5] = x[1] - np.cos(p['angle_of_attack'])*(
+    x[5] = x[1] - np.cos(p['angle_of_attack']+angle_offset)*(
                     p['spring_resting_length']+p['actuator_resting_length'])
     if p['model_type'] == 1:
         x[6] = p['actuator_resting_length']
