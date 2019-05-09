@@ -3,75 +3,64 @@ import matplotlib.pyplot as plt
 from slippy.daslip import *
 from slippy.viability import compute_Q_map
 
-p = { 'model_type':1,
-      'mass':80,
-      'stiffness':8200.0,
-      'spring_resting_length':0.9,
-      'gravity':9.81,
-      'angle_of_attack':1/5*np.pi,
-      'actuator_resting_length':0.1,
-      'actuator_normalized_damping':0.75,
-      'actuator_force':[],
-      'actuator_force_period':10}
+# * First, solve for the operating point to get an open-loop force traj
+# Model parameters for both slip/daslip. Parameters only used by daslip are *
+p_slip = { 'model_type':0,            #0 (slip), 1 (daslip)
+      'mass':80,                          #kg
+      'stiffness':8200.0,                 #K : N/m
+      'spring_resting_length':0.9,        #m
+      'gravity':9.81,                     #N/kg
+      'angle_of_attack':1/5*np.pi,        #rad
+      'actuator_resting_length':0.1,      # m
+      'actuator_force':[],                # * 2 x M matrix of time and force
+      'actuator_force_period':10,         # * s
+      'damping_type':0,                   # * 0 (constant), 1 (linear-with-force)
+      'constant_normalized_damping':0.75,          # *    s   : D/K : [N/m/s]/[N/m]
+      'linear_normalized_damping_coefficient':3.5, # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
+      'linear_minimum_normalized_damping':0.05,    # *   1/A*(kg*N/kg) :
+      'swing_type':0,                    # 0 (constant angle of attack), 1 (linearly varying angle of attack)
+      'swing_leg_norm_angular_velocity': 1.1,  # [1/s]/[m/s] (omega/(vx/lr))
+      'swing_leg_angular_velocity':0,   # rad/s (set by calculation)
+      'angle_of_attack_offset':0}        # rad   (set by calculation)
 
-x0 = np.array([0, 0.85, 5.5, 0, 0, 0, p['actuator_resting_length'], 0])
+x0_slip   = np.array([0, 0.85, 5.5, 0, 0, 0])
+x0_slip = reset_leg(x0_slip, p_slip)
 
-x0 = reset_leg(x0, p)
-p['total_energy'] = compute_total_energy(x0, p)
+p_slip['total_energy'] = compute_total_energy(x0_slip, p_slip)
 
-def p_map(x, p):
-    '''
-    Define the poincare section as finding first the open-loop action,
-    and then playing it out. This will be slower, and should be replaced by
-    first doincomputing a look-up table that can be interpolated over.
-    '''
-    # check if infeasible:
-    if x[5] < 0: # foot starts underground
-        return x, True
+search_width = np.pi*0.25
+# find p for LC
+p_lc, success = limit_cycle(x0_slip, p_slip, 'angle_of_attack', search_width)
+x0_slip = reset_leg(x0_slip, p_lc)
+# get high-res SLIP traj
+sol_slip = step(x0_slip, p_lc)
+# create the open_loop_force
+actuator_time_force = create_actuator_open_loop_time_series(sol_slip, p_lc)
 
-    # x_lc = np.copy(x)
-    p_lc = p.copy()
-    p_lc['model_type'] = 0
-    search_width = np.pi*0.25
-    x0_slip = np.copy(x[0:6])
-    #Get a high-resolution state trajectory of the limit cycle
-    x0_slip = reset_leg(x0_slip, p_lc)
-    (p_lc, success) = limit_cycle(x0_slip, p_lc, 'angle_of_attack', search_width)
-    #Get a high-resolution state trajectory of the limit cycle
-    x0_slip = reset_leg(x0_slip, p_lc)
-    # p['total_energy'] = compute_total_energy(x0_slip, p_lc)
+p_daslip = p_lc.copy()
+p_daslip['model_type'] = 1
+p_daslip['actuator_force'] = actuator_time_force
+p_daslip['actuator_force_period'] = np.max(actuator_time_force[0, :])
 
-    sol_slip = step(x0_slip, p_lc)
-    actuator_time_force = create_actuator_open_loop_time_series(sol_slip, p_lc)
-    p_daslip = p_lc # TODO should not be necessary? check
-    p_daslip['model_type'] = 1
-    p_daslip['actuator_force'] = actuator_time_force
-    p_daslip['actuator_force_period']=np.max(actuator_time_force[0,:])
-    sol_daslip = step(x, p_daslip)
-    # check for failures
-    xk = sol_daslip.y[:, -1]
-    if xk[1] <= 0:
-        failed = True
-    elif xk[2] <= 0:
-        failed = True
-    else:
-        failed = False
-    return xk, failed
+# initialize default x0_daslip
+x0_daslip = np.array([0, 0.85, 5.5, 0, 0, 0,
+        p_daslip['actuator_resting_length'], 0, 0])
+for idx, val in enumerate(x0_slip): # copy over default values from SLIP
+    x0_daslip[idx] = val
+x0_daslip = reset_leg(x0_daslip, p_daslip)
+poincare_map.p = p_daslip
+poincare_map.x = x0_daslip
+poincare_map.sa2xp = mapSA2xp_aoa
+poincare_map.xp2s = map2s
 
-
-p_map.p = p
-p_map.x = x0
-p_map.sa2xp = mapSA2xp_aoa
-p_map.xp2s = map2s
-
-s_grid_y = np.linspace(0.85, 1, 3)
-s_grid_xdot = np.linspace(5, 6, 4)
+s_grid_y = np.linspace(0.5, 2, 10)
+s_grid_xdot = np.linspace(3, 10, 10)
 s_grid = (s_grid_y, s_grid_xdot)
-a_grid = (np.linspace(30/180*np.pi, 70/180*np.pi, 5), )
+a_grid = (np.linspace(0/180*np.pi, 70/180*np.pi, 15), )
 
-Q_map, Q_F = compute_Q_map(s_grid, a_grid, p_map)
+Q_map, Q_F = compute_Q_map(s_grid, a_grid, poincare_map)
 grids = {'states':s_grid, 'actions':a_grid}
 
 # save file
 data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F}
-np.savez('test.npz', **data2save)
+np.savez('daslip_Q.npz', **data2save)

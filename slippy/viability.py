@@ -106,7 +106,7 @@ def digitize_s(s, s_grid):
         # TODO: fix this hack nicely.
         # digitize deal with going beyond the grid by going one over
         if s_bin[dim_idx] >= grid.size:
-            print("WARNING: exited grid!")
+            print("WARNING: exited grid in " + str(dim_idx) + " dimension.")
             s_bin[dim_idx] = grid.size-1 # saturating at end of grid
     return np.ravel_multi_index(s_bin, list(map(np.size, s_grid)))
 
@@ -122,6 +122,7 @@ def compute_Q_map(s_grid, a_grid, poincare_map):
     s_shape = list(map(np.size, s_grid)) # shape of state-space grid
     a_shape = list(map(np.size, a_grid))
     total_bins = np.prod(s_shape)*np.prod(a_shape)
+    print('computing a total of ' + str(total_bins) + ' points.')
 
     Q_map = np.zeros((total_bins, 1))
     Q_F = np.zeros((total_bins, 1))

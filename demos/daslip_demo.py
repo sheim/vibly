@@ -211,7 +211,7 @@ for i in range(1, 4):
 
 #Use the limit cycle to form the actuator open-loop force time series
 actuator_time_force = create_actuator_open_loop_time_series(sol_slip, p_lc)
-p_daslip = p_lc
+p_daslip = p_lc.copy() # python doesn't do deep copies by default
 p_daslip['model_type'] = daslip_model
 p_daslip['actuator_force'] = actuator_time_force
 p_daslip['actuator_force_period'] = np.max(actuator_time_force[0, :])
