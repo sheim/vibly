@@ -50,17 +50,19 @@ for idx, val in enumerate(x0_slip): # copy over default values from SLIP
 x0_daslip = reset_leg(x0_daslip, p_daslip)
 poincare_map.p = p_daslip
 poincare_map.x = x0_daslip
-poincare_map.sa2xp = mapSA2xp_aoa
-poincare_map.xp2s = map2s
+poincare_map.sa2xp = mapSA2xp_energy_normalizedheight_aoa
+poincare_map.xp2s = map2s_energy_normalizedheight_aoa
 
-s_grid_y = np.linspace(0.5, 2, 10)
-s_grid_xdot = np.linspace(3, 10, 10)
-s_grid = (s_grid_y, s_grid_xdot)
+s_grid_energy = np.linspace(1500, 2500, 10)
+s_grid_normalizedheight = np.linspace(0.4, 1, 10)
+s_grid = (s_grid_energy, s_grid_normalizedheight)
 a_grid = (np.linspace(0/180*np.pi, 70/180*np.pi, 15), )
 
-Q_map, Q_F = compute_Q_map(s_grid, a_grid, poincare_map)
 grids = {'states':s_grid, 'actions':a_grid}
+Q_map, Q_F = compute_Q_map(grids, poincare_map)
+
+print("non-failing portion of Q: " + str(np.sum(Q_F)/Q_F.size))
 
 # save file
 data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F}
-np.savez('daslip_Q.npz', **data2save)
+np.savez('daslip_eh.npz', **data2save)

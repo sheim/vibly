@@ -18,7 +18,7 @@ def poincare_map(x, p):
         # TODO: for shorthand, allow just a single tuple to be passed in
         # this can be done easily with itertools
         for idx, p0 in enumerate(p):
-            if x[5] < 0:
+            if x[5, idx] < 0:
                 vector_of_x[:, idx] = x[:, idx]
                 vector_of_fail[idx] = True
             else:

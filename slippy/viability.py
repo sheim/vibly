@@ -93,7 +93,7 @@ def get_state_from_ravel(bin_idx, s_grid):
     print("TO DO") # TODO
     return 0
 
-def digitize_s(s, s_grid):
+def digitize_s(s, s_grid, s_bin_shape):
     '''
     s_grid is a tuple/list of 1-D grids. digitize_s finds the corresponding
     index of the grid on S.
@@ -104,13 +104,13 @@ def digitize_s(s, s_grid):
     for dim_idx, grid in enumerate(s_grid): # TODO: can zip this with s
         s_bin[dim_idx] = np.digitize(s[dim_idx], grid)
         # TODO: fix this hack nicely.
-        # digitize deal with going beyond the grid by going one over
-        if s_bin[dim_idx] >= grid.size:
-            print("WARNING: exited grid in " + str(dim_idx) + " dimension.")
-            s_bin[dim_idx] = grid.size-1 # saturating at end of grid
-    return np.ravel_multi_index(s_bin, list(map(np.size, s_grid)))
+        # deprecated!
+        # if s_bin[dim_idx] >= grid.size:
+        #     print("WARNING: exited grid in " + str(dim_idx) + " dimension.")
+        #     s_bin[dim_idx] = grid.size-1 # saturating at end of grid
+    return np.ravel_multi_index(s_bin, s_bin_shape)
 
-def compute_Q_map(s_grid, a_grid, poincare_map):
+def compute_Q_map(grids, poincare_map):
     ''' Compute the transition map of a system with 1D state and 1D action
     NOTES
     - s_grid and a_grid have to be iterable lists of lists
@@ -119,20 +119,23 @@ def compute_Q_map(s_grid, a_grid, poincare_map):
     '''
 
     # initialize 1D, reshape later
-    s_shape = list(map(np.size, s_grid)) # shape of state-space grid
-    a_shape = list(map(np.size, a_grid))
-    total_bins = np.prod(s_shape)*np.prod(a_shape)
+    s_grid_shape = list(map(np.size, grids['states'])) # shape of state-space grid
+    s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
+    a_grid_shape = list(map(np.size, grids['actions']))
+    a_bin_shape = tuple(dim+1 for dim in a_grid_shape)
+    total_bins = np.prod(s_bin_shape)*np.prod(a_bin_shape)
+    total_gridpoints = np.prod(s_grid_shape)*np.prod(a_grid_shape)
     print('computing a total of ' + str(total_bins) + ' points.')
 
-    Q_map = np.zeros((total_bins, 1))
-    Q_F = np.zeros((total_bins, 1))
+    Q_map = np.zeros((total_gridpoints, 1))
+    Q_F = np.zeros((total_gridpoints, 1))
 
     # TODO: also compute transitions diff maps etc.
     # TODO: generate purely with numpy (meshgrids?).
     # TODO ... since converting lists to np.arrays is slow
     # QTransition = Q_map
     for idx, state_action in enumerate(np.array(list(
-            it.product(*s_grid, *a_grid)))):
+            it.product(*grids['states'], *grids['actions'])))):
 
         # NOTE: requires running python unbuffered (python -u)
         if idx%(total_bins/10)==0:
@@ -149,12 +152,12 @@ def compute_Q_map(s_grid, a_grid, poincare_map):
             # algorithm in the paper, for our systems it is a bit more efficient
             # bin_idx = np.digitize(state_val, s_grid[state_dx])
             # sbin = np.digitize(s_next, s)
-            Q_map[idx] = digitize_s(s_next, s_grid)
+            Q_map[idx] = digitize_s(s_next, grids['states'], s_bin_shape)
         else:
             Q_F[idx] = 1
 
-    Q_map = Q_map.reshape(s_shape+a_shape)
-    Q_F = Q_F.reshape(s_shape+a_shape)
+    Q_map = Q_map.reshape(s_grid_shape + a_grid_shape)
+    Q_F = Q_F.reshape(s_grid_shape + a_grid_shape)
     return ( Q_map, Q_F)
 
 def project_Q2S(Q, grids, proj_opt = None):

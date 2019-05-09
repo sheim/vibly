@@ -13,13 +13,14 @@ poincare_map.x = x0
 poincare_map.sa2xp = mapSA2xp_height_angle
 poincare_map.xp2s = map2s
 
-s_grid = np.linspace(0.1, 1, 91)
+s_grid = np.linspace(0.1, 1, 25)
 s_grid = s_grid[:-1]
-a_grid = np.linspace(-10/180*np.pi, 90/180*np.pi, 101)
-
-Q_map, Q_F = compute_Q_map((s_grid,), (a_grid,), poincare_map)
-grids = {'states':s_grid, 'actions':a_grid}
+a_grid = np.linspace(-10/180*np.pi, 90/180*np.pi, 21)
+grids = {'states':(s_grid,), 'actions':(a_grid,)}
+Q_map, Q_F = compute_Q_map(grids, poincare_map)
 
 # save file
-data2save = {"s_grid": s_grid, "a_grid": a_grid, "Q_map": Q_map, "Q_F": Q_F}
-np.savez('test.npz', **data2save)
+# data2save = {"s_grid": s_grid, "a_grid": a_grid, "Q_map": Q_map, "Q_F": Q_F}
+# np.savez('test.npz', **data2save)
+plt.imshow(Q_map, origin = 'lower')
+plt.show()
