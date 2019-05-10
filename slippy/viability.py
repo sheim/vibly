@@ -217,21 +217,34 @@ def is_outside(s, s_grid, S_V):
     '''
     given a level set S, check if s lands in a bin inside of S or not
     '''
-    for state_dx, state_val in enumerate(s):
-        bin_idx = np.digitize(state_val, s_grid[state_dx])
-        # if bin_idx isn't outside of s_grid
-        # TODO: this should probably just evaluate to False as well
-        if bin_idx > 0 and bin_idx < s_grid[state_dx].size - 1:
-            # check if closest evaluated states are all viable
-            if not np.all(S_V[state_dx, bin_idx:bin_idx+2]):
-                return False
-    else:
-        return True
-    # if sum(S_V) <= 1:
-    #     return True
 
-    # s_min, s_max = s_grid[S_V>0][[0, -1]]
-    # if s>s_max or s<s_min:
-    #     return True
+    # only checking 1 state vector
+    bin_idx = digitize_s(s, s_grid) # get unraveled indices
+    for dim_idx, grid in enumerate(s_grid):
+        # if outside the left-most or right-most side of grid, mark as outside
+        # * NOTE: this might result in diastrous underestimations if the grid is
+        # * not larger than the viable set!
+        if bin_idx[dim_idx] == 0:
+            return True
+        elif bin_idx[dim_idx] >= grid.size:
+            return True
+        else:
+            # check if enclosing grid points are viable or not
+            index_vec = np.zeros_like(s)
+            index_vec[dim_idx] = 1
+            if (not S_V[tuple(bin_idx + index_vec)] or
+                not S_V[tuple(bin_idex - index_vec)]):
+                return True
+
+        return False
+
+    # for state_dx, state_val in enumerate(s):
+    #     bin_idx = np.digitize(state_val, s_grid[state_dx])
+    #     # if bin_idx isn't outside of s_grid
+    #     # TODO: this should probably just evaluate to False as well
+    #     if bin_idx > 0 and bin_idx < s_grid[state_dx].size - 1:
+    #         # check if closest evaluated states are all viable
+    #         if not np.all(S_V[state_dx, bin_idx:bin_idx+2]):
+    #             return False
     # else:
-    #     return False
+    #     return True

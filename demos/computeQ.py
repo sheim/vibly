@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from slippy.slip import *
-from slippy.viability import compute_Q_2D, compute_QV_2D
+from slippy.viability import compute_Q_map
 
 p = {'mass':80.0, 'stiffness':8200.0, 'resting_length':1.0, 'gravity':9.81,
 'angle_of_attack':1/5*np.pi}
@@ -11,13 +11,18 @@ p['total_energy'] = compute_total_energy(x0, p)
 poincare_map.p = p
 poincare_map.x = x0
 poincare_map.sa2xp = mapSA2xp_height_angle
+poincare_map.xp2s = map2s
 
 s_grid = np.linspace(0.1, 1, 50)
+s_grid = s_grid[:-1]
 a_grid = np.linspace(-10/180*np.pi, 90/180*np.pi, 51)
-
-Q_map, Q_F = compute_Q_2D(s_grid, a_grid, poincare_map)
-grids = {'states':s_grid, 'actions':a_grid}
+grids = {'states':(s_grid,), 'actions':(a_grid,)}
+Q_map, Q_F = compute_Q_map(grids, poincare_map)
 
 # save file
-data2save = {"s_grid": s_grid, "a_grid": a_grid, "Q_map": Q_map, "Q_F": Q_F}
-np.savez('test.npz', **data2save)
+# data2save = {"s_grid": s_grid, "a_grid": a_grid, "Q_map": Q_map, "Q_F": Q_F,
+#             "poincare_map":poincare_map, "p":p}
+# np.savez('test.npz', **data2save)
+
+plt.imshow(Q_map, origin = 'lower')
+plt.show()

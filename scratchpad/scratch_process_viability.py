@@ -18,7 +18,7 @@ Q_V, S_V = viability.compute_QV(Q_map, grids)
 
 S_q = viability.project_Q2S(Q_V, grids, proj_opt = np.sum)
 
-plt.plot(s_grid, S_q)
+plt.plot(range(1, S_q.size+1), S_q)
 plt.show()
 plt.imshow(Q_map, origin = 'lower')
 plt.show()
