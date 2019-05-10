@@ -16,5 +16,5 @@ sol = step(x0, p)
 
 import plotting.single_trials
 plotting.single_trials.com_visualisation(sol)
-plotting.single_trials.full_visualisation(sol)		
-
+plotting.single_trials.full_visualisation(sol)
+plt.show()
