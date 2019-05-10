@@ -17,7 +17,7 @@ colors = ['k','b','g']# colors corresponding to initial flight, stance, second f
 # - fall during flight
 ### If the event did not occur than the array is empty.
 
-def com_visualisation(sol, leg_visibility = 0.5, colors = colors): # This function plots failure events in red.
+def com_visualisation(sol, leg_visibility = 0.5, colors = colors, size = 100): # This function plots failure events in red.
 	times    = sol.t 
 	result   = sol.y
 	t_events = sol.t_events
@@ -27,7 +27,7 @@ def com_visualisation(sol, leg_visibility = 0.5, colors = colors): # This functi
 	plt.figure()
 
 	### Initial position
-	plt.scatter(x_com[0], y_com[0], color = colors[0])
+	plt.scatter(x_com[0], y_com[0], color = colors[0], s = size)
 	foot_x = result[4,0]
 	foot_y = result[5,0]
 	plt.plot([foot_x,x_com[0]],[foot_y,y_com[0]], color = colors[0], alpha = leg_visibility)
@@ -41,13 +41,13 @@ def com_visualisation(sol, leg_visibility = 0.5, colors = colors): # This functi
 			failure = t_events[0][0]
 			fail_index = np.argmax(times > failure)
 			plt.plot(x_com[:fail_index],y_com[:fail_index], color = colors[0])
-			plt.scatter(x_com[fail_index -1],y_com[fail_index-1], color = 'r')
+			plt.scatter(x_com[fail_index -1],y_com[fail_index-1], color = 'r', s = size)
 	else:
 		touchdown = t_events[1][0]
 		index     = np.argmax(times > touchdown)
 		foot_x    = result[4,index]
 		plt.plot(x_com[:index],y_com[:index], color = colors[0])
-		plt.scatter(x_com[index-1],y_com[index-1], color = colors[1])
+		plt.scatter(x_com[index-1],y_com[index-1], color = colors[1], s = size)
 		plt.plot([foot_x,x_com[index-1]],[0,y_com[index-1]], color = colors[1], alpha = leg_visibility)
 		
 		### Stance phase
@@ -64,12 +64,12 @@ def com_visualisation(sol, leg_visibility = 0.5, colors = colors): # This functi
 			if failure:	
 				fail_index = np.argmax(times > failure)
 				plt.plot(x_com[index:fail_index],y_com[index:fail_index], color = colors[1])
-				plt.scatter(x_com[fail_index -1],y_com[fail_index-1], color = 'r')
+				plt.scatter(x_com[fail_index -1],y_com[fail_index-1], color = 'r', s = size)
 		else:
 			liftoff = t_events[3][0]
 			lift_index = np.argmax(times > liftoff)
 			plt.plot(x_com[index-1:lift_index],y_com[index-1:lift_index], color = colors[1])
-			plt.scatter(x_com[lift_index-1],y_com[lift_index-1], color = colors[2])	
+			plt.scatter(x_com[lift_index-1],y_com[lift_index-1], color = colors[2], s = size)	
 			plt.plot([foot_x,x_com[lift_index-1]],[0,y_com[lift_index-1]], color = colors[2], alpha = leg_visibility)
 			
 			### Flight phase 
@@ -81,7 +81,7 @@ def com_visualisation(sol, leg_visibility = 0.5, colors = colors): # This functi
 					failure = t_events[6][0]
 					fail_index = np.argmax(times > failure)
 					plt.plot(x_com[lift_index-1:fail_index],y_com[lift_index-1:fail_index], color = colors[2])
-					plt.scatter(x_com[fail_index -1],y_com[fail_index-1], color = 'r')
+					plt.scatter(x_com[fail_index -1],y_com[fail_index-1], color = 'r', s = size)
 			else:
 				apex = t_events[5][0]
 				if times[-1] > apex:
@@ -89,12 +89,12 @@ def com_visualisation(sol, leg_visibility = 0.5, colors = colors): # This functi
 				else:
 					apex_index = len(times)
 				plt.plot(x_com[lift_index-1:apex_index],y_com[lift_index-1:apex_index], color = colors[2])
-				plt.scatter(x_com[apex_index-1],y_com[apex_index-1], color = colors[0])	
+				plt.scatter(x_com[apex_index-1],y_com[apex_index-1], color = colors[0], s = size)	
 				plt.plot([result[4,apex_index-1],x_com[apex_index-1]],[result[5,apex_index-1],y_com[apex_index-1]], color = colors[0], alpha = leg_visibility)
-						
+	plt.axhline(y=0, color = 'k')					
 	plt.xlabel('Horizontal position')
 	plt.ylabel('Vertical position')
-	plt.show()	
+	plt.show(block=False)	
 		
 
 def full_visualisation(sol, colors = colors, foot = False): # This function only plots if there was no failure in the trial
@@ -138,7 +138,7 @@ def full_visualisation(sol, colors = colors, foot = False): # This function only
 			plt.xlabel('Horizontal position')
 			plt.ylabel('Vertical position')
 			plt.title('Foot trajectory')
-			plt.show()
+			plt.show(block=False)
 
 		## CoM position 
 		plt.figure()
@@ -175,6 +175,6 @@ def full_visualisation(sol, colors = colors, foot = False): # This function only
 		plt.xlabel('Horizontal position')
 		plt.ylabel('Vertical position')
 		plt.title('CoM trajectory')
-		plt.show()		
+		plt.show(block=False)		
 	else:
 		print('The trial was a failure')

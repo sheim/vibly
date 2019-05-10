@@ -34,7 +34,7 @@ def visualise(data, initial_conditions = [], include_end_state = False,  state_c
 	change     = max(abs(min_change), abs(max_change))
 	plt.imshow(change_state, origin = 'lower', extent = [a_min, a_max, s_min, s_max], vmin = - change, vmax = change, cmap = change_colormap)
 	plt.colorbar()
-	plt.show()
+	plt.show(block=False)
 	
 	if len(initial_conditions) > 0:
 		## To determine the lower bound on state
@@ -56,4 +56,4 @@ def visualise(data, initial_conditions = [], include_end_state = False,  state_c
 	plt.xlabel('Angle of attack (rad)')
 	plt.ylabel('State')
 	plt.title('Change in state')
-	plt.show()
+	plt.show(block=False)
