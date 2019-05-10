@@ -27,7 +27,6 @@ plotting.animation.animation_visualisation(sol)
 
 import plotting.single_trials
 plotting.single_trials.com_visualisation(sol)
-<<<<<<< HEAD
 ## The arguments you can pass to the function are:
 # leg_visibility = 0.5	: set to 0 if you don't want to see the leg 
 # colors = ['k','b','g']: colors of the [flight, stance, flight] phases
