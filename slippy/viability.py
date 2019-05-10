@@ -93,10 +93,14 @@ def get_state_from_ravel(bin_idx, s_grid):
     print("TO DO") # TODO
     return 0
 
-def digitize_s(s, s_grid, s_bin_shape):
+def digitize_s(s, s_grid, s_bin_shape = None):
     '''
     s_grid is a tuple/list of 1-D grids. digitize_s finds the corresponding
-    index of the grid on S.
+    index of the bin overlaid on the N-dimensional grid S.
+
+    output:
+    - either an array of indices of N dimensions
+    - a raveled index
     '''
     # assert type(s_grid) is tuple or type(s_grid) is list
     s = np.atleast_1d(s)
@@ -108,7 +112,11 @@ def digitize_s(s, s_grid, s_bin_shape):
         # if s_bin[dim_idx] >= grid.size:
         #     print("WARNING: exited grid in " + str(dim_idx) + " dimension.")
         #     s_bin[dim_idx] = grid.size-1 # saturating at end of grid
-    return np.ravel_multi_index(s_bin, s_bin_shape)
+    if s_bin_shape is None:
+        return s_bin
+    else:
+        return np.ravel_multi_index(s_bin, s_bin_shape)
+
 
 def compute_Q_map(grids, poincare_map):
     ''' Compute the transition map of a system with 1D state and 1D action
@@ -207,7 +215,7 @@ def compute_QV(Q_map, grids, Q_V = None):
 
 def is_outside(s, s_grid, S_V):
     '''
-    given a level set S, check if s is inside S or not
+    given a level set S, check if s lands in a bin inside of S or not
     '''
     for state_dx, state_val in enumerate(s):
         bin_idx = np.digitize(state_val, s_grid[state_dx])

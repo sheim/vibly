@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 state_colormap     = 'viridis'  # other sequential colormaps: 'plasma', 'gray'
 change_colormap    = 'coolwarm' # other diverging colormaps: 'bwr', 'RdBu'
 
-def visualise(data, initial_conditions = [], include_end_state = False,  state_colormap = state_colormap, change_colormap = change_colormap):
+def visualise(data, initial_conditions = [], include_end_state = False,
+		state_colormap = state_colormap, change_colormap = change_colormap):
 
 	s_grid	= data['s_grid']	# shape 50
 	a_grid	= data['a_grid']	# shape 50 (in radian? angles?)
@@ -22,7 +23,7 @@ def visualise(data, initial_conditions = [], include_end_state = False,  state_c
 	end_state[Q_V != 1] = np.nan
 	change_state   = end_state - initial_state
 
-	if include_end_state:	
+	if include_end_state:
 		fig, (ax2, ax) = plt.subplots(nrows=2)
 		im2 = ax2.imshow(end_state, origin = 'lower', extent = [a_min, a_max, s_min, s_max], cmap = state_colormap)
 		fig.colorbar(im2, ax=ax2)
@@ -30,7 +31,7 @@ def visualise(data, initial_conditions = [], include_end_state = False,  state_c
 		ax2.set_title('End state')
 		ax2.set_xticks([])
 
-	else: 	
+	else:
 		fig, ax = plt.subplots()
 	min_change = np.min(change_state[Q_V == 1])
 	max_change = np.max(change_state[Q_V == 1])
@@ -39,17 +40,17 @@ def visualise(data, initial_conditions = [], include_end_state = False,  state_c
 	fig.colorbar(im, ax=ax)
 	ax.set_xlabel('Angle of attack (rad)')
 	ax.set_ylabel('State')
-	ax.set_title('Change in state')	
-	
+	ax.set_title('Change in state')
+
 	if len(initial_conditions) > 0:
 		## To determine the lower bound on state
 		s_lower = np.cos(a_grid)/(initial_conditions[1]+initial_conditions[2]**2/(2*9.81)) # height at touchdown / (height + speed^2/2g)
 		ax.plot(a_grid, s_lower, color = 'k')
-		ax.fill_between(a_grid, s_lower, color = 'grey')	
-		if include_end_state:		
+		ax.fill_between(a_grid, s_lower, color = 'grey')
+		if include_end_state:
 			ax2.plot(a_grid, s_lower, color = 'k')
-			ax2.fill_between(a_grid, s_lower, color = 'grey')	
-		
+			ax2.fill_between(a_grid, s_lower, color = 'grey')
+
 	plt.show(block=False)
 
 def visualise_old(data, initial_conditions = [], include_end_state = False,  state_colormap = state_colormap, change_colormap = change_colormap):
@@ -70,33 +71,37 @@ def visualise_old(data, initial_conditions = [], include_end_state = False,  sta
 	end_state[Q_V != 1] = np.nan
 	change_state   = end_state - initial_state
 
-	
+
 	plt.figure()
-	
-	if include_end_state:	
+
+	if include_end_state:
 		plt.subplot(211)
-		plt.imshow(end_state, origin = 'lower', extent = [a_min, a_max, s_min, s_max], cmap = state_colormap)
+		plt.imshow(end_state, origin = 'lower',
+				extent = [a_min, a_max, s_min, s_max], cmap = state_colormap)
 		plt.colorbar()
 		plt.subplot(212)
 	min_change = np.min(change_state[Q_V == 1])
 	max_change = np.max(change_state[Q_V == 1])
 	change     = max(abs(min_change), abs(max_change))
-	plt.imshow(change_state, origin = 'lower', extent = [a_min, a_max, s_min, s_max], vmin = - change, vmax = change, cmap = change_colormap)
+	plt.imshow(change_state, origin = 'lower',
+			extent = [a_min, a_max, s_min, s_max],
+			vmin = - change, vmax = change, cmap = change_colormap)
 	plt.colorbar()
-	plt.show(block=False)
-	
+
 	if len(initial_conditions) > 0:
 		## To determine the lower bound on state
-		s_lower = np.cos(a_grid)/(initial_conditions[1]+initial_conditions[2]**2/(2*9.81)) # height at touchdown / (height + speed^2/2g)
+		# height at touchdown / (height + speed^2/2g)
+		s_lower = np.cos(a_grid)/(initial_conditions[1] +
+				initial_conditions[2]**2/(2*9.81))
 		plt.plot(a_grid, s_lower, color = 'k')
-		plt.fill_between(a_grid, s_lower, color = 'grey')	
-		if include_end_state:		
+		plt.fill_between(a_grid, s_lower, color = 'grey')
+		if include_end_state:
 			plt.subplot(2,1,1)
 			plt.plot(a_grid, s_lower, color = 'k')
-			plt.fill_between(a_grid, s_lower, color = 'grey')	
-		
+			plt.fill_between(a_grid, s_lower, color = 'grey')
+
 	## Labels
-	if include_end_state:	
+	if include_end_state:
 		plt.subplot(2,1,1)
 		plt.xticks([])
 		plt.ylabel('State')
@@ -105,4 +110,3 @@ def visualise_old(data, initial_conditions = [], include_end_state = False,  sta
 	plt.xlabel('Angle of attack (rad)')
 	plt.ylabel('State')
 	plt.title('Change in state')
-	plt.show(block=False)
