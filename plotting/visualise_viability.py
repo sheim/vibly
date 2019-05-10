@@ -7,10 +7,12 @@ change_colormap    = 'coolwarm' # other diverging colormaps: 'bwr', 'RdBu'
 def visualise(data, initial_conditions = [], include_end_state = False,
 		state_colormap = state_colormap, change_colormap = change_colormap):
 
-	s_grid	= data['s_grid']	# shape 50
-	a_grid	= data['a_grid']	# shape 50 (in radian? angles?)
-	Q_map	= data['Q_map']		# shape 50 x 50
-	Q_V		= data['Q_V']		# shape 50 x 50: binary non-failure
+	Q_map	= data['Q_map']
+	Q_V		= data['Q_V']
+	grids	= data['grids']
+
+	s_grid = grids['states']
+	a_grid	= grids['actions']
 
 	s_min = s_grid[0]
 	s_max = s_grid[-1]
@@ -55,10 +57,12 @@ def visualise(data, initial_conditions = [], include_end_state = False,
 
 def visualise_old(data, initial_conditions = [], include_end_state = False,  state_colormap = state_colormap, change_colormap = change_colormap):
 
-	s_grid	= data['s_grid']	# shape 50
-	a_grid	= data['a_grid']	# shape 50 (in radian? angles?)
-	Q_map	= data['Q_map']		# shape 50 x 50
-	Q_V		= data['Q_V']		# shape 50 x 50: binary non-failure
+	Q_map	= data['Q_map']
+	Q_V		= data['Q_V']
+	grids	= data['grids']
+
+	s_grid = grids['states']
+	a_grid	= grids['actions']
 
 	s_min = s_grid[0]
 	s_max = s_grid[-1]
