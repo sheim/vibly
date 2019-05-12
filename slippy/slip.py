@@ -49,12 +49,12 @@ def step(x, p):
     SPECIFIC_STIFFNESS = p['stiffness'] / p['mass']
     MAX_TIME = 5
 
-    @jit(nopython=True)
+    # @jit(nopython=True)
     def flight_dynamics(t, x):
         # code in flight dynamics, xdot_ = f()
         return np.array([x[2], x[3], 0, -GRAVITY, x[2], x[3]])
 
-    @jit(nopython=True)
+    # @jit(nopython=True)
     def stance_dynamics(t, x):
         # stance dynamics
         alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
@@ -65,7 +65,7 @@ def step(x, p):
                     leg_length)*np.cos(alpha) - GRAVITY
         return np.array([x[2], x[3], xdotdot, ydotdot, 0, 0])
 
-    @jit(nopython=True)
+    # @jit(nopython=True)
     def fall_event(t, x):
         '''
         Event function to detect the body hitting the floor (failure)
@@ -74,7 +74,7 @@ def step(x, p):
     fall_event.terminal = True
     fall_event.terminal = -1
 
-    @jit(nopython=True)
+    # @jit(nopython=True)
     def touchdown_event(t, x):
         '''
         Event function for foot touchdown (transition to stance)
@@ -85,7 +85,7 @@ def step(x, p):
     touchdown_event.terminal = True # no longer actually necessary...
     touchdown_event.direction = -1
 
-    @jit(nopython=True)
+    # @jit(nopython=True)
     def liftoff_event(t, x):
         '''
         Event function to reach maximum spring extension (transition to flight)
@@ -94,7 +94,7 @@ def step(x, p):
     liftoff_event.terminal = True
     liftoff_event.direction = 1
 
-    @jit(nopython=True)
+    # @jit(nopython=True)
     def apex_event(t, x):
         '''
         Event function to reach apex
@@ -103,7 +103,7 @@ def step(x, p):
     apex_event.terminal = True
 
 
-    @jit(nopython=True)
+    # @jit(nopython=True)
     def reversal_event(t, x):
         '''
         Event function for direction reversal
