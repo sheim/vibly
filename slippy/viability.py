@@ -3,6 +3,24 @@
 import itertools as it
 import numpy as np
 
+# def save(filename):
+#     '''
+#     Utility function to save all the default files generated
+#     '''
+#     save_list = ('Q_map', 'Q_F', 'Q_V', 'grids', 'S_V', 'P_map', 'p')
+#     data2save = {}
+#     for var in save_list:
+#         if var in locals(): # check if it is instantiated
+#             data2save[var] = eval(var)
+
+#     if len(data2save) > 0:
+#         np.savez(filename, **data2save)
+#     else:
+#         print('Warning: nothing to save')
+
+# def load():
+#     # load has to pass in references to be overwritten, or something like that
+
 def compute_Q_2D(s_grid, a_grid, poincare_map):
     ''' Compute the transition map of a system with 1D state and 1D action
     NOTES
@@ -135,8 +153,8 @@ def compute_Q_map(grids, poincare_map):
     total_gridpoints = np.prod(s_grid_shape)*np.prod(a_grid_shape)
     print('computing a total of ' + str(total_bins) + ' points.')
 
-    Q_map = np.zeros((total_gridpoints, 1))
-    Q_F = np.zeros((total_gridpoints, 1))
+    Q_map = np.zeros((total_gridpoints, 1), dtype = int)
+    Q_F = np.zeros((total_gridpoints, 1), dtype = bool)
 
     # TODO: also compute transitions diff maps etc.
     # TODO: generate purely with numpy (meshgrids?).
@@ -187,39 +205,37 @@ def compute_QV(Q_map, grids, Q_V = None):
         Q_V = np.copy(Q_map) # TODO: is this okay in general?
         Q_V = Q_V.astype(bool)
     # initialize empty of S_old
-    S_old = np.zeros_like((map(np.size, grids['states'])))
     # initialize estimate of S_V
     S_V = project_Q2S(Q_V, grids)
+    S_old = np.zeros_like(S_V)
 
     # while S_V != S_old
-    while np.array_equal(S_V, S_old):
+    while not np.array_equal(S_V, S_old):
         # iterate over all s in S_V
-        for qdx, is_viable in enumerate(np.nditer(Q_V)):
+        print(np.sum(S_V))
+        for qdx, is_viable in np.ndenumerate(Q_V):
             # iterate over all a
             if is_viable:
                 # if s_k isOutside S_V:
-                if is_outside(Q_map[qdx], S_V, grids['states']):
+                if is_outside(Q_map[qdx], grids['states'], S_V):
                     Q_V[qdx] = False
                     # remove (s,a) from Q_V
+        S_old = S_V
+        S_V = project_Q2S(Q_V, grids)
 
-    # while np.array_equal(S_V, S_old):
-        # for qdx, is_viable in enumerate(np.nditer(Q_V)): # compare with np.enum
-        #     if is_viable: # only check previously viable (s, a)
-        #         if is_outside_2D(Q_map[qdx], S_V, grids['states']):
-        #             Q_V[qdx] = 0 # remove
-        # S_old = S_V
-        # S_V = project_Q2S_2D(Q_V)
-    # Q_V = 0
-    # S_V = 0
     return Q_V, S_V
 
-def is_outside(s, s_grid, S_V):
+def is_outside(s, s_grid, S_V, already_binned = True):
     '''
     given a level set S, check if s lands in a bin inside of S or not
     '''
 
     # only checking 1 state vector
-    bin_idx = digitize_s(s, s_grid) # get unraveled indices
+    if not already_binned: #TODO Check this
+        bin_idx = digitize_s(s, s_grid) # get unraveled indices
+    else:
+        bin_idx = np.unravel_index(s, tuple(x+1 for x in map(np.size, s_grid)))
+
     for dim_idx, grid in enumerate(s_grid):
         # if outside the left-most or right-most side of grid, mark as outside
         # * NOTE: this might result in diastrous underestimations if the grid is
@@ -230,21 +246,10 @@ def is_outside(s, s_grid, S_V):
             return True
         else:
             # check if enclosing grid points are viable or not
-            index_vec = np.zeros_like(s)
+            index_vec = np.zeros(len(s_grid), dtype = int)
             index_vec[dim_idx] = 1
-            if (not S_V[tuple(bin_idx + index_vec)] or
-                not S_V[tuple(bin_idex - index_vec)]):
+            if (not S_V[tuple(bin_idx)] or
+                not S_V[tuple(bin_idx - index_vec)]):
                 return True
 
         return False
-
-    # for state_dx, state_val in enumerate(s):
-    #     bin_idx = np.digitize(state_val, s_grid[state_dx])
-    #     # if bin_idx isn't outside of s_grid
-    #     # TODO: this should probably just evaluate to False as well
-    #     if bin_idx > 0 and bin_idx < s_grid[state_dx].size - 1:
-    #         # check if closest evaluated states are all viable
-    #         if not np.all(S_V[state_dx, bin_idx:bin_idx+2]):
-    #             return False
-    # else:
-    #     return True
