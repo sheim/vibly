@@ -1,7 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
+
 from slippy.daslip import *
-from slippy.viability import compute_Q_map
+import slippy.viability as vibly
 
 # * First, solve for the operating point to get an open-loop force traj
 # Model parameters for both slip/daslip. Parameters only used by daslip are *
@@ -59,7 +60,7 @@ s_grid = (s_grid_energy, s_grid_normalizedheight)
 a_grid = (np.linspace(0/180*np.pi, 70/180*np.pi, 15), )
 
 grids = {'states':s_grid, 'actions':a_grid}
-Q_map, Q_F = compute_Q_map(grids, poincare_map)
+Q_map, Q_F = vibly.compute_Q_map(grids, poincare_map)
 
 print("non-failing portion of Q: " + str(np.sum(Q_F)/Q_F.size))
 
