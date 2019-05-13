@@ -41,7 +41,6 @@ def compute_Q_2D(s_grid, a_grid, poincare_map):
     # QTransition = Q_map
     n = len(s_grid)*len(a_grid)
     for idx, state_action in enumerate(it.product(s_grid, a_grid)):
-        # print(state_action)
         if idx%(n/10)==0:
             print('.', end=' ')
         x, p = poincare_map.sa2xp(state_action, poincare_map.x, poincare_map.p)
@@ -136,7 +135,7 @@ def digitize_s(s, s_grid, s_bin_shape = None):
         return np.ravel_multi_index(s_bin, s_bin_shape)
 
 
-def compute_Q_map(grids, poincare_map):
+def compute_Q_map(grids, poincare_map, verbose = 0):
     ''' Compute the transition map of a system with 1D state and 1D action
     NOTES
     - s_grid and a_grid have to be iterable lists of lists
@@ -151,7 +150,9 @@ def compute_Q_map(grids, poincare_map):
     a_bin_shape = tuple(dim+1 for dim in a_grid_shape)
     total_bins = np.prod(s_bin_shape)*np.prod(a_bin_shape)
     total_gridpoints = np.prod(s_grid_shape)*np.prod(a_grid_shape)
-    print('computing a total of ' + str(total_bins) + ' points.')
+
+    if verbose > 0:
+        print('computing a total of ' + str(total_bins) + ' points.')
 
     Q_map = np.zeros((total_gridpoints, 1), dtype = int)
     Q_F = np.zeros((total_gridpoints, 1), dtype = bool)
@@ -163,9 +164,10 @@ def compute_Q_map(grids, poincare_map):
     for idx, state_action in enumerate(np.array(list(
             it.product(*grids['states'], *grids['actions'])))):
 
-        # NOTE: requires running python unbuffered (python -u)
-        if idx%(total_bins/10)==0:
-            print('.', end=' ')
+        if verbose > 1:
+            # NOTE: requires running python unbuffered (python -u)
+            if idx%(total_bins/10)==0:
+                print('.', end=' ')
 
         x, p = poincare_map.sa2xp(state_action, poincare_map.x, poincare_map.p)
 
@@ -212,7 +214,6 @@ def compute_QV(Q_map, grids, Q_V = None):
     # while S_V != S_old
     while not np.array_equal(S_V, S_old):
         # iterate over all s in S_V
-        print(np.sum(S_V))
         for qdx, is_viable in np.ndenumerate(Q_V):
             # iterate over all a
             if is_viable:
@@ -229,7 +230,6 @@ def is_outside(s, s_grid, S_V, already_binned = True):
     '''
     given a level set S, check if s lands in a bin inside of S or not
     '''
-
     # only checking 1 state vector
     if not already_binned: #TODO Check this
         bin_idx = digitize_s(s, s_grid) # get unraveled indices
@@ -238,7 +238,7 @@ def is_outside(s, s_grid, S_V, already_binned = True):
 
     for dim_idx, grid in enumerate(s_grid):
         # if outside the left-most or right-most side of grid, mark as outside
-        # * NOTE: this might result in diastrous underestimations if the grid is
+        # * NOTE: this can result in disastrous underestimations if the grid is
         # * not larger than the viable set!
         if bin_idx[dim_idx] == 0:
             return True
