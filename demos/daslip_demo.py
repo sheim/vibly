@@ -5,22 +5,23 @@ import sys
 from matplotlib import gridspec
 
 FLAG_SAVE_PLOTS = False
-daslip_height_perturbation = 0.1
+height_perturbation = 0.1
 # Human readable state index labels and enums.
 state_labels = ['x_c',' y_c','\dot{x}_c','\dot{y}_c','x_f','y_f','l_a','w_a',
-                'w_d']
+                'w_d', 'y_g']
 
 #slip & daslip: shared states
 x_c  = 0  # x_c  : horizontal coordinate of the center-of-mass (c) (+ right)
 y_c  = 1  # y_c  : vertical '...' (+ up)
 vx_c = 2  # vx_c : horizontal velocity of the center-of-mass (+ right)
 vy_c = 3  # vy_c : vertical velocity '...' (+ up)
-x_f   = 4 # x_f : horizontal coordinate from c to the foot (f)
-y_f   = 5 # y_f : vertical coordinate '...'
+x_f  = 4 # x_f : horizontal coordinate from c to the foot (f)
+y_f  = 5 # y_f : vertical coordinate '...'
 #daslip: appended extra states
-la    = 6 # la    : length of the actuator
-wa    = 7 # wa    : work of the actuator
-wd    = 8 # wd
+la   = 6 # la    : length of the actuator
+wa   = 7 # wa    : work of the actuator
+wd   = 8 # wd
+y_g  = -1 # ground height
 
 slip_model  = 0 #spring-loaded-inverted-pendulum
 daslip_model= 1 #damper-actuator-spring-loaded inverted pendulum
@@ -113,9 +114,9 @@ p = { 'model_type':slip_model,            #0 (slip), 1 (daslip)
 #Initialization: Slip & Daslip
 #===============================================================================
 
-x0_slip   = np.array([0, 0.85, 5.5, 0, 0, 0])
+x0_slip   = np.array([0, 0.85, 5.5, 0, 0, 0, 0])
 x0_daslip = np.array([0, 0.85, 5.5, 0, 0, 0,
-        p['actuator_resting_length'], 0, 0])
+        p['actuator_resting_length'], 0, 0, 0])
 
 x0_slip = reset_leg(x0_slip, p)
 p['total_energy'] = compute_total_energy(x0_slip, p)
@@ -178,7 +179,7 @@ for i in range(0, 4):
 #===============================================================================
 
 #Get a high-resolution state trajectory of the limit cycle
-x0_slip[y_c] = x0_slip[y_c] + daslip_height_perturbation
+x0_slip[y_c] = x0_slip[y_c] + height_perturbation
 x0_slip = reset_leg(x0_slip, p_lc)
 p['total_energy'] = compute_total_energy(x0_slip, p_lc)
 sol_slip_pert = step(x0_slip, p_lc)
@@ -218,7 +219,7 @@ p_daslip['actuator_force_period'] = np.max(actuator_time_force[0, :])
 
 #Solve for a nominal step of the daslip model. The output trajectory
 #should perfectly match the limit cycle step of the slip model
-x0_daslip[y_c] = x0_daslip[y_c] + daslip_height_perturbation
+x0_daslip[y_c] = x0_daslip[y_c] + height_perturbation
 x0_daslip = reset_leg(x0_daslip, p_daslip)
 p_daslip['total_energy'] = compute_total_energy(x0_daslip, p_daslip)
 sol_daslip = step(x0_daslip, p_daslip)
