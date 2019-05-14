@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.integrate as integrate
-from numba import jit
+# from numba import jit
 
 def poincare_map(x, p):
     '''

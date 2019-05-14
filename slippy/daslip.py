@@ -1,6 +1,5 @@
 import numpy as np
 import scipy.integrate as integrate
-from numba import jit
 
 def limit_cycle(x, p, p_key_name, p_key_width):
     '''
@@ -133,7 +132,7 @@ def poincare_map(x, p):
         return x
 
 
-def step(x, p, prev_sol = None):
+def step(x0, p, prev_sol = None):
     '''
     Take one step from apex to apex/failure.
     returns a sol object from integrate.solve_ivp, with all phases
@@ -147,9 +146,9 @@ def step(x, p, prev_sol = None):
     MODEL_TYPE = p['model_type']
     assert( MODEL_TYPE == 0 or MODEL_TYPE == 1)
     if MODEL_TYPE == 0 :
-        assert(len(x) == 6)
+        assert(len(x0) == 6)
     elif MODEL_TYPE == 1:
-        assert(len(x) == 9)
+        assert(len(x0) == 9)
     else:
         raise Exception('model_type is not set correctly')
 
@@ -159,7 +158,6 @@ def step(x, p, prev_sol = None):
     MASS = p['mass']
     SPRING_RESTING_LENGTH = p['spring_resting_length']
     STIFFNESS = p['stiffness']
-    TOTAL_ENERGY = p['total_energy']
     SPECIFIC_STIFFNESS = p['stiffness'] / p['mass']
 
     ACTUATOR_RESTING_LENGTH = p['actuator_resting_length']
@@ -302,9 +300,7 @@ def step(x, p, prev_sol = None):
 
     if prev_sol is not None:
         t0 = prev_sol.t[-1]
-        assert(x == prev_sol.y[:,-1])
     else:
-        x0 = x
         t0 = 0 # starting time
 
     # FLIGHT: simulate till touchdown
@@ -334,7 +330,7 @@ def step(x, p, prev_sol = None):
     if prev_sol is not None:
         sol.t = np.concatenate((prev_sol.t, sol.t))
         sol.y = np.concatenate((prev_sol.y, sol.y), axis =1)
-        sol.t_events = prev_sol + sol.t_events
+        sol.t_events = prev_sol.t_events + sol.t_events
 
     # TODO: mark different phases
     for fail_idx in (0, 2, 4):
