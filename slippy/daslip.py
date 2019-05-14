@@ -109,7 +109,7 @@ def poincare_map(x, p):
     Essentially, the Poincare map.
     '''
     if type(p) is dict:
-        if x[5] < 0:
+        if x[5] - x[-1] < 0:
             return x, True # return failed if foot starts underground
         sol = step(x, p)
         return sol.y[:, -1], sol.failed
@@ -119,7 +119,7 @@ def poincare_map(x, p):
         # TODO: for shorthand, allow just a single tuple to be passed in
         # this can be done easily with itertools
         for idx, p0 in enumerate(p):
-            if x[5] < 0:
+            if x[5] - x[-1] < 0:
                 vector_of_x[:, idx] = x[:, idx]
                 vector_of_fail[idx] = True
             else:
@@ -146,9 +146,9 @@ def step(x0, p, prev_sol = None):
     MODEL_TYPE = p['model_type']
     assert( MODEL_TYPE == 0 or MODEL_TYPE == 1)
     if MODEL_TYPE == 0 :
-        assert(len(x0) == 6)
+        assert(len(x0) == 7)
     elif MODEL_TYPE == 1:
-        assert(len(x0) == 9)
+        assert(len(x0) == 10)
     else:
         raise Exception('model_type is not set correctly')
 
@@ -181,11 +181,11 @@ def step(x0, p, prev_sol = None):
 
         # code in flight dynamics, xdot_ = f()
         if(MODEL_TYPE == 0):
-            return np.array([x[2], x[3], 0, -GRAVITY, x[2]+vfx, x[3]+vfy])
+            return np.array([x[2], x[3], 0, -GRAVITY, x[2]+vfx, x[3]+vfy, 0])
         elif(MODEL_TYPE == 1):
             #The actuator length does not change, and no work is done.
             return np.array([x[2], x[3], 0, -GRAVITY, x[2]+vfx, x[3]+vfy,
-                0, 0, 0])
+                0, 0, 0, 0])
         else:
             raise Exception('model_type is not set correctly')
 
@@ -205,7 +205,7 @@ def step(x0, p, prev_sol = None):
         ydotdot =  ldotdot*np.cos(alpha) - GRAVITY
 
         if MODEL_TYPE == 0:
-            output = np.array([x[2], x[3], xdotdot, ydotdot, 0, 0])
+            output = np.array([x[2], x[3], xdotdot, ydotdot, 0, 0, 0])
         elif MODEL_TYPE == 1:
             actuator_open_loop_force = 0
             if np.shape(p['actuator_force'])[0] > 0:
@@ -241,7 +241,7 @@ def step(x0, p, prev_sol = None):
             #xdotdot = -ldotdot*np.sin(alpha)
             #ydotdot =  ldotdot*np.cos(alpha) - GRAVITY
             output = np.array([x[2], x[3], xdotdot, ydotdot, 0, 0,
-                ladot, wadot, wddot])
+                ladot, wadot, wddot, 0])
         else:
             raise Exception('model_type is not set correctly')
 
@@ -263,7 +263,7 @@ def step(x0, p, prev_sol = None):
         '''
             # x[1]- np.cos(p['angle_of_attack'])*SPRING_RESTING_LENGTH
             # (which is = x[5])
-        return x[5]
+        return x[5]-x[-1] # final state is ground height
     touchdown_event.terminal = True # no longer actually necessary...
     touchdown_event.direction = -1
 
@@ -462,7 +462,7 @@ def map2s_y_xdot_aoa(x, p):
     map an apex state to the low-dim state used for the viability comp
     TODO: make this accept trajectories
     '''
-
+    print("TODO: implement this with ground height")
     return np.array([x[1],x[2]])
 
 # def map2x(x, p, s):
@@ -479,8 +479,9 @@ def mapSA2xp_y_xdot_aoa(state_action, x, p):
     '''
     Specifically map state_actions to x and p
     '''
+    print("TODO: re-implment mapSA2xp_y_xdot_aoa with ground height")
     p['angle_of_attack'] = state_action[2]
-    x[1] = state_action[0]
+    x[1] = state_action[0] # TODO: reimplement with ground ehight
     x[2] = state_action[1]
     x = reset_leg(x, p)
     return x, p
