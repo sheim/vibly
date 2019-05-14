@@ -133,7 +133,7 @@ def poincare_map(x, p):
         return x
 
 
-def step(x, p):
+def step(x, p, prev_sol = None):
     '''
     Take one step from apex to apex/failure.
     returns a sol object from integrate.solve_ivp, with all phases
@@ -300,37 +300,27 @@ def step(x, p):
 
     # set integration options
 
-    x0 = x
-    t0 = 0 # starting time
+    if prev_sol is not None:
+        t0 = prev_sol.t[-1]
+        assert(x == prev_sol.y[:,-1])
+    else:
+        x0 = x
+        t0 = 0 # starting time
 
     # FLIGHT: simulate till touchdown
-    # events = [lambda t, x: fall_event(t, x),
-    #     lambda t, x: touchdown_event(t, x)]
-    # for ev in events:
-    #     ev.terminal = True
     events = [fall_event, touchdown_event]
     sol = integrate.solve_ivp(flight_dynamics,
         t_span = [t0, t0 + MAX_TIME], y0 = x0, events = events, max_step = 0.01)
 
     # STANCE: simulate till liftoff
-    # events = [lambda t, x: fall_event(t, x),
-    #     lambda t, x: liftoff_event(t, x)]
     events = [fall_event, liftoff_event]
-    # for ev in events:
-    #     ev.terminal = True
-    # events[1].direction = 1 # only trigger when spring expands
     x0 = sol.y[:, -1]
     sol2 = integrate.solve_ivp(stance_dynamics,
         t_span = [sol.t[-1], sol.t[-1] + MAX_TIME], y0 = x0,
         events=events, max_step=0.001)
 
     # FLIGHT: simulate till apex
-    # events = [lambda t, x: fall_event(t, x),
-    #     lambda t, x: apex_event(t, x)]
     events = [fall_event, apex_event]
-    # for ev in events:
-    #     ev.terminal = True
-
     x0 = reset_leg(sol2.y[:, -1], p)
     sol3 = integrate.solve_ivp(flight_dynamics,
         t_span = [sol2.t[-1], sol2.t[-1] + MAX_TIME], y0 = x0,
@@ -340,6 +330,11 @@ def step(x, p):
     sol.t = np.concatenate((sol.t, sol2.t, sol3.t))
     sol.y = np.concatenate((sol.y, sol2.y, sol3.y), axis = 1)
     sol.t_events += sol2.t_events + sol3.t_events
+
+    if prev_sol is not None:
+        sol.t = np.concatenate((prev_sol.t, sol.t))
+        sol.y = np.concatenate((prev_sol.y, sol.y), axis =1)
+        sol.t_events = prev_sol + sol.t_events
 
     # TODO: mark different phases
     for fail_idx in (0, 2, 4):
@@ -351,6 +346,22 @@ def step(x, p):
         # TODO: clean up the list
 
     return sol
+
+def check_failure(x, fail_idx = (0,1)):
+    '''
+    Check if a state is in the failure set. Pass in a tuple of indices for which
+    failure conditions to check. Currently: 0 for falling, 1 for direction rev.
+    '''
+    for idx in fail_idx:
+        if idx is 0: # check for falling
+            if np.less_equal(x[1], 0):
+                return True
+        elif idx is 1:
+            if np.less_equal(x[2], 0): # check for direction reversal
+                return True
+    else: # loop completes, no fail conditions triggered
+        return False
+
 
 def create_actuator_open_loop_time_series(step_sol, p):
     MODEL_TYPE = p['model_type']

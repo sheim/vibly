@@ -161,6 +161,21 @@ def step(x, p):
 
     return sol
 
+def check_failure(x, fail_idx = (0,1)):
+    '''
+    Check if a state is in the failure set. Pass in a tuple of indices for which
+    failure conditions to check. Currently: 0 for falling, 1 for direction rev.
+    '''
+    for idx in fail_idx:
+        if idx is 0: # check for falling
+            if np.less_equal(x[1], 0):
+                return True
+        elif idx is 1:
+            if np.less_equal(x[2], 0): # check for direction reversal
+                return True
+    else: # loop completes, no fail conditions triggered
+        return False
+
 def reset_leg(x, p):
     x[4] = x[0] + np.sin(p['angle_of_attack'])*p['resting_length']
     x[5] = x[1] - np.cos(p['angle_of_attack'])*p['resting_length']
