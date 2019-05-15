@@ -17,7 +17,7 @@ colors = ['k','b','g']
 # - fall during flight
 ### If the event did not occur than the array is empty.
 
-def com_visualisation(sol, leg_visibility = 0.5, colors = colors, size = 100):
+def com_visualisation(sol, leg_visibility = 0.5, colors = colors, size = 100, Ground = False):
 	'''
 	 This function plots failure events in red.
 	 '''
@@ -107,7 +107,12 @@ def com_visualisation(sol, leg_visibility = 0.5, colors = colors, size = 100):
 				plt.plot([result[4,apex_index-1],x_com[apex_index-1]],
 						[result[5,apex_index-1],y_com[apex_index-1]],
 						color = colors[0], alpha = leg_visibility)
-	plt.axhline(y=0, color = 'k')
+						
+	if Ground:
+		ground = result[-1]
+		plt.plot(x_com, ground, color = 'k')
+	else:					
+		plt.axhline(y=0, color = 'k')
 	plt.xlabel('Horizontal position')
 	plt.ylabel('Vertical position')
 

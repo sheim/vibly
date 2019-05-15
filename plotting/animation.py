@@ -7,7 +7,7 @@ from scipy.interpolate import interp1d
 slow       = 10 # scales the animation relative to real time
 interval   = 30 # ms between frames in the animation 
 com_radius = 60 # size of the CoM dot
-def animation_visualisation(sol, slow = slow, interval = interval, com_radius = com_radius, see = True, save = False, writer_name = 'html', filename = 'test.html'):
+def animation_visualisation(sol, slow = slow, interval = interval, com_radius = com_radius, see = True, save = False, writer_name = 'html', filename = 'test.html', Ground = False):
 	
 	times    = sol.t 
 	result   = sol.y
@@ -56,9 +56,15 @@ def animation_visualisation(sol, slow = slow, interval = interval, com_radius = 
 	### Visualisation
 	fig, ax = plt.subplots()
 	ax.set_xlim([np.min(x_com),np.max(x_com)])
-	ax.set_ylim([-0.1,np.max(y_com) + 0.1])
+	
 	ax.set_aspect('equal')	
-	ax.axhline(y=0, color = 'k')
+	if Ground:
+		ground = result[-1]
+		plt.plot(x_com, ground, color = 'k')
+		ax.set_ylim([np.min(ground) - 0.1,np.max(y_com) + 0.1])
+	else:	
+		ax.axhline(y=0, color = 'k')
+		ax.set_ylim([-0.1,np.max(y_com) + 0.1])
 	ax.set_xlabel('Horizontal')
 	ax.set_ylabel('Vertical')
 
