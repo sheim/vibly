@@ -9,7 +9,8 @@ x0 = np.array([10,		# x position: forwards
 				5.5,	# x velocity
 				0,		# y velocity
 				0,		# foot position x
-				0])		# foot position y
+				0,		# foot position y
+				0])		# ground position y
 x0 = reset_leg(x0, p)
 p['total_energy'] = compute_total_energy(x0, p)
 sol = step(x0, p)

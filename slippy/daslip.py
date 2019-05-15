@@ -101,7 +101,14 @@ def limit_cycle(x, p, p_key_name, p_key_width):
         print("WARNING: p is not a dict and should be.")
         return p
 
-
+def feasible(x, p):
+    '''
+    check if state is at all feasible (body/foot underground)
+    returns a boolean
+    '''
+    if x[5] < x[-1] or x[1] < x[-1]:
+        return False
+    return True
 
 def poincare_map(x, p):
     '''
@@ -109,23 +116,23 @@ def poincare_map(x, p):
     Essentially, the Poincare map.
     '''
     if type(p) is dict:
-        if x[5] - x[-1] < 0:
+        if is not feasible(x, p):
             return x, True # return failed if foot starts underground
         sol = step(x, p)
-        return sol.y[:, -1], sol.failed
+        return sol.y[:, -1], check_failure(sol.y[:, -1])
     elif type(p) is tuple:
         vector_of_x = np.zeros(x.shape) # initialize result array
         vector_of_fail = np.zeros(x.shape[1])
         # TODO: for shorthand, allow just a single tuple to be passed in
         # this can be done easily with itertools
         for idx, p0 in enumerate(p):
-            if x[5] - x[-1] < 0:
+            if is not feasible(x, p):
                 vector_of_x[:, idx] = x[:, idx]
                 vector_of_fail[idx] = True
             else:
                 sol = step(x[:, idx], p0) # p0 = p[idx]
                 vector_of_x[:, idx] = sol.y[:, -1]
-                vector_of_fail[idx] = sol.failed
+                vector_of_fail[idx] = check_failure(sol.y[:, -1])
         return (vector_of_x, vector_of_fail)
     else:
         print("WARNING: I got a parameter type that I don't understand.")
@@ -303,19 +310,41 @@ def step(x0, p, prev_sol = None):
     else:
         t0 = 0 # starting time
 
-    # FLIGHT: simulate till touchdown
+    # * FLIGHT: simulate till touchdown
     events = [fall_event, touchdown_event]
     sol = integrate.solve_ivp(flight_dynamics,
         t_span = [t0, t0 + MAX_TIME], y0 = x0, events = events, max_step = 0.01)
 
-    # STANCE: simulate till liftoff
+    # TODO Put each part of the step into a list, so you can concat them
+    # TODO programmatically, and reduce code length.
+    # if you fell, stop now
+    if sol.t_events[0].size != 0: # if empty
+        if prev_sol is not None:
+            sol.t = np.concatenate((prev_sol.t, sol.t))
+            sol.y = np.concatenate((prev_sol.y, sol.y), axis =1)
+            sol.t_events = prev_sol.t_events + sol.t_events
+        return sol
+
+    # * STANCE: simulate till liftoff
     events = [fall_event, liftoff_event]
     x0 = sol.y[:, -1]
     sol2 = integrate.solve_ivp(stance_dynamics,
         t_span = [sol.t[-1], sol.t[-1] + MAX_TIME], y0 = x0,
         events=events, max_step=0.001)
 
-    # FLIGHT: simulate till apex
+    # if you fell, stop now
+    if sol2.t_events[0].size != 0: # if empty
+        # concatenate all solutions
+        sol.t = np.concatenate((sol.t, sol2.t))
+        sol.y = np.concatenate((sol.y, sol2.y), axis = 1)
+        sol.t_events += sol2.t_events
+        if prev_sol is not None: # concatenate to previous solution
+            sol.t = np.concatenate((prev_sol.t, sol.t))
+            sol.y = np.concatenate((prev_sol.y, sol.y), axis =1)
+            sol.t_events = prev_sol.t_events + sol.t_events
+        return sol
+
+    # * FLIGHT: simulate till apex
     events = [fall_event, apex_event]
     x0 = reset_leg(sol2.y[:, -1], p)
     sol3 = integrate.solve_ivp(flight_dynamics,
@@ -331,15 +360,6 @@ def step(x0, p, prev_sol = None):
         sol.t = np.concatenate((prev_sol.t, sol.t))
         sol.y = np.concatenate((prev_sol.y, sol.y), axis =1)
         sol.t_events = prev_sol.t_events + sol.t_events
-
-    # TODO: mark different phases
-    for fail_idx in (0, 2, 4):
-        if sol.t_events[fail_idx].size != 0: # if empty
-            sol.failed = True
-            break
-    else:
-        sol.failed = False
-        # TODO: clean up the list
 
     return sol
 
