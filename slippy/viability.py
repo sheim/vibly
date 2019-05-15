@@ -270,3 +270,27 @@ def map_S2Q(Q_map, S_M, Q_V = None):
                 Q_M[qdx] = S_M[sdx]
 
     return Q_M
+
+def get_feasibility_mask(feasible, sa2xp, grids, x0, p0):
+    '''
+    cycle through the state and action grids, and check if that state-action
+    pair is feasible or nay. Returns an ND array of booleans.
+
+    feasible: function to check if a state and parameter are feasible
+    sa2xp: mapping to go from state-action to x and p
+    grids: grids of states and actions
+    x0: a default x0, used to fill out x0 (used by sa2xp)
+    p: a default parameter dict, used to fill out p
+    '''
+    # initialize 1D, reshape later
+    s_shape = list(map(np.size, grids['states'])) # shape of state-space grid
+    a_shape = list(map(np.size, grids['actions']))
+    Q_feasible = np.zeros(np.prod(s_shape)*np.prod(a_shape), dtype=bool)
+
+    # TODO: can probably simplify this
+    for idx, state_action in enumerate(np.array(list(
+            it.product(*grids['states'], *grids['actions'])))):
+        x, p = sa2xp(state_action, x0, p0)
+        Q_feasible[idx] = feasible(x, p)
+
+    return Q_feasible.reshape(s_shape + a_shape)
