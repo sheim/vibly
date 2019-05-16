@@ -83,7 +83,6 @@ kernel = kernel_1 + kernel_2
 # gp_prior = GPy.models.WarpedGP(X_train, y_train, kernel=kernel, warping_function=warp_f)
 # gp_prior.likelihood.variance = 0.01
 
-
 gp_prior = GPy.models.GPRegression(X_train, y_train,
         kernel=kernel, noise_var=0.01)
 
@@ -91,8 +90,6 @@ gp_prior.likelihood.variance.constrain_bounded(1e-7, 1e-3)
 
 #lognormal = GPy.priors.Gamma(a=1,b=0.5)
 #gp_prior.likelihood.variance.set_prior(lognormal)
-
-
 gp_prior.optimize_restarts(num_restarts=2)
 
 print(gp_prior)
@@ -106,7 +103,7 @@ print(y_train[np.argmax(y_train),:] / y_scale)
 
 
 mu, s2 = gp_prior.predict(X)
-mu[idx_notfeas] = -1
+mu[idx_notfeas] = np.nan
 mu = mu.reshape(100,91)
 
 plt.imshow(mu, origin='lower')
@@ -132,18 +129,27 @@ plt.plot(grids['actions'][0].reshape(-1,),
 
 plt.show()
 
-idx_action = 20
-X_test = np.ones((500, 2))
-X_test[:, 0] = np.linspace(0, 1, 500)
-X_test[:, 1] *= grids['actions'][0][idx_action]
+# idx_action = 20
+# X_test = np.ones((500, 2))
+# X_test[:, 0] = np.linspace(0, 1, 500)
+# X_test[:, 1] *= grids['actions'][0][idx_action]
+sdx_check = 35
+
+# feasible actions for this state:
+A_feas = Q_feas[sdx_check, slice(None)]
+
+X_test = np.zeros((grids['actions'][0][A_feas].size, 2))
+X_test[:, 0] = grids['states'][0][sdx_check]
+X_test[:,1] = grids['actions'][0][A_feas]
 
 mu, s2 = gp_prior.predict(X_test)
 
-plt.plot(np.linspace(0, 1, 500), mu)
-plt.plot(np.linspace(0, 1, 500), mu+np.sqrt(s2)*2)
-plt.plot(np.linspace(0, 1, 500), mu-np.sqrt(s2)*2)
-plt.plot(grids['states'][0].reshape(-1,),
-        Q_M[:,idx_action].reshape(-1,) / y_scale)
+plt.plot(X_test[:,1], mu, color = (0.2,0.6,0.1,1.0))
+plt.plot(X_test[:,1], mu+np.sqrt(s2)*2, color = (0.2,0.4,0.1,0.3))
+plt.plot(X_test[:,1], mu-np.sqrt(s2)*2, color = (0.2,0.4,0.1,0.3))
+# TODO: scaling is different between gp-data and grid data
+plt.plot(grids['actions'][0].reshape(-1,),
+        Q_M[idx_state, :].reshape(-1,) / y_scale, color = (0.7,0.0,0.0,1))
 
 plt.show()
 
