@@ -116,7 +116,7 @@ def poincare_map(x, p):
     Essentially, the Poincare map.
     '''
     if type(p) is dict:
-        if is not feasible(x, p):
+        if not feasible(x, p):
             return x, True # return failed if foot starts underground
         sol = step(x, p)
         return sol.y[:, -1], check_failure(sol.y[:, -1])
@@ -126,7 +126,7 @@ def poincare_map(x, p):
         # TODO: for shorthand, allow just a single tuple to be passed in
         # this can be done easily with itertools
         for idx, p0 in enumerate(p):
-            if is not feasible(x, p):
+            if not feasible(x, p):
                 vector_of_x[:, idx] = x[:, idx]
                 vector_of_fail[idx] = True
             else:

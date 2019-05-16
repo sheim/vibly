@@ -24,7 +24,7 @@ p_slip = { 'model_type':0,            #0 (slip), 1 (daslip)
       'swing_leg_angular_velocity':0,   # rad/s (set by calculation)
       'angle_of_attack_offset':0}        # rad   (set by calculation)
 
-x0_slip   = np.array([0, 0.85, 5.5, 0, 0, 0])
+x0_slip   = np.array([0, 0.85, 5.5, 0, 0, 0, 0])
 x0_slip = reset_leg(x0_slip, p_slip)
 
 p_slip['total_energy'] = compute_total_energy(x0_slip, p_slip)
@@ -45,7 +45,7 @@ p_daslip['actuator_force_period'] = np.max(actuator_time_force[0, :])
 
 # initialize default x0_daslip
 x0_daslip = np.array([0, 0.85, 5.5, 0, 0, 0,
-        p_daslip['actuator_resting_length'], 0, 0])
+        p_daslip['actuator_resting_length'], 0, 0, 0])
 for idx, val in enumerate(x0_slip): # copy over default values from SLIP
     x0_daslip[idx] = val
 x0_daslip = reset_leg(x0_daslip, p_daslip)
@@ -60,10 +60,23 @@ s_grid = (s_grid_energy, s_grid_normalizedheight)
 a_grid = (np.linspace(0/180*np.pi, 70/180*np.pi, 15), )
 
 grids = {'states':s_grid, 'actions':a_grid}
-Q_map, Q_F = vibly.compute_Q_map(grids, poincare_map)
-
+Q_map, Q_F = vibly.compute_Q_map(grids, poincare_map, verbose = 2)
+Q_V, S_V = vibly.compute_QV(Q_map, grids)
 print("non-failing portion of Q: " + str(np.sum(Q_F)/Q_F.size))
+print("viable portion of Q: " + str(np.sum(Q_V)/Q_V.size))
 
-# save file
-data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F}
-np.savez('daslip_eh.npz', **data2save)
+################################################################################
+# save data as pickle
+################################################################################
+import pickle
+import time
+filename = 'Q_map_daslip' + time.strftime("%Y_%m_%H_%M_%S") + '.pickle'
+data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V":Q_V,
+            "p" : p_daslip, "x0":x0_daslip, "P_map" : poincare_map}
+outfile = open(filename, 'wb')
+pickle.dump(data2save, outfile)
+outfile.close()
+# to load this data, do:
+# infile = open(filename, 'rb')
+# data = pickle.load(infile)
+# infile.close()
