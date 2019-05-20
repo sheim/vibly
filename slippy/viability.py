@@ -107,8 +107,22 @@ def compute_QV_2D(Q_map, grids, Q_V = None):
 ###### Reimplement everything as N-D
 
 def get_state_from_ravel(bin_idx, s_grid):
-    print("TO DO") # TODO
-    return 0
+    '''
+    Get state from bin id. Ideally, interpolate
+    For now, just returning a grid point
+    '''
+    print("TO DO: interpolate properly") # TODO
+    bin_idx = np.atleast_1d(bin_idx)
+    grid_idx = np.zeros(len(s_grid), dtype='int')
+    s = np.zeros(len(s_grid))
+    for dim, grid in enumerate(s_grid):
+        if bin_idx[dim] >= grid.size:
+            grid_idx[dim] = grid.size-1 # upper-est entry
+            s[dim] = grid[grid_idx[dim]] #TODO: Super ugly
+        else:
+            grid_idx[dim] = bin_idx[dim] # just put the right-closest grid
+            s[dim] = grid[grid_idx[dim]]
+    return s
 
 def digitize_s(s, s_grid, s_bin_shape = None):
     '''
