@@ -79,19 +79,14 @@ kernel_2.variance.constrain_bounded(1e-3, 1e4)
 
 kernel = kernel_1 + kernel_2
 
-# warp_f = GPy.util.warping_functions.TanhFunction(n_terms=2)
-# gp_prior = GPy.models.WarpedGP(X_train, y_train, kernel=kernel, warping_function=warp_f)
-# gp_prior.likelihood.variance = 0.01
 
-gp_prior = GPy.models.GPRegression(X_train, y_train,
-        kernel=kernel, noise_var=0.01)
-
-gp_prior.likelihood.variance.constrain_bounded(1e-7, 1e-3)
-
-#lognormal = GPy.priors.Gamma(a=1,b=0.5)
-#gp_prior.likelihood.variance.set_prior(lognormal)
-gp_prior.optimize_restarts(num_restarts=2)
-
+# 2: loading a model
+# Model creation, without initialization:
+gp_prior = GPy.models.GPRegression(X_train, y_train, kernel=kernel, noise_var=0.01)
+gp_prior.update_model(False) # do not call the underlying expensive algebra on load
+gp_prior.initialize_parameter() # Initialize the parameters (connect the parameters up)
+gp_prior[:] = np.load('./data/model_save.npy') # Load the parameters
+gp_prior.update_model(True) # Call the algebra only once
 print(gp_prior)
 
 mu, s2 = gp_prior.predict(np.atleast_2d(X_train[np.argmax(y_train),:]))
@@ -151,12 +146,19 @@ plt.plot(grids['actions'][0].reshape(-1,),
 plt.show()
 
 # numerical projection
-# TODO ideally, evaluate an X_feasible
-Q_M_est, Q_M_est_s2 = gp_prior.predict(X)
-Q_M_est = Q_M_est.reshape(Q_M.shape)
-Q_M_est[np.logical_not(Q_feas)] = 0 # do not consider infeasible points
-S_M_est = vibly.project_Q2S(Q_M_est, grids, np.sum)/y_scale # TODO: normalize prop
+
+def estimate_sets(gp_prior, X):
+        # TODO ideally, evaluate an X_feasible
+        Q_M_est, Q_M_est_s2 = gp_prior.predict(X)
+        Q_M_est = Q_M_est.reshape(Q_M.shape)
+        Q_M_est[np.logical_not(Q_feas)] = 0 # do not consider infeasible points
+        S_M_est = vibly.project_Q2S(Q_M_est, grids, np.sum)/y_scale # TODO: normalize prop
+
+        return Q_M_est, S_M_est
+
+
 # TODO: possibly scaling issues in plots?
+Q_M_est, S_M_est = estimate_sets(gp_prior=gp_prior, X=X)
 plt.plot(S_M)
 plt.plot(S_M_est)
 plt.show()
@@ -180,7 +182,7 @@ p_true['total_energy'] = slip.compute_total_energy(x0, p_true)
 s_grid_shape = list(map(np.size, grids['states']))
 s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
 #### from GP approximation, choose parts of Q to sample
-n_samples = 100
+n_samples = 10
 active_threshold = np.array([0.3, 0.7])
 # pick initial state
 s0 = slip.map2s(x_0, p_true)
@@ -226,15 +228,24 @@ for ndx in range(n_samples):
         measure = S_M_est[s_next_idx]
         print(measure - expected_measure)
         print("s: "+str(s0) + " a:" +str(grids['actions'][0][a_idx]))
-        X_observe[ndx, :] = [s0, grids['actions'][0][a_idx]]
-        Y_observe[ndx] = measure
-        # TODO: Alex: do a rank-1 update here
+
+        #Add state action pair to dataset
+        a = grids['actions'][0][a_idx]
+        q_new = np.array([[s0, a]])
+        X_train = np.concatenate((X_train, q_new), axis=0)
+
+        y_new = np.array(measure).reshape(-1,1)
+        y_train = np.concatenate((y_train, y_new))
+
+        gp_prior.set_XY(X=X_train, Y=y_train)
+        Q_M_est, S_M_est = estimate_sets(gp_prior, X)
+
         # take another step
         s0 = s_next
         s0_idx = s_next_idx
 
 # batch update
-gp_prior.set_XY()
+# gp_prior.set_XY()
 
 
 # repeat
