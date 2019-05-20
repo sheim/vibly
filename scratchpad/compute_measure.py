@@ -114,8 +114,8 @@ plt.show()
 
 idx_state = 35
 X_test = np.ones((500, 2))
-X_test[:, 0] *= grids['states'][0][idx_state]
-X_test[:, 1] = np.linspace(0, np.pi/2, 500)
+X_test[:, 0] = np.linspace(0, np.pi/2, 500)
+X_test[:, 1] *= grids['states'][0][idx_state]
 
 mu, s2 = gp_prior.predict(X_test)
 
@@ -139,15 +139,14 @@ plt.show()
 A_feas = Q_feas[idx_state, slice(None)]
 
 X_test = np.zeros((grids['actions'][0][A_feas].size, 2))
-X_test[:, 0] = grids['states'][0][idx_state]
-X_test[:,1] = grids['actions'][0][A_feas]
+X_test[:,0] = grids['actions'][0][A_feas]
+X_test[:,1] = grids['states'][0][idx_state]
 
 mu, s2 = gp_prior.predict(X_test)
 
-plt.plot(X_test[:,1], mu, color = (0.2,0.6,0.1,1.0))
-plt.plot(X_test[:,1], mu+np.sqrt(s2)*2, color = (0.2,0.4,0.1,0.3))
-plt.plot(X_test[:,1], mu-np.sqrt(s2)*2, color = (0.2,0.4,0.1,0.3))
-# TODO: scaling is different between gp-data and grid data
+plt.plot(X_test[:,0], mu, color = (0.2,0.6,0.1,1.0))
+plt.plot(X_test[:,0], mu+np.sqrt(s2)*2, color = (0.2,0.4,0.1,0.3))
+plt.plot(X_test[:,0], mu-np.sqrt(s2)*2, color = (0.2,0.4,0.1,0.3))
 plt.plot(grids['actions'][0].reshape(-1,),
         Q_M[idx_state, :].reshape(-1,) / y_scale, color = (0.7,0.0,0.0,1))
 
@@ -164,49 +163,39 @@ plt.plot(S_M)
 plt.plot(S_M_est)
 plt.show()
 
-if filename in locals():
-
-        data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V":Q_V,
-                "p" : p, "x0":x0, "P_map" : poincare_map, "gp_prior":gp_prior,
-                "X_train":X_train, "y_train":y_train}
-        outfile = open('../data/'+filename, 'wb')
-        pickle.dump(data2save, outfile)
-        outfile.close()
+# if filename in locals():
+#
+#         data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V":Q_V,
+#                 "p" : p, "x0":x0, "P_map" : poincare_map, "gp_prior":gp_prior,
+#                 "X_train":X_train, "y_train":y_train}
+#         outfile = open('../data/'+filename, 'wb')
+#         pickle.dump(data2save, outfile)
+#         outfile.close()
 # to load this data, do:
 # infile = open(filename, 'rb')
 # data = pickle.load(infile)
 # infile.close()
 
-# def prior_mean(x):
-#     mu, s2 = gp_prior.predict(np.atleast_2d(x))
-#
-#     return mu
-#
-#
-# mf = GPy.core.Mapping(2,1)
-# mf.f = prior_mean
-# mf.update_gradients = lambda a, b: None
-#
-#
-# kernel = GPy.kern.Matern52(input_dim=2,
-#                       variance=np.array(kernel.variance.copy()),
-#                       lengthscale=np.array(kernel.lengthscale.copy()),
-#                       ARD=True)
-#
-# gp = GPy.models.GPRegression(X_train, y_train, kernel,
-#                              noise_var=0.01,
-#                              mean_function=mf)
-#
-#
-# gp.likelihood.variance.constrain_bounded(1e-3, 1e2)
-# gp.kern.variance.constrain_bounded(1e-3, 1e4)
-# gp.optimize_restarts(num_restarts=1)
-#
-# print(gp)
-#
-#
-# mu, s2 = gp.predict(np.atleast_2d(X_train[np.argmax(y_train),:]))
-# print(mu * y_scale)
-# print(np.sqrt(s2) * y_scale * 2)
-#
-# print(y_train[np.argmax(y_train),:])
+def prior_mean(x):
+    mu, s2 = gp_prior.predict(np.atleast_2d(x))
+
+    return mu
+
+
+mf = GPy.core.Mapping(2,1)
+mf.f = prior_mean
+mf.update_gradients = lambda a, b: None
+
+
+kernel = kernel.copy()
+
+X = np.empty((0,2))
+y = np.empty((0,1))
+gp = GPy.models.GPRegression(X_train, y_train, kernel,
+                             noise_var=0.01,
+                             mean_function=mf)
+
+
+
+mu, s2 = gp.predict(np.atleast_2d(X_train[np.argmax(y_train),:]))
+
