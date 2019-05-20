@@ -185,19 +185,20 @@ active_threshold = np.array([0.3, 0.7])
 # pick initial state
 s0 = slip.map2s(x_0, p_true)
 s0_idx = vibly.digitize_s(s0, grids['states'], s_bin_shape)
-for n in range(n_samples):
+X_observe = np.zeros([n_samples, 2])
+Y_observe = np.zeros(n_samples)
 
+for ndx in range(n_samples):
         # slice actions available for those states
         # A_slice = Q_feas[s0_idx, slice(None)] # pick only feasible actions
-
         A_slice = Q_M_est[s0_idx, slice(None)]
         # pick out indices that are in the active_threshold
-        thresh_idx = np.where( np.logical_and(
-                                np.greater_equal(A_slice, active_threshold[0]),
-                                np.less_equal(A_slice, active_threshold[1])),
-                        [True], [False])
-        # thresh_idx = np.where(np.greater_equal(A_slice, active_threshold[0]),
+        # thresh_idx = np.where( np.logical_and(
+        #                         np.greater_equal(A_slice, active_threshold[0]),
+        #                         np.less_equal(A_slice, active_threshold[1])),
         #                 [True], [False])
+        thresh_idx = np.where(np.greater_equal(A_slice, active_threshold[0]),
+                        [True], [False])
         # TODO: explore or don't more smartly
         if not thresh_idx.any(): # empty, pick the safest
                 print('taking safest')
@@ -210,8 +211,6 @@ for n in range(n_samples):
                 A_slice[~thresh_idx] = np.nan
                 a_idx = np.nanargmin(A_slice)
                 expected_measure = A_slice[a_idx]
-
-        # a_idx, expected_measure = np.random.choice(list(enumerate(A_slice)))
 
         # apply action, get to the next state
         x0, p_true = slip.mapSA2xp_height_angle((s0, grids['actions'][0][a_idx]), x0, p_true)
@@ -227,10 +226,15 @@ for n in range(n_samples):
         measure = S_M_est[s_next_idx]
         print(measure - expected_measure)
         print("s: "+str(s0) + " a:" +str(grids['actions'][0][a_idx]))
+        X_observe[ndx, :] = [s0, grids['actions'][0][a_idx]]
+        Y_observe[ndx] = measure
         # TODO: Alex: do a rank-1 update here
         # take another step
         s0 = s_next
         s0_idx = s_next_idx
+
+# batch update
+gp_prior.set_XY()
 
 
 # repeat

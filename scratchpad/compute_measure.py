@@ -8,6 +8,9 @@ import GPy
 from slippy.slip import *
 import slippy.viability as vibly
 
+# Comment if you don't want to save
+# filename = 'measure_gp.pickle'
+
 ################################################################################
 # Load and unpack data
 ################################################################################
@@ -161,6 +164,18 @@ plt.plot(S_M)
 plt.plot(S_M_est)
 plt.show()
 
+if filename in locals():
+
+        data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V":Q_V,
+                "p" : p, "x0":x0, "P_map" : poincare_map, "gp_prior":gp_prior,
+                "X_train":X_train, "y_train":y_train}
+        outfile = open('../data/'+filename, 'wb')
+        pickle.dump(data2save, outfile)
+        outfile.close()
+# to load this data, do:
+# infile = open(filename, 'rb')
+# data = pickle.load(infile)
+# infile.close()
 
 # def prior_mean(x):
 #     mu, s2 = gp_prior.predict(np.atleast_2d(x))
@@ -185,7 +200,6 @@ plt.show()
 #
 # gp.likelihood.variance.constrain_bounded(1e-3, 1e2)
 # gp.kern.variance.constrain_bounded(1e-3, 1e4)
-#
 # gp.optimize_restarts(num_restarts=1)
 #
 # print(gp)
