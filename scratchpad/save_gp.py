@@ -146,7 +146,7 @@ plt.plot(X_test[:,1], mu+np.sqrt(s2)*2, color = (0.2,0.4,0.1,0.3))
 plt.plot(X_test[:,1], mu-np.sqrt(s2)*2, color = (0.2,0.4,0.1,0.3))
 # TODO: scaling is different between gp-data and grid data
 plt.plot(grids['actions'][0].reshape(-1,),
-        Q_M[idx_state, :].reshape(-1,) / y_scale, color = (0.7,0.0,0.0,1))
+        Q_M[sdx_check, :].reshape(-1,) / y_scale, color = (0.7,0.0,0.0,1))
 
 plt.show()
 
@@ -163,4 +163,4 @@ plt.show()
 
 
 #Saving a model:
-np.save('./data/model_save.npy', gp_prior.param_array)
+np.save('../data/model_save.npy', gp_prior.param_array)
