@@ -109,15 +109,12 @@ mu = mu.reshape(100,91)
 plt.imshow(mu, origin='lower')
 plt.show()
 
-idx_state = 20
+idx_state = 35
 X_test = np.ones((500, 2))
 X_test[:, 0] *= grids['states'][0][idx_state]
 X_test[:, 1] = np.linspace(0, np.pi/2, 500)
 
-
 mu, s2 = gp_prior.predict(X_test)
-
-
 
 plt.plot(np.linspace(0, np.pi/2, 500), mu)
 plt.plot(np.linspace(0, np.pi/2, 500), mu+np.sqrt(s2)*2)
@@ -133,13 +130,13 @@ plt.show()
 # X_test = np.ones((500, 2))
 # X_test[:, 0] = np.linspace(0, 1, 500)
 # X_test[:, 1] *= grids['actions'][0][idx_action]
-sdx_check = 35
+
 
 # feasible actions for this state:
-A_feas = Q_feas[sdx_check, slice(None)]
+A_feas = Q_feas[idx_state, slice(None)]
 
 X_test = np.zeros((grids['actions'][0][A_feas].size, 2))
-X_test[:, 0] = grids['states'][0][sdx_check]
+X_test[:, 0] = grids['states'][0][idx_state]
 X_test[:,1] = grids['actions'][0][A_feas]
 
 mu, s2 = gp_prior.predict(X_test)
