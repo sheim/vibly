@@ -248,7 +248,7 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
                         print("s: "+str(s0) + " a: " +str(a/np.pi*180))
 
                 #Add state action pair to dataset
-                q_new = np.array([[s0, a]])
+                q_new = np.array([[a, s0]])
                 X = np.concatenate((X, q_new), axis=0)
 
                 y_new = np.array(measure).reshape(-1,1)
@@ -273,14 +273,35 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
                 s0_idx = s_next_idx
         return gp
 
-gp = learn(gp, x0, p_true, n_samples=5, verbose = 1, tabula_rasa=True)
+plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
+plt.show()
 
-for ndx in range(10):
-        gp = learn(gp, x0, p_true, n_samples=n_samples, verbose = 1)
-        Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
-        print("ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
+gp = learn(gp, x0, p_true, n_samples=1, verbose = 1, tabula_rasa=True)
+
+Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
+print("INITIAL ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
 # plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
+# plt.show()
 
+n_samples = 50
+for ndx in range(1):
+        gp = learn(gp, x0, p_true, n_samples=n_samples, verbose = 1, tabula_rasa=True)
+        Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
+        plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
+        plt.show()
+        print("ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
+        # probably actually only want to care about trimmed error, see below
+
+# Good things to plot
+# plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
+# Q_M_trimmed = np.copy(Q_M_est) # see estimate_sets()
+# Q_M_trimmed[np.less(Q_M_trimmed, viable_threshold)] = 0
+# plt.imshow(Q_M_trimmed, origin='lower')
+# plt.imshow(np.abs(Q_M_trimmed-Q_M_true), origin='lower')
+# np.sum(np.abs(Q_M_trimmed-Q_M_true))
+
+# TODO plot sampled points and their true values
+# TODO check how many sampled points are outside the true viable set, and check what the state of the gp was at that point, to see why it sampled there.
 
 # batch update
 # gp_prior.set_XY()
