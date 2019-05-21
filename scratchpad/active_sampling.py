@@ -105,8 +105,6 @@ mf.update_gradients = lambda a, b: None
 
 kernel = kernel.copy()
 
-X = np.empty((0,2))
-y = np.empty((0,1))
 gp = GPy.models.GPRegression(X_train, y_train, kernel,
                              noise_var=0.01,
                              mean_function=mf)
@@ -159,12 +157,8 @@ Q_feas = vibly.get_feasibility_mask(true_model.feasible, true_model.mapSA2xp_hei
 S_M_true = vibly.project_Q2S(Q_V_true, grids, np.mean)
 #S_M_true = S_M_true / grids['actions'][0].size
 Q_M_true = vibly.map_S2Q(Q_map_true, S_M_true, Q_V_true)
-
 # plt.imshow(Q_M_true - Q_M_proxy, origin='lower')
 # plt.show()
-
-# Q_M_proxy = Q_M_proxy/y_scale
-# Q_M_true = Q_M_true/y_scale
 
 # plt.imshow(Q_M_true - Q_M_est, origin='lower')
 # plt.show()
@@ -177,92 +171,115 @@ Q_M_true = vibly.map_S2Q(Q_map_true, S_M_true, Q_V_true)
 s_grid_shape = list(map(np.size, grids['states']))
 s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
 #### from GP approximation, choose parts of Q to sample
-n_samples = 100
+n_samples = 10
 active_threshold = 0.2
 # pick initial state
-# s0 = np.random.uniform(0.4, 0.7)
-s0 = 0.6
+s0 = np.random.uniform(0.4, 0.7)
 s0_idx = vibly.digitize_s(s0, grids['states'], s_bin_shape)
-X_observe = np.zeros([n_samples, 2])
-Y_observe = np.zeros(n_samples)
 
 verbose = 1
 np.set_printoptions(precision=4)
-for ndx in range(n_samples):
-        if verbose:
-                print('iteration '+str(ndx))
-        # slice actions available for those states
-        A_slice = Q_M_est[s0_idx, slice(None)]
-        thresh_idx = np.where(np.greater_equal(A_slice, active_threshold),
-                        [True], [False])
-        # TODO: explore or don't more smartly
-        # choose exploration based on uncertainty. Plot this uncertainty first
-        if not thresh_idx.any(): # empty, pick the safest
-                if verbose:
-                        print('taking safest')
-                a_idx = np.argmax(A_slice)
-                expected_measure = A_slice[a_idx]
-        else: # not empty, pick one of these
-                if verbose:
-                        print('explore!')
-                A_slice[~thresh_idx] = np.nan
-                a_idx = np.nanargmin(A_slice)
-                expected_measure = A_slice[a_idx]
-        a = grids['actions'][0][a_idx]
-        # apply action, get to the next state
-        x0, p_true = true_model.mapSA2xp_height_angle((s0, a), x0, p_true)
-        x_next, failed = true_model.poincare_map(x0, p_true)
-        if failed:
-                if verbose:
-                        print("FAILED!")
-                #break
-                q_new = np.array([[s0, a]])
-                X = np.concatenate((X, q_new), axis=0)
-                y_new = np.array(0).reshape(-1, 1)
-                y = np.concatenate((y, y_new))
-                # TODO: restart from expected good results
-                # Currently, just restart from some magic numbers
-                s_next = np.random.uniform(0.4, 0.8)
-                # s0_idx = vibly.digitize_s(s0, grids['states'], s_bin_shape)
-                s_next_idx = vibly.digitize_s(s_next, grids['states'], s_bin_shape)
-                s_next_idx = np.min([s_next_idx, S_M_est.size - 1])
-                measure = 0
+
+def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
+
+        # X_observe = np.zeros([n_samples, 2])
+        # Y_observe = np.zeros(n_samples)
+        if tabula_rasa:
+                X = np.empty((0,2))
+                y = np.empty((0,1))
         else:
-                s_next = true_model.map2s(x_next, p_true)
-        # compare expected measure with true measure
-                s_next_idx = vibly.digitize_s(s_next, grids['states'], s_bin_shape)
-                # HACK: digitize_s returns the index of the BIN, not the grid
-                s_next_idx = np.min([s_next_idx, S_M_est.size - 1])
-                measure = S_M_est[s_next_idx]
-                # TODO: once we have a proper gp-projection for S_M, predict this
-        if verbose:
-                print('measure mismatch: ' + str(measure - expected_measure))
-                print("s: "+str(s0) + " a: " +str(a/np.pi*180))
-
-        #Add state action pair to dataset
-        q_new = np.array([[s0, a]])
-        X = np.concatenate((X, q_new), axis=0)
-
-        y_new = np.array(measure).reshape(-1,1)
-        y = np.concatenate((y, y_new))
-        gp.set_XY(X=X, Y=y)
-        if verbose > 1:
-                print("mapped measure (Q_map)" + 
-                        " est: "+ str(S_M_est[Q_map_proxy[s0_idx, a_idx]]) +
-                        " prox: " + str(S_M_proxy[Q_map_proxy[s0_idx, a_idx]]))
-                print("mapped measure (dyn)" + 
-                        " est: " + str(S_M_est[s_next_idx]) +
-                        " prox: " + str(S_M_proxy[s_next_idx]))
-                print("predicted measure (Q_M) " + 
-                        " est: " + str(Q_M_est[s0_idx, a_idx]) +
-                        " prox: " + str(Q_M_proxy[s0_idx, a_idx]))
-        
+                X = gp.X
+                y = gp.Y
 
         Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
-        # take another step
-        s0 = s_next
-        s0_idx = s_next_idx
 
+        s0 = np.random.uniform(0.4, 0.7)
+        s0_idx = vibly.digitize_s(s0, grids['states'], s_bin_shape)
+
+        for ndx in range(n_samples):
+                if verbose:
+                        print('iteration '+str(ndx))
+                # slice actions available for those states
+                A_slice = Q_M_est[s0_idx, slice(None)]
+                thresh_idx = np.where(np.greater_equal(A_slice, active_threshold),
+                                [True], [False])
+                # TODO: explore or don't more smartly
+                # choose exploration based on uncertainty. Plot this uncertainty first
+                if not thresh_idx.any(): # empty, pick the safest
+                        if verbose > 1:
+                                print('taking safest')
+                        a_idx = np.argmax(A_slice)
+                        expected_measure = A_slice[a_idx]
+                else: # not empty, pick one of these
+                        if verbose > 1:
+                                print('explore!')
+                        A_slice[~thresh_idx] = np.nan
+                        a_idx = np.nanargmin(A_slice)
+                        expected_measure = A_slice[a_idx]
+                a = grids['actions'][0][a_idx]
+                # apply action, get to the next state
+                x0, p_true = true_model.mapSA2xp_height_angle((s0, a), x0, p_true)
+                x_next, failed = true_model.poincare_map(x0, p_true)
+                if failed:
+                        if verbose:
+                                print("FAILED!")
+                        #break
+                        q_new = np.array([[s0, a]])
+                        X = np.concatenate((X, q_new), axis=0)
+                        y_new = np.array(0).reshape(-1, 1)
+                        y = np.concatenate((y, y_new))
+                        # TODO: restart from expected good results
+                        # Currently, just restart from some magic numbers
+                        s_next = np.random.uniform(0.3, 0.8)
+                        # s0_idx = vibly.digitize_s(s0, grids['states'], s_bin_shape)
+                        s_next_idx = vibly.digitize_s(s_next, grids['states'], s_bin_shape)
+                        s_next_idx = np.min([s_next_idx, S_M_est.size - 1])
+                        measure = 0
+                else:
+                        s_next = true_model.map2s(x_next, p_true)
+                # compare expected measure with true measure
+                        s_next_idx = vibly.digitize_s(s_next, grids['states'], s_bin_shape)
+                        # HACK: digitize_s returns the index of the BIN, not the grid
+                        s_next_idx = np.min([s_next_idx, S_M_est.size - 1])
+                        measure = S_M_est[s_next_idx]
+                        # TODO: once we have a proper gp-projection for S_M, predict this
+                if verbose > 1:
+                        print('measure mismatch: ' + str(measure - expected_measure))
+                        print("s: "+str(s0) + " a: " +str(a/np.pi*180))
+
+                #Add state action pair to dataset
+                q_new = np.array([[s0, a]])
+                X = np.concatenate((X, q_new), axis=0)
+
+                y_new = np.array(measure).reshape(-1,1)
+                y = np.concatenate((y, y_new))
+                gp.set_XY(X=X, Y=y)
+                if verbose > 1:
+                        print("mapped measure (Q_map)" + 
+                                " est: "+ str(S_M_est[Q_map_proxy[s0_idx, a_idx]]) +
+                                " prox: " + str(S_M_proxy[Q_map_proxy[s0_idx, a_idx]]))
+                        print("mapped measure (dyn)" + 
+                                " est: " + str(S_M_est[s_next_idx]) +
+                                " prox: " + str(S_M_proxy[s_next_idx]))
+                        print("predicted measure (Q_M) " + 
+                                " est: " + str(Q_M_est[s0_idx, a_idx]) +
+                                " prox: " + str(Q_M_proxy[s0_idx, a_idx]))
+                # elif verbose > 0:
+                #         print("error: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
+
+                Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
+                # take another step
+                s0 = s_next
+                s0_idx = s_next_idx
+        return gp
+
+gp = learn(gp, x0, p_true, n_samples=5, verbose = 1, tabula_rasa=True)
+
+for ndx in range(10):
+        gp = learn(gp, x0, p_true, n_samples=n_samples, verbose = 1)
+        Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
+        print("ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
+# plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
 
 
 # batch update
