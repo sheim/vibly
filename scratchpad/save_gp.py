@@ -162,5 +162,5 @@ plt.plot(S_M_est)
 plt.show()
 
 
-#Saving a model:
-np.save('../data/model_save.npy', gp_prior.param_array)
+#Saving a model (in the scratchpad folder):
+np.save('./data/model_save.npy', gp_prior.param_array)

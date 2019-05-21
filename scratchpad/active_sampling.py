@@ -5,7 +5,7 @@ import pickle
 
 import GPy
 
-import slippy.slip as slip
+from slippy.slip import *
 import slippy.viability as vibly
 
 ################################################################################
@@ -28,7 +28,7 @@ grids = data['grids']
 ################################################################################
 Q_V, S_V = vibly.compute_QV(Q_map, grids)
 
-Q_feas = vibly.get_feasibility_mask(slip.feasible, slip.mapSA2xp_height_angle,
+Q_feas = vibly.get_feasibility_mask(feasible, mapSA2xp_height_angle,
             grids=grids, x0=x0, p0=p)
 S_M = vibly.project_Q2S(Q_V, grids, np.sum)
 #S_M = S_M / grids['actions'][0].size
@@ -79,14 +79,14 @@ kernel_2.variance.constrain_bounded(1e-3, 1e4)
 
 kernel = kernel_1 + kernel_2
 
-
-# 2: loading a model
+# Loading a model
 # Model creation, without initialization:
 gp_prior = GPy.models.GPRegression(X_train, y_train, kernel=kernel, noise_var=0.01)
 gp_prior.update_model(False) # do not call the underlying expensive algebra on load
 gp_prior.initialize_parameter() # Initialize the parameters (connect the parameters up)
 gp_prior[:] = np.load('../data/model_save.npy') # Load the parameters
 gp_prior.update_model(True) # Call the algebra only once
+
 print(gp_prior)
 
 mu, s2 = gp_prior.predict(np.atleast_2d(X_train[np.argmax(y_train),:]))
@@ -106,8 +106,8 @@ plt.show()
 
 idx_state = 20
 X_test = np.ones((500, 2))
-X_test[:, 0] *= grids['states'][0][idx_state]
-X_test[:, 1] = np.linspace(0, np.pi/2, 500)
+X_test[:, 0] = np.linspace(0, np.pi/2, 500)
+X_test[:, 1] *= grids['states'][0][idx_state]
 
 mu, s2 = gp_prior.predict(X_test)
 
@@ -131,25 +131,54 @@ sdx_check = 35
 A_feas = Q_feas[sdx_check, slice(None)]
 
 X_test = np.zeros((grids['actions'][0][A_feas].size, 2))
-X_test[:, 0] = grids['states'][0][sdx_check]
-X_test[:,1] = grids['actions'][0][A_feas]
+X_test[:,0] = grids['actions'][0][A_feas]
+X_test[:,1] = grids['states'][0][idx_state]
 
 mu, s2 = gp_prior.predict(X_test)
 
-plt.plot(X_test[:,1], mu, color = (0.2,0.6,0.1,1.0))
-plt.plot(X_test[:,1], mu+np.sqrt(s2)*2, color = (0.2,0.4,0.1,0.3))
-plt.plot(X_test[:,1], mu-np.sqrt(s2)*2, color = (0.2,0.4,0.1,0.3))
-# TODO: scaling is different between gp-data and grid data
+plt.plot(X_test[:,0], mu, color = (0.2,0.6,0.1,1.0))
+plt.plot(X_test[:,0], mu+np.sqrt(s2)*2, color = (0.2,0.4,0.1,0.3))
+plt.plot(X_test[:,0], mu-np.sqrt(s2)*2, color = (0.2,0.4,0.1,0.3))
 plt.plot(grids['actions'][0].reshape(-1,),
         Q_M[idx_state, :].reshape(-1,) / y_scale, color = (0.7,0.0,0.0,1))
 
 plt.show()
 
-# numerical projection
 
-def estimate_sets(gp_prior, X):
+
+################################################################################
+# Setup GP from prior data
+################################################################################
+
+def prior_mean(x):
+    mu, s2 = gp_prior.predict(np.atleast_2d(x))
+
+    return mu
+
+
+mf = GPy.core.Mapping(2,1)
+mf.f = prior_mean
+mf.update_gradients = lambda a, b: None
+
+
+kernel = kernel.copy()
+
+X = np.empty((0,2))
+y = np.empty((0,1))
+gp = GPy.models.GPRegression(X_train, y_train, kernel,
+                             noise_var=0.01,
+                             mean_function=mf)
+
+################################################################################
+# Stuff
+################################################################################
+
+X_grid_1, X_grid_2 = np.meshgrid(grids['actions'], grids['states'])
+X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
+
+def estimate_sets(gp, X_grid):
         # TODO ideally, evaluate an X_feasible
-        Q_M_est, Q_M_est_s2 = gp_prior.predict(X)
+        Q_M_est, Q_M_est_s2 = gp.predict(X_grid)
         Q_M_est = Q_M_est.reshape(Q_M.shape)
         Q_M_est[np.logical_not(Q_feas)] = 0 # do not consider infeasible points
         S_M_est = vibly.project_Q2S(Q_M_est, grids, np.sum)/y_scale # TODO: normalize prop
@@ -220,7 +249,19 @@ for ndx in range(n_samples):
         x_next, failed = true_model.poincare_map(x0, p_true)
         if failed:
                 print("FAILED!")
-                break
+                #break
+
+                a = grids['actions'][0][a_idx]
+                q_new = np.array([[s0, a]])
+                X = np.concatenate((X, q_new), axis=0)
+
+                y_new = np.array(0).reshape(-1, 1)
+                y = np.concatenate((y, y_new))
+
+                # TODO: Maybe restart when fail?
+                s0 = true_model.map2s(x_0, p_true)
+                s0_idx = vibly.digitize_s(s0, grids['states'], s_bin_shape)
+                continue
         s_next = true_model.map2s(x_next, p_true)
         # compare expected measure with true measure
         s_next_idx = vibly.digitize_s(s_next, grids['states'], s_bin_shape)
@@ -233,13 +274,16 @@ for ndx in range(n_samples):
         #Add state action pair to dataset
         a = grids['actions'][0][a_idx]
         q_new = np.array([[s0, a]])
-        X_train = np.concatenate((X_train, q_new), axis=0)
+        X = np.concatenate((X, q_new), axis=0)
 
         y_new = np.array(measure).reshape(-1,1)
-        y_train = np.concatenate((y_train, y_new))
+        y = np.concatenate((y, y_new))
 
-        gp_prior.set_XY(X=X_train, Y=y_train)
-        Q_M_est, S_M_est = estimate_sets(gp_prior, X)
+        gp.set_XY(X=X, Y=y)
+        Q_M_est, S_M_est = estimate_sets(gp, X_grid)
+
+        plt.imshow(Q_M_est, origin='lower')
+        plt.show()
 
         # take another step
         s0 = s_next
