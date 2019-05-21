@@ -85,7 +85,7 @@ kernel = kernel_1 + kernel_2
 gp_prior = GPy.models.GPRegression(X_train, y_train, kernel=kernel, noise_var=0.01)
 gp_prior.update_model(False) # do not call the underlying expensive algebra on load
 gp_prior.initialize_parameter() # Initialize the parameters (connect the parameters up)
-gp_prior[:] = np.load('./data/model_save.npy') # Load the parameters
+gp_prior[:] = np.load('../data/model_save.npy') # Load the parameters
 gp_prior.update_model(True) # Call the algebra only once
 print(gp_prior)
 
@@ -159,6 +159,7 @@ def estimate_sets(gp_prior, X):
 
 # TODO: possibly scaling issues in plots?
 Q_M_est, S_M_est = estimate_sets(gp_prior=gp_prior, X=X)
+Q_M_prior = np.copy(Q_M_est)
 plt.plot(S_M)
 plt.plot(S_M_est)
 plt.show()
@@ -167,25 +168,25 @@ plt.show()
 # initialize "true" model
 ################################################################################
 
-import slippy.slip as slip
+import slippy.nslip as true_model
 
 # This if you use nslip instead of slip
-# p_true = {'mass':80.0, 'stiffness':705.0, 'resting_angle':17/18*np.pi,
-#         'gravity':9.81, 'angle_of_attack':1/5*np.pi, 'upper_leg':0.5,
-#         'lower_leg':0.5}
+p_true = {'mass':80.0, 'stiffness':705.0, 'resting_angle':17/18*np.pi,
+        'gravity':9.81, 'angle_of_attack':1/5*np.pi, 'upper_leg':0.5,
+        'lower_leg':0.5}
 # this for slip
-p_true = {'mass':80.0, 'stiffness':8200.0, 'resting_length':1.0, 'gravity':9.81,
-'angle_of_attack':1/5*np.pi}
-x_0 = np.array([0, 0.85, 5.5, 0, 0, 0, 0])
-p_true['total_energy'] = slip.compute_total_energy(x0, p_true)
+# p_true = {'mass':80.0, 'stiffness':8200.0, 'resting_length':1.0, 'gravity':9.81,
+# 'angle_of_attack':1/5*np.pi}
+x0 = np.array([0, 0.85, 5.5, 0, 0, 0, 0])
+p_true['total_energy'] = true_model.compute_total_energy(x0, p_true)
 
 s_grid_shape = list(map(np.size, grids['states']))
 s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
 #### from GP approximation, choose parts of Q to sample
-n_samples = 10
-active_threshold = np.array([0.3, 0.7])
+n_samples = 100
+active_threshold = np.array([0.5, 0.7])
 # pick initial state
-s0 = slip.map2s(x_0, p_true)
+s0 = np.random.uniform(0.4, 0.7)
 s0_idx = vibly.digitize_s(s0, grids['states'], s_bin_shape)
 X_observe = np.zeros([n_samples, 2])
 Y_observe = np.zeros(n_samples)
@@ -215,12 +216,12 @@ for ndx in range(n_samples):
                 expected_measure = A_slice[a_idx]
 
         # apply action, get to the next state
-        x0, p_true = slip.mapSA2xp_height_angle((s0, grids['actions'][0][a_idx]), x0, p_true)
-        x_next, failed = slip.poincare_map(x0, p_true)
+        x0, p_true = true_model.mapSA2xp_height_angle((s0, grids['actions'][0][a_idx]), x0, p_true)
+        x_next, failed = true_model.poincare_map(x0, p_true)
         if failed:
                 print("FAILED!")
                 break
-        s_next = slip.map2s(x_next, p_true)
+        s_next = true_model.map2s(x_next, p_true)
         # compare expected measure with true measure
         s_next_idx = vibly.digitize_s(s_next, grids['states'], s_bin_shape)
         # HACK: digitize_s returns the index of the BIN, not the grid
