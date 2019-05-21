@@ -116,17 +116,19 @@ gp = GPy.models.GPRegression(X_train, y_train, kernel,
 X_grid_1, X_grid_2 = np.meshgrid(grids['actions'], grids['states'])
 X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
 
-viable_threshold = 0.01
+viable_threshold = 0.01 # TODO: tune this! and perhaps make it adaptive...
+# TODO: I have a feeling using this more is quite key
 
 def estimate_sets(gp, X_grid):
         Q_M_est, Q_M_est_s2 = gp.predict(X_grid)
         Q_M_est = Q_M_est.reshape(Q_M_proxy.shape)
         Q_M_est[np.logical_not(Q_feas)] = 0 # do not consider infeasible points
-        # TODO: normalize prop
         Q_V_est = np.copy(Q_M_est)
         Q_V_est[np.less(Q_V_est, viable_threshold)] = 0
-        S_M_est = vibly.project_Q2S(Q_V_est.astype(bool), grids, np.mean) # this is taking everything that isn't
-
+        S_M_est = vibly.project_Q2S(Q_V_est.astype(bool), grids, np.mean)
+        # TODO  perhaps alwas trim Q_M as well? 
+        # though I guess that damages some properties...
+        # Q_M_est[np.less(Q_V_est, viable_threshold)] = 0
         return Q_M_est, Q_M_est_s2, S_M_est
 
 Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp=gp_prior, X_grid=X_grid)
@@ -172,7 +174,7 @@ s_grid_shape = list(map(np.size, grids['states']))
 s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
 #### from GP approximation, choose parts of Q to sample
 n_samples = 10
-active_threshold = 0.2
+active_threshold = 0.1
 # pick initial state
 s0 = np.random.uniform(0.4, 0.7)
 s0_idx = vibly.digitize_s(s0, grids['states'], s_bin_shape)
@@ -234,6 +236,7 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
                         # s0_idx = vibly.digitize_s(s0, grids['states'], s_bin_shape)
                         s_next_idx = vibly.digitize_s(s_next, grids['states'], s_bin_shape)
                         s_next_idx = np.min([s_next_idx, S_M_est.size - 1])
+                        # TODO: weight failures more than successes
                         measure = 0
                 else:
                         s_next = true_model.map2s(x_next, p_true)
@@ -284,21 +287,23 @@ print("INITIAL ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
 # plt.show()
 
 n_samples = 50
-for ndx in range(1):
-        gp = learn(gp, x0, p_true, n_samples=n_samples, verbose = 1, tabula_rasa=True)
+for ndx in range(5):
+        gp = learn(gp, x0, p_true, n_samples=n_samples, verbose = 1, tabula_rasa=False)
         Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
         plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
         plt.show()
-        print("ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
+        print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
+        if np.sum(np.abs(Q_M_est-Q_M_true)) > 300:
+                break
         # probably actually only want to care about trimmed error, see below
 
 # Good things to plot
 # plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
-# Q_M_trimmed = np.copy(Q_M_est) # see estimate_sets()
-# Q_M_trimmed[np.less(Q_M_trimmed, viable_threshold)] = 0
+Q_M_trimmed = np.copy(Q_M_est) # see estimate_sets()
+Q_M_trimmed[np.less(Q_M_trimmed, viable_threshold)] = 0
 # plt.imshow(Q_M_trimmed, origin='lower')
-# plt.imshow(np.abs(Q_M_trimmed-Q_M_true), origin='lower')
-# np.sum(np.abs(Q_M_trimmed-Q_M_true))
+plt.imshow(np.abs(Q_M_trimmed-Q_M_true), origin='lower')
+np.sum(np.abs(Q_M_trimmed-Q_M_true))
 
 # TODO plot sampled points and their true values
 # TODO check how many sampled points are outside the true viable set, and check what the state of the gp was at that point, to see why it sampled there.
