@@ -1,4 +1,3 @@
-# Run `initialize_active_sampling.py` first to load everything and the prior
 import numpy as np
 import matplotlib.pyplot as plt
 import time
@@ -28,14 +27,14 @@ Q_V_proxy, S_V_proxy = vibly.compute_QV(Q_map_proxy, grids)
 
 Q_feas = vibly.get_feasibility_mask(proxy_model.feasible, proxy_model.mapSA2xp_height_angle,
             grids=grids, x0=x0, p0=p_proxy)
-S_M_proxy = vibly.project_Q2S(Q_V_proxy, grids, np.sum)
+S_M_proxy = vibly.project_Q2S(Q_V_proxy, grids, np.mean)
 #S_M_proxy = S_M_proxy / grids['actions'][0].size
 Q_M_proxy = vibly.map_S2Q(Q_map_proxy, S_M_proxy, Q_V_proxy)
 
 y = Q_M_proxy.flatten().T
 y_train = y.reshape(-1,1)
-y_scale = np.max(np.abs(y_train), axis=0)[0]
-y_train = y_train / y_scale
+# y_scale = np.max(np.abs(y_train), axis=0)[0]
+# y_train = y_train / y_scale
 
 # TODO This is ugly af
 # * actually seems like it's not so bad: https://stackoverflow.com/questions/1208118/using-numpy-to-build-an-array-of-all-combinations-of-two-arrays
@@ -88,34 +87,7 @@ print('GP prior predictions')
 print(mu)
 print(np.sqrt(s2) * 2)
 print('GP prior true')
-print(y_train[np.argmax(y_train),:] / y_scale)
-
-
-mu, s2 = gp_prior.predict(X)
-mu[idx_notfeas] = np.nan
-mu = mu.reshape(100,91)
-
-idx_state = 20
-X_test = np.ones((500, 2))
-X_test[:, 0] = np.linspace(0, np.pi/2, 500)
-X_test[:, 1] *= grids['states'][0][idx_state]
-
-mu, s2 = gp_prior.predict(X_test)
-
-# idx_action = 20
-# X_test = np.ones((500, 2))
-# X_test[:, 0] = np.linspace(0, 1, 500)
-# X_test[:, 1] *= grids['actions'][0][idx_action]
-sdx_check = 35
-
-# feasible actions for this state:
-A_feas = Q_feas[sdx_check, slice(None)]
-
-X_test = np.zeros((grids['actions'][0][A_feas].size, 2))
-X_test[:,0] = grids['actions'][0][A_feas]
-X_test[:,1] = grids['states'][0][idx_state]
-
-mu, s2 = gp_prior.predict(X_test)
+print(y_train[np.argmax(y_train),:])
 
 ################################################################################
 # Setup GP from prior data
@@ -123,7 +95,6 @@ mu, s2 = gp_prior.predict(X_test)
 
 def prior_mean(x):
     mu, s2 = gp_prior.predict(np.atleast_2d(x))
-
     return mu
 
 
@@ -147,16 +118,20 @@ gp = GPy.models.GPRegression(X_train, y_train, kernel,
 X_grid_1, X_grid_2 = np.meshgrid(grids['actions'], grids['states'])
 X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
 
+viable_threshold = 0.01
+
 def estimate_sets(gp, X_grid):
         Q_M_est, Q_M_est_s2 = gp.predict(X_grid)
         Q_M_est = Q_M_est.reshape(Q_M_proxy.shape)
         Q_M_est[np.logical_not(Q_feas)] = 0 # do not consider infeasible points
         # TODO: normalize prop
-        S_M_est = vibly.project_Q2S(Q_M_est, grids, np.sum)/y_scale
+        Q_V_est = np.copy(Q_M_est)
+        Q_V_est[np.less(Q_V_est, viable_threshold)] = 0
+        S_M_est = vibly.project_Q2S(Q_V_est.astype(bool), grids, np.mean) # this is taking everything that isn't
 
-        return Q_M_est, S_M_est
+        return Q_M_est, Q_M_est_s2, S_M_est
 
-Q_M_est, S_M_est = estimate_sets(gp=gp_prior, X_grid=X_grid)
+Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp=gp_prior, X_grid=X_grid)
 Q_M_prior = np.copy(Q_M_est) # make a copy to compare later
 
 ################################################################################
@@ -181,15 +156,15 @@ Q_V_true, S_V_true = vibly.compute_QV(Q_map_true, grids)
 
 Q_feas = vibly.get_feasibility_mask(true_model.feasible, true_model.mapSA2xp_height_angle,
             grids=grids, x0=x0, p0=p_true)
-S_M_true = vibly.project_Q2S(Q_V_true, grids, np.sum)
+S_M_true = vibly.project_Q2S(Q_V_true, grids, np.mean)
 #S_M_true = S_M_true / grids['actions'][0].size
 Q_M_true = vibly.map_S2Q(Q_map_true, S_M_true, Q_V_true)
 
 plt.imshow(Q_M_true - Q_M_proxy, origin='lower')
 plt.show()
 
-Q_M_proxy = Q_M_proxy/y_scale
-Q_M_true = Q_M_true/y_scale
+# Q_M_proxy = Q_M_proxy/y_scale
+# Q_M_true = Q_M_true/y_scale
 
 plt.imshow(Q_M_true - Q_M_est, origin='lower')
 plt.show()
@@ -202,15 +177,17 @@ np.max(Q_M_est-Q_M_true)
 s_grid_shape = list(map(np.size, grids['states']))
 s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
 #### from GP approximation, choose parts of Q to sample
-n_samples = 10
+n_samples = 2
 active_threshold = np.array([0.5, 0.7])
 # pick initial state
-s0 = np.random.uniform(0.4, 0.7)
+# s0 = np.random.uniform(0.4, 0.7)
+s0 = 0.6
 s0_idx = vibly.digitize_s(s0, grids['states'], s_bin_shape)
 X_observe = np.zeros([n_samples, 2])
 Y_observe = np.zeros(n_samples)
 
-verbose = True
+verbose = 2
+np.set_printoptions(precision=4)
 for ndx in range(n_samples):
         if verbose:
                 print('iteration '+str(ndx))
@@ -239,7 +216,6 @@ for ndx in range(n_samples):
                 if verbose:
                         print("FAILED!")
                 #break
-                a = a
                 q_new = np.array([[s0, a]])
                 X = np.concatenate((X, q_new), axis=0)
                 y_new = np.array(0).reshape(-1, 1)
@@ -269,11 +245,25 @@ for ndx in range(n_samples):
 
         y_new = np.array(measure).reshape(-1,1)
         y = np.concatenate((y, y_new))
-        gp.set_XY(X=X, Y=y)
-        Q_M_est, S_M_est = estimate_sets(gp, X_grid)
+        # gp.set_XY(X=X, Y=y)
+        if verbose > 1:
+                print("mapped measure (Q_map)" + 
+                        " est: "+ str(S_M_est[Q_map_proxy[s0_idx, a_idx]]) +
+                        " prox: " + str(S_M_proxy[Q_map_proxy[s0_idx, a_idx]]))
+                print("mapped measure (dyn)" + 
+                        " est: " + str(S_M_est[s_next_idx]) +
+                        " prox: " + str(S_M_proxy[s_next_idx]))
+                print("predicted measure (Q_M) " + 
+                        " est: " + str(Q_M_est[s0_idx, a_idx]) +
+                        " prox: " + str(Q_M_proxy[s0_idx, a_idx]))
+        
+
+        Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
         # take another step
         s0 = s_next
         s0_idx = s_next_idx
+
+
 
 # batch update
 # gp_prior.set_XY()
