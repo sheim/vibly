@@ -101,8 +101,8 @@ def step(x0, p, prev_sol = None):
         # since legs are massless, the orientation of the knee doesn't matter.
         alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
         leg_length = np.hypot(x[0]-x[4], x[1]-x[5])
-        beta = np.arccos(np.remainder((UPPER_LEG**2+LOWER_LEG**2 - leg_length**2)
-                        /(2*UPPER_LEG*LOWER_LEG), 1))
+        beta = np.arccos((UPPER_LEG**2+LOWER_LEG**2 - leg_length**2)
+                        /(2*UPPER_LEG*LOWER_LEG))
         # sinbeta = max(np.sin(beta), 1e-5)
         tau = STIFFNESS*(RESTING_ANGLE - beta)
         leg_force = leg_length/(UPPER_LEG*LOWER_LEG) * tau / np.sin(beta)
@@ -253,8 +253,8 @@ def compute_total_energy(x, p):
     # resting_length = (np.sqrt(p['upper_leg']**2 + p['lower_leg']**2
     #                 - 2*p['upper_leg']*p['lower_leg']*np.cos(p['resting_angle']) ))
     leg_length = np.hypot(x[0]-x[4], x[1]-x[5])
-    beta = np.arccos(np.remainder((p['upper_leg']**2+p['lower_leg']**2 - leg_length**2)
-                    /(2*p['upper_leg']*p['lower_leg']), 1))
+    beta = np.arccos( (p['upper_leg']**2 + p['lower_leg']**2 - leg_length**2)
+                /(2*p['upper_leg']*p['lower_leg']))
     return (p['mass']/2*(x[2]**2+x[3]**2) +
             p['gravity']*p['mass']*(x[1]) +
             p['stiffness']/2*(beta - p['resting_angle'])**2)
