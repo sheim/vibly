@@ -254,6 +254,8 @@ def is_outside(s, s_grid, S_V, already_binned = True):
         # if outside the left-most or right-most side of grid, mark as outside
         # * NOTE: this can result in disastrous underestimations if the grid is
         # * not larger than the viable set!
+        # TODO: this can lead to understimation if s is right on the grid-point
+        # because it will still check its neighbors. need to first check.
         if bin_idx[dim_idx] == 0:
             return True
         elif bin_idx[dim_idx] >= grid.size:
@@ -274,11 +276,11 @@ def map_S2Q(Q_map, S_M, Q_V = None):
     inverse dynamics (using the lookup table).
     '''
     if Q_V is None:
-        Q_V = np.copy(Q_map)
+        Q_V = Q_map.astype(bool)
 
-    Q_M = np.zeros_like(Q_map)
+    Q_M = np.zeros(Q_map.shape)
     # iterate over viable state-action pairs in Q_V
-    for qdx, is_viable in np.ndenumerate(Q_V): # compare with np.enum
+    for qdx, is_viable in np.ndenumerate(Q_V):
             if is_viable: # only check states-action pairs that are viable
                 sdx = np.unravel_index(Q_map[qdx], S_M.shape)
                 Q_M[qdx] = S_M[sdx]
