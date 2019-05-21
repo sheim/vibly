@@ -137,9 +137,9 @@ Q_M_prior = np.copy(Q_M_est) # make a copy to compare later
 ################################################################################
 # load ground truth
 ################################################################################
-import slippy.slip as true_model
+import slippy.nslip as true_model
 
-infile = open('../data/slip_map.pickle', 'rb')
+infile = open('../data/nslip_map.pickle', 'rb')
 data = pickle.load(infile)
 infile.close()
 
@@ -160,15 +160,15 @@ S_M_true = vibly.project_Q2S(Q_V_true, grids, np.mean)
 #S_M_true = S_M_true / grids['actions'][0].size
 Q_M_true = vibly.map_S2Q(Q_map_true, S_M_true, Q_V_true)
 
-plt.imshow(Q_M_true - Q_M_proxy, origin='lower')
-plt.show()
+# plt.imshow(Q_M_true - Q_M_proxy, origin='lower')
+# plt.show()
 
 # Q_M_proxy = Q_M_proxy/y_scale
 # Q_M_true = Q_M_true/y_scale
 
-plt.imshow(Q_M_true - Q_M_est, origin='lower')
-plt.show()
-np.max(Q_M_est-Q_M_true)
+# plt.imshow(Q_M_true - Q_M_est, origin='lower')
+# plt.show()
+# np.max(Q_M_est-Q_M_true)
 
 ################################################################################
 # Active Sampling part
@@ -177,8 +177,8 @@ np.max(Q_M_est-Q_M_true)
 s_grid_shape = list(map(np.size, grids['states']))
 s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
 #### from GP approximation, choose parts of Q to sample
-n_samples = 2
-active_threshold = np.array([0.5, 0.7])
+n_samples = 100
+active_threshold = 0.2
 # pick initial state
 # s0 = np.random.uniform(0.4, 0.7)
 s0 = 0.6
@@ -186,14 +186,14 @@ s0_idx = vibly.digitize_s(s0, grids['states'], s_bin_shape)
 X_observe = np.zeros([n_samples, 2])
 Y_observe = np.zeros(n_samples)
 
-verbose = 2
+verbose = 1
 np.set_printoptions(precision=4)
 for ndx in range(n_samples):
         if verbose:
                 print('iteration '+str(ndx))
         # slice actions available for those states
         A_slice = Q_M_est[s0_idx, slice(None)]
-        thresh_idx = np.where(np.greater_equal(A_slice, active_threshold[0]),
+        thresh_idx = np.where(np.greater_equal(A_slice, active_threshold),
                         [True], [False])
         # TODO: explore or don't more smartly
         # choose exploration based on uncertainty. Plot this uncertainty first
@@ -245,7 +245,7 @@ for ndx in range(n_samples):
 
         y_new = np.array(measure).reshape(-1,1)
         y = np.concatenate((y, y_new))
-        # gp.set_XY(X=X, Y=y)
+        gp.set_XY(X=X, Y=y)
         if verbose > 1:
                 print("mapped measure (Q_map)" + 
                         " est: "+ str(S_M_est[Q_map_proxy[s0_idx, a_idx]]) +
