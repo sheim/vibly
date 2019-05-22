@@ -225,9 +225,9 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
                         A_slice[~thresh_idx] = np.nan
 
                         idxs = np.argwhere(~np.isnan(A_slice))
-                        # TODO: There seems to be a bug when there is no data 
+                        # TODO: There seems to be a bug when there is no data
+                        # * This should already be caugh by thresh_idx.any()...
                         a_idx = np.argmax(A_slice_s2[idxs])
-
                         expected_measure = A_slice[a_idx]
                 a = grids['actions'][0][a_idx]
                 # apply action, get to the next state
@@ -292,7 +292,7 @@ plt.show()
 gp = learn(gp, x0, p_true, n_samples=1, verbose = 1, tabula_rasa=True)
 
 Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
-print("INITIAL ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
+print("INITIAL ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_prior-Q_M_true))))
 # plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
 # plt.show()
 
