@@ -126,7 +126,11 @@ def estimate_sets(gp, X_grid):
         Q_V_est = np.copy(Q_M_est)
         Q_V_est[np.less(Q_V_est, viable_threshold)] = 0
         S_M_est = vibly.project_Q2S(Q_V_est.astype(bool), grids, np.mean)
-        # TODO  perhaps alwas trim Q_M as well? 
+
+        Q_M_est_s2 = Q_M_est.reshape(Q_M_proxy.shape)
+        Q_M_est_s2[np.logical_not(Q_feas)] = 0 # do not consider infeasible points
+
+        # TODO  perhaps alwas trim Q_M as well?
         # though I guess that damages some properties...
         # Q_M_est[np.less(Q_V_est, viable_threshold)] = 0
         return Q_M_est, Q_M_est_s2, S_M_est
@@ -174,7 +178,7 @@ s_grid_shape = list(map(np.size, grids['states']))
 s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
 #### from GP approximation, choose parts of Q to sample
 n_samples = 10
-active_threshold = 0.1
+active_threshold = 0.4
 # pick initial state
 s0 = np.random.uniform(0.4, 0.7)
 s0_idx = vibly.digitize_s(s0, grids['states'], s_grid_shape, to_bin = False)
@@ -204,6 +208,7 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
                         print('iteration '+str(ndx))
                 # slice actions available for those states
                 A_slice = Q_M_est[s0_idx, slice(None)]
+                A_slice_s2 = Q_M_est_s2[s0_idx, slice(None)]
                 thresh_idx = np.where(np.greater_equal(A_slice, active_threshold),
                                 [True], [False])
                 # TODO: explore or don't more smartly
@@ -217,7 +222,11 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
                         if verbose > 1:
                                 print('explore!')
                         A_slice[~thresh_idx] = np.nan
-                        a_idx = np.nanargmin(A_slice)
+
+                        idxs = np.argwhere(~np.isnan(A_slice))
+                        # TODO: There seems to be a bug when there is no data 
+                        a_idx = np.argmax(A_slice_s2[idxs])
+
                         expected_measure = A_slice[a_idx]
                 a = grids['actions'][0][a_idx]
                 # apply action, get to the next state
