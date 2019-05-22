@@ -177,7 +177,7 @@ n_samples = 10
 active_threshold = 0.1
 # pick initial state
 s0 = np.random.uniform(0.4, 0.7)
-s0_idx = vibly.digitize_s(s0, grids['states'], s_bin_shape)
+s0_idx = vibly.digitize_s(s0, grids['states'], s_grid_shape, to_bin = False)
 
 verbose = 1
 np.set_printoptions(precision=4)
@@ -196,7 +196,8 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
         Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
 
         s0 = np.random.uniform(0.4, 0.7)
-        s0_idx = vibly.digitize_s(s0, grids['states'], s_bin_shape)
+        s0_idx = vibly.digitize_s(s0, grids['states'],
+                                s_grid_shape, to_bin = False)
 
         for ndx in range(n_samples):
                 if verbose:
@@ -234,16 +235,15 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
                         # Currently, just restart from some magic numbers
                         s_next = np.random.uniform(0.3, 0.8)
                         # s0_idx = vibly.digitize_s(s0, grids['states'], s_bin_shape)
-                        s_next_idx = vibly.digitize_s(s_next, grids['states'], s_bin_shape)
-                        s_next_idx = np.min([s_next_idx, S_M_est.size - 1])
+                        s_next_idx = vibly.digitize_s(s_next, grids['states'],
+                                                s_grid_shape, to_bin = False)
                         # TODO: weight failures more than successes
                         measure = 0
                 else:
                         s_next = true_model.map2s(x_next, p_true)
                 # compare expected measure with true measure
-                        s_next_idx = vibly.digitize_s(s_next, grids['states'], s_bin_shape)
-                        # HACK: digitize_s returns the index of the BIN, not the grid
-                        s_next_idx = np.min([s_next_idx, S_M_est.size - 1])
+                        s_next_idx = vibly.digitize_s(s_next, grids['states'],
+                                                s_grid_shape, to_bin = False)
                         measure = S_M_est[s_next_idx]
                         # TODO: once we have a proper gp-projection for S_M, predict this
                 if verbose > 1:
@@ -258,13 +258,13 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
                 y = np.concatenate((y, y_new))
                 gp.set_XY(X=X, Y=y)
                 if verbose > 1:
-                        print("mapped measure (Q_map)" + 
+                        print("mapped measure (Q_map)" +
                                 " est: "+ str(S_M_est[Q_map_proxy[s0_idx, a_idx]]) +
                                 " prox: " + str(S_M_proxy[Q_map_proxy[s0_idx, a_idx]]))
-                        print("mapped measure (dyn)" + 
+                        print("mapped measure (dyn)" +
                                 " est: " + str(S_M_est[s_next_idx]) +
                                 " prox: " + str(S_M_proxy[s_next_idx]))
-                        print("predicted measure (Q_M) " + 
+                        print("predicted measure (Q_M) " +
                                 " est: " + str(Q_M_est[s0_idx, a_idx]) +
                                 " prox: " + str(Q_M_proxy[s0_idx, a_idx]))
                 # elif verbose > 0:

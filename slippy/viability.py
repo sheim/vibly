@@ -118,35 +118,43 @@ def get_state_from_ravel(bin_idx, s_grid):
     for dim, grid in enumerate(s_grid):
         if bin_idx[dim] >= grid.size:
             grid_idx[dim] = grid.size-1 # upper-est entry
-            s[dim] = grid[grid_idx[dim]] #TODO: Super ugly
+            s[dim] = grid[grid_idx[dim]]
         else:
             grid_idx[dim] = bin_idx[dim] # just put the right-closest grid
             s[dim] = grid[grid_idx[dim]]
     return s
 
-def digitize_s(s, s_grid, s_bin_shape = None):
+def bin2grid(bin_idx, grids):
+    '''
+    To replace `get_state_from_ravel`
+    receiving a tuple of grids, return the grid-
+    '''
+
+def digitize_s(s, s_grid, shape = None, to_bin = True):
     '''
     s_grid is a tuple/list of 1-D grids. digitize_s finds the corresponding
     index of the bin overlaid on the N-dimensional grid S.
+    Assumes you wat to bin things by default, turn to_bin to false to return
+    closest grid coordinates.
 
     output:
     - either an array of indices of N dimensions
     - a raveled index
     '''
     # assert type(s_grid) is tuple or type(s_grid) is list
-    s = np.atleast_1d(s)
-    s_bin = np.zeros((len(s_grid)), dtype = int)
-    for dim_idx, grid in enumerate(s_grid): # TODO: can zip this with s
-        s_bin[dim_idx] = np.digitize(s[dim_idx], grid)
-        # TODO: fix this hack nicely.
-        # deprecated!
-        # if s_bin[dim_idx] >= grid.size:
-        #     print("WARNING: exited grid in " + str(dim_idx) + " dimension.")
-        #     s_bin[dim_idx] = grid.size-1 # saturating at end of grid
-    if s_bin_shape is None:
-        return s_bin
+    s = np.atleast_1d(s) # make this indexable even if scalar
+    s_idx = np.zeros((len(s_grid)), dtype = int)
+    if to_bin:
+        for dim_idx, grid in enumerate(s_grid): # TODO: can zip this with s
+            s_idx[dim_idx] = np.digitize(s[dim_idx], grid)
     else:
-        return np.ravel_multi_index(s_bin, s_bin_shape)
+        for dim_idx, grid in enumerate(s_grid):
+            s_idx[dim_idx] = np.argmin(np.abs(grid - s[dim_idx]))
+
+    if shape is None:
+            return s_idx
+    else:
+        return np.ravel_multi_index(s_idx, shape)
 
 
 def compute_Q_map(grids, poincare_map, verbose = 0):
