@@ -223,17 +223,10 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
                         if verbose > 1:
                                 print('explore!')
                         A_slice[~thresh_idx] = np.nan
-
-                        idxs = np.argwhere(~np.isnan(A_slice))
-<<<<<<< HEAD
-                        # TODO: There seems to be a bug when there is no data
-                        # * This should already be caugh by thresh_idx.any()...
-||||||| merged common ancestors
-                        # TODO: There seems to be a bug when there is no data 
-=======
+                        nan_idxs = np.argwhere(np.isnan(A_slice))
                         # TODO: There seems to be a bug variance should be all equal when there is no data
->>>>>>> f4e1659f41febc05fd4323d85ccb9b6a4b3f3484
-                        a_idx = np.argmax(A_slice_s2[idxs])
+                        A_slice_s2[nan_idxs] = np.nan
+                        a_idx = np.nanargmax(A_slice_s2) # use this for variance
                         expected_measure = A_slice[a_idx]
                 a = grids['actions'][0][a_idx]
                 # apply action, get to the next state
