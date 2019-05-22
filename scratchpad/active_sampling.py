@@ -122,13 +122,13 @@ viable_threshold = 0.01 # TODO: tune this! and perhaps make it adaptive...
 def estimate_sets(gp, X_grid):
         Q_M_est, Q_M_est_s2 = gp.predict(X_grid)
         Q_M_est = Q_M_est.reshape(Q_M_proxy.shape)
-        Q_M_est_s2 = Q_M_est_s2.reshape(Q_M_proxy.shape)
+
         Q_M_est[np.logical_not(Q_feas)] = 0 # do not consider infeasible points
         Q_V_est = np.copy(Q_M_est)
         Q_V_est[np.less(Q_V_est, viable_threshold)] = 0
         S_M_est = vibly.project_Q2S(Q_V_est.astype(bool), grids, np.mean)
 
-        Q_M_est_s2 = Q_M_est.reshape(Q_M_proxy.shape)
+        Q_M_est_s2 = Q_M_est_s2.reshape(Q_M_proxy.shape)
         Q_M_est_s2[np.logical_not(Q_feas)] = 0 # do not consider infeasible points
 
         # TODO  perhaps alwas trim Q_M as well?
@@ -179,7 +179,7 @@ s_grid_shape = list(map(np.size, grids['states']))
 s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
 #### from GP approximation, choose parts of Q to sample
 n_samples = 10
-active_threshold = 0.4
+active_threshold = 0.2
 # pick initial state
 s0 = np.random.uniform(0.4, 0.7)
 s0_idx = vibly.digitize_s(s0, grids['states'], s_grid_shape, to_bin = False)
@@ -225,7 +225,7 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
                         A_slice[~thresh_idx] = np.nan
 
                         idxs = np.argwhere(~np.isnan(A_slice))
-                        # TODO: There seems to be a bug when there is no data 
+                        # TODO: There seems to be a bug variance should be all equal when there is no data
                         a_idx = np.argmax(A_slice_s2[idxs])
 
                         expected_measure = A_slice[a_idx]
