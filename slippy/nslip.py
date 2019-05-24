@@ -101,8 +101,13 @@ def step(x0, p, prev_sol = None):
         # since legs are massless, the orientation of the knee doesn't matter.
         alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
         leg_length = np.hypot(x[0]-x[4], x[1]-x[5])
+        # if np.greater_equal((UPPER_LEG**2+LOWER_LEG**2 - leg_length**2)
+        #                 /(2*UPPER_LEG*LOWER_LEG), 1):
+        #     print("warning")
         beta = np.arccos((UPPER_LEG**2+LOWER_LEG**2 - leg_length**2)
                         /(2*UPPER_LEG*LOWER_LEG))
+        # if np.isnan(beta): #TODO test for minimum value...
+        #     print("HELLO!")
         # sinbeta = max(np.sin(beta), 1e-5)
         tau = STIFFNESS*(RESTING_ANGLE - beta)
         leg_force = leg_length/(UPPER_LEG*LOWER_LEG) * tau / np.sin(beta)
@@ -135,7 +140,7 @@ def step(x0, p, prev_sol = None):
         '''
         Event function to reach maximum spring extension (transition to flight)
         '''
-        return ((x[0]-x[4])**2 + (x[1]-x[5])**2) - RESTING_LENGTH**2
+        return np.hypot(x[0]-x[4], x[1]-x[5]) - RESTING_LENGTH**2
     liftoff_event.terminal = True
     liftoff_event.direction = 1
 
@@ -186,7 +191,7 @@ def step(x0, p, prev_sol = None):
     x0 = sol.y[:, -1]
     sol2 = integrate.solve_ivp(stance_dynamics,
         t_span = [sol.t[-1], sol.t[-1] + MAX_TIME], y0 = x0,
-        events=events, max_step=0.001)
+        events=events, max_step=0.0005)
 
     # if you fell, stop now
     if sol2.t_events[0].size != 0 or sol2.t_events[2].size != 0: # if empty
