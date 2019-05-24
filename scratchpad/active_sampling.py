@@ -122,7 +122,7 @@ viable_threshold = 0.01 # TODO: tune this! and perhaps make it adaptive...
 def estimate_sets(gp, X_grid):
     Q_M_est, Q_M_est_s2 = gp.predict(X_grid)
     Q_M_est = Q_M_est.reshape(Q_M_proxy.shape)
-    Q_M_est[np.logical_not(Q_feas)] = -1e10 # do not consider infeasible points
+    Q_M_est[np.logical_not(Q_feas)] = -1e-10 # do not consider infeasible points
 
     Q_M_est_s2 = Q_M_est_s2.reshape(Q_M_proxy.shape)
     Q_M_est_s2[np.logical_not(Q_feas)] = 0
