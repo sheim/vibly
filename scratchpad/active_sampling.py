@@ -301,7 +301,7 @@ print(" ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
 
 for ndx in range(0): # in case you want to do small increments
     # TODO function to recompute prior, and restart (naive forgetting)
-    gp = learn(gp, x0, p_true, n_samples=n_samples=, verbose = 1, tabula_rasa=False)
+    gp = learn(gp, x0, p_true, n_samples=n_samples, verbose = 1, tabula_rasa=False)
     Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
     print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
     if np.sum(np.abs(Q_M_est-Q_M_true)) > 300:
