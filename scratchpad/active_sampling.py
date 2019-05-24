@@ -122,7 +122,7 @@ viable_threshold = 0.01 # TODO: tune this! and perhaps make it adaptive...
 def estimate_sets(gp, X_grid):
     Q_M_est, Q_M_est_s2 = gp.predict(X_grid)
     Q_M_est = Q_M_est.reshape(Q_M_proxy.shape)
-    Q_M_est[np.logical_not(Q_feas)] = 0 # do not consider infeasible points
+    Q_M_est[np.logical_not(Q_feas)] = -1e10 # do not consider infeasible points
 
     Q_M_est_s2 = Q_M_est_s2.reshape(Q_M_proxy.shape)
     Q_M_est_s2[np.logical_not(Q_feas)] = 0
@@ -235,6 +235,7 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
             A_slice_s2[nan_idxs] = np.nan
             a_idx = np.nanargmax(A_slice_s2) # use this for variance
             expected_measure = A_slice[a_idx]
+
         a = grids['actions'][0][a_idx]
         # apply action, get to the next state
         x0, p_true = true_model.mapSA2xp_height_angle((s0, a), x0, p_true)

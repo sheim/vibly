@@ -194,7 +194,7 @@ def check_failure(x, fail_idx = (0, 1, 2)):
     '''
     for idx in fail_idx:
         if idx is 0: # check for falling
-            if np.less_equal(x[1], 0.0):
+            if np.less_equal(x[1], 0.0) or np.isclose(x[1], 0.0):
                 return True
         elif idx is 1:
             if np.less_equal(x[2], 0.0): # check for direction reversal
