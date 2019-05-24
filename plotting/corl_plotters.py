@@ -18,9 +18,9 @@ def plot_Q_S(Q, S, grids):
     ax_Q.tick_params(direction='in', top=True, right=True)
     ax_S.tick_params(direction='in', labelleft=False)
 
-    ax_Q.imshow(Q_M_true, origin='lower', extent=extent, aspect="auto")
+    ax_Q.imshow(Q, origin='lower', extent=extent, aspect="auto")
 
-    ax_S.plot(S_M_true, real_y)
+    ax_S.plot(S, real_y)
     ax_S.set_ylim(ax_Q.get_ylim())
 
     return fig
