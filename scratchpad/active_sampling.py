@@ -142,6 +142,8 @@ def estimate_sets(gp, X_grid):
 
 Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp=gp_prior, X_grid=X_grid)
 Q_M_prior = np.copy(Q_M_est) # make a copy to compare later
+Q_M_prior_s2 = np.copy(Q_M_est_s2)
+S_M_prior = np.copy(S_M_est)
 
 ################################################################################
 # load ground truth
@@ -184,7 +186,6 @@ s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
 a_grid_shape = list(map(np.size, grids['actions']))
 a_bin_shape = tuple(dim+1 for dim in a_grid_shape)
 #### from GP approximation, choose parts of Q to sample
-n_samples = 10
 active_threshold = 0.2
 # pick initial state
 s0 = np.random.uniform(0.4, 0.7)
@@ -243,9 +244,7 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
                 print("FAILED!")
             #break
             q_new = np.array([[s0, a]])
-            X = np.concatenate((X, q_new), axis=0)
             y_new = np.array(0).reshape(-1, 1)
-            y = np.concatenate((y, y_new))
             # TODO: restart from expected good results
             # Currently, just restart from some magic numbers
             s_next = np.random.uniform(0.3, 0.8)
@@ -302,12 +301,16 @@ print(" ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
 
 for ndx in range(0): # in case you want to do small increments
     # TODO function to recompute prior, and restart (naive forgetting)
-    gp = learn(gp, x0, p_true, n_samples=n_samples, verbose = 1, tabula_rasa=False)
+    gp = learn(gp, x0, p_true, n_samples=n_samples=, verbose = 1, tabula_rasa=False)
     Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
     print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
     if np.sum(np.abs(Q_M_est-Q_M_true)) > 300:
             break
     # probably actually only want to care about trimmed error, see below
+
+
+import plotting.corl_plotters as cplot
+cplot.plot_Q_S(Q_M_est, S_M_est, grids, (gp.X, gp.Y))
 
 # Good things to plot
 # plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
