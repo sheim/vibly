@@ -211,6 +211,8 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
     s0_idx = vibly.digitize_s(s0, grids['states'],
                             s_grid_shape, to_bin = False)
 
+    failed_samples = [False]*n_samples
+
     for ndx in range(n_samples):
         if verbose:
             print('iteration '+str(ndx+1))
@@ -234,6 +236,7 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
             # TODO: There seems to be a bug variance should be all equal when there is no data
             A_slice_s2[nan_idxs] = np.nan
             a_idx = np.nanargmax(A_slice_s2) # use this for variance
+            # a_idx = np.nanargmin(A_slice)
             expected_measure = A_slice[a_idx]
 
         a = grids['actions'][0][a_idx]
@@ -241,6 +244,7 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
         x0, p_true = true_model.mapSA2xp_height_angle((s0, a), x0, p_true)
         x_next, failed = true_model.poincare_map(x0, p_true)
         if failed:
+            failed_samples[ndx] = True
             if verbose:
                 print("FAILED!")
             #break
@@ -289,29 +293,35 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
         # take another step
         s0 = s_next
         s0_idx = s_next_idx
+    gp.failed_samples.extend(failed_samples)
     return gp
 
 print("INITIAL ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_prior-Q_M_true))))
 # plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
 # plt.show()
 
-n_samples = 30
-gp = learn(gp, x0, p_true, n_samples=n_samples, verbose = 1, tabula_rasa=True)
-Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
-print(" ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
-
-for ndx in range(0): # in case you want to do small increments
-    # TODO function to recompute prior, and restart (naive forgetting)
-    gp = learn(gp, x0, p_true, n_samples=n_samples, verbose = 1, tabula_rasa=False)
-    Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
-    print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
-    if np.sum(np.abs(Q_M_est-Q_M_true)) > 300:
-            break
-    # probably actually only want to care about trimmed error, see below
-
-
+steps = 20
+# gp = learn(gp, x0, p_true, steps=1, verbose = 1, tabula_rasa=True)
+# Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
+# print(" ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
+gp.failed_samples = list()
 import plotting.corl_plotters as cplot
-cplot.plot_Q_S(Q_M_est, S_M_est, grids, (gp.X, gp.Y))
+tabula_rasa = True
+for ndx in range(steps): # in case you want to do small increments
+    # TODO function to recompute prior, and restart (naive forgetting)
+    gp = learn(gp, x0, p_true, n_samples=1, verbose = 1, tabula_rasa=tabula_rasa)
+    Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
+    Q_M_safe = np.copy(Q_M_est)
+    Q_M_safe[np.less(Q_M_safe, active_threshold)] = 0
+    Q_M_safe[np.greater_equal(Q_M_safe, active_threshold)] = 1
+    S_M_safe = np.mean(Q_M_safe, axis=1)
+    fig = cplot.plot_Q_S(Q_M_est, (S_M_safe, S_M_est, S_M_true), grids,
+                    samples = (gp.X, gp.Y), failed_samples = gp.failed_samples,
+                    S_labels=("safe estimate", "viable estimate", "ground truth"))
+    plt.savefig('./sample'+str(ndx))
+    plt.close('all')
+    print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
+    tabula_rasa = False
 
 # Good things to plot
 # plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
