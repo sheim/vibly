@@ -157,7 +157,7 @@ plt.show()
 Q_M_est, Q_M_est_s2 = gp_prior.predict(X)
 Q_M_est = Q_M_est.reshape(Q_M.shape)
 Q_M_est[np.logical_not(Q_feas)] = 0 # do not consider infeasible points
-S_M_est = vibly.project_Q2S(Q_M_est, grids, np.sum)
+S_M_est = vibly.project_Q2S(Q_M_est, grids, np.mean)
 # TODO: possibly scaling issues in plots?
 plt.plot(S_M)
 plt.plot(S_M_est)

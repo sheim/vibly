@@ -1,12 +1,12 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import time
 import pickle
-
-import GPy
 
 import slippy.viability as vibly
 import slippy.slip as proxy_model
+
+import slippy.estimate_measure as estimation
+from scipy.stats import norm
 
 ################################################################################
 # Load and unpack data
@@ -31,83 +31,12 @@ S_M_proxy = vibly.project_Q2S(Q_V_proxy, grids, np.mean)
 #S_M_proxy = S_M_proxy / grids['actions'][0].size
 Q_M_proxy = vibly.map_S2Q(Q_map_proxy, S_M_proxy, Q_V_proxy)
 
-y = Q_M_proxy.flatten().T
-y_train = y.reshape(-1,1)
-# y_scale = np.max(np.abs(y_train), axis=0)[0]
-# y_train = y_train / y_scale
+estimator = estimation.MeasureEstimation(state_dim=1, action_dim=1, seed=1)
 
-# TODO This is ugly af
-# * actually seems like it's not so bad: https://stackoverflow.com/questions/1208118/using-numpy-to-build-an-array-of-all-combinations-of-two-arrays
-X_train_1, X_train_2 = np.meshgrid(grids['actions'], grids['states'])
-X = np.column_stack((X_train_1.flatten(), X_train_2.flatten()))
+AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
+estimator.prepare_data(AS_grid=AS_grid, Q_M=Q_M_proxy, Q_V=Q_V_proxy, Q_feas=Q_feas)
+estimator.create_prior(load='./model/prior.npy', save='./model/prior.npy')
 
-np.random.seed(1)
-idx = np.random.choice(9100, size=3000, replace=False)
-
-idx_safe = np.argwhere(Q_V_proxy.flatten()).ravel()
-idx_notfeas = np.argwhere(~Q_feas.flatten()).ravel()
-idx_unsafe = np.argwhere( Q_feas.flatten() & ~Q_V_proxy.flatten()).ravel()
-
-idx_1 = np.random.choice(idx_safe, size=1000, replace=False)
-idx_2 = np.random.choice(idx_unsafe, size=500, replace=False)
-
-idx = np.concatenate((idx_1, idx_2))
-
-y_train = y_train[idx]
-X_train = X[idx, :]
-
-#X_train = X_train[0:100,:]
-#y_train = y_train[0:100]
-
-kernel_1 = GPy.kern.Matern32(input_dim=2, variance=1., lengthscale=.5,
-        ARD=True, name='kern1')
-kernel_1.variance.constrain_bounded(1e-3, 1e4)
-
-kernel_2 = GPy.kern.RBF(input_dim=2, variance=1, lengthscale=.5,
-        ARD=True, name='kern2')
-kernel_2.variance.constrain_bounded(1e-3, 1e4)
-
-# kernel_3 = GPy.kern.ChangePointBasisFuncKernel(input_dim=1, active_dims=0, changepoint=(.3,.6), variance=1, ARD=True, name='kern3')
-# kernel_4 = GPy.kern.ChangePointBasisFuncKernel(input_dim=1, active_dims=1, changepoint=(.5,.9), variance=1, ARD=True, name='kern4')
-
-kernel = kernel_1 + kernel_2
-
-# Loading a model
-# Model creation, without initialization:
-gp_prior = GPy.models.GPRegression(X_train, y_train, kernel=kernel, noise_var=0.01)
-gp_prior.update_model(False) # do not call the underlying expensive algebra on load
-gp_prior.initialize_parameter() # Initialize the parameters (connect the parameters up)
-gp_prior[:] = np.load('../data/model_save.npy') # Load the parameters
-gp_prior.update_model(True) # Call the algebra only once
-
-print(gp_prior)
-
-mu, s2 = gp_prior.predict(np.atleast_2d(X_train[np.argmax(y_train),:]))
-print('GP prior predictions')
-print(mu)
-print(np.sqrt(s2) * 2)
-print('GP prior true')
-print(y_train[np.argmax(y_train),:])
-
-################################################################################
-# Setup GP from prior data
-################################################################################
-
-def prior_mean(x):
-    mu, s2 = gp_prior.predict(np.atleast_2d(x))
-    return mu
-
-
-mf = GPy.core.Mapping(2,1)
-mf.f = prior_mean
-mf.update_gradients = lambda a, b: None
-
-
-kernel = kernel.copy()
-
-gp = GPy.models.GPRegression(X_train, y_train, kernel,
-                             noise_var=0.01,
-                             mean_function=mf)
 
 ################################################################################
 # Stuff
@@ -119,28 +48,11 @@ X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
 viable_threshold = 0.01 # TODO: tune this! and perhaps make it adaptive...
 # TODO: I have a feeling using this more is quite key
 
-def estimate_sets(gp, X_grid):
-    Q_M_est, Q_M_est_s2 = gp.predict(X_grid)
-    Q_M_est = Q_M_est.reshape(Q_M_proxy.shape)
-    Q_M_est[np.logical_not(Q_feas)] = -1e-10 # do not consider infeasible points
+# TODO: using the GP with no data doesn't work put in a data point far away?
+estimator.set_data(X=np.array([[-100,-100]]), Y=np.array([[0]]))
 
-    Q_M_est_s2 = Q_M_est_s2.reshape(Q_M_proxy.shape)
-    Q_M_est_s2[np.logical_not(Q_feas)] = 0
-
-    # TODO make viable_threshold a function of variance (probability to fail)
-    # Q_V_est = np.copy(Q_M_est)
-    # Q_V_est[np.less(Q_V_est, viable_threshold)] = 0 # can also use a mask
-    # S_M_est = vibly.project_Q2S(Q_V_est.astype(bool), grids, np.mean)
-    # * or trim Q_M_est directly
-    Q_M_est[np.less(Q_M_est, viable_threshold)] = 0
-    S_M_est = vibly.project_Q2S(Q_M_est.astype(bool), grids, np.mean)
-
-    # TODO  perhaps alwas trim Q_M as well?
-    # though I guess that damages some properties...
-    # Q_M_est[np.less(Q_V_est, viable_threshold)] = 0
-    return Q_M_est, Q_M_est_s2, S_M_est
-
-Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp=gp_prior, X_grid=X_grid)
+Q_M_est, Q_M_est_s2, S_M_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+                                                       viable_threshold=viable_threshold)
 Q_M_prior = np.copy(Q_M_est) # make a copy to compare later
 Q_M_prior_s2 = np.copy(Q_M_est_s2)
 S_M_prior = np.copy(S_M_est)
@@ -194,19 +106,16 @@ s0_idx = vibly.digitize_s(s0, grids['states'], s_grid_shape, to_bin = False)
 verbose = 1
 np.set_printoptions(precision=4)
 
-def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
+def learn(estimator, x0, p_true, n_samples = 100, verbose = 0, X = None, y = None):
 
     # X_observe = np.zeros([n_samples, 2])
     # Y_observe = np.zeros(n_samples)
-    if tabula_rasa:
+    if X is None or y is None:
         X = np.empty((0,2))
         y = np.empty((0,1))
-    else:
-        X = gp.X
-        y = gp.Y
 
-    Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
-
+    Q_M_est, Q_M_est_s2, S_M_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+                                                           viable_threshold=viable_threshold)
     s0 = np.random.uniform(0.4, 0.7)
     s0_idx = vibly.digitize_s(s0, grids['states'],
                             s_grid_shape, to_bin = False)
@@ -219,8 +128,14 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
         # slice actions available for those states
         A_slice = Q_M_est[s0_idx, slice(None)]
         A_slice_s2 = Q_M_est_s2[s0_idx, slice(None)]
-        thresh_idx = np.where(np.greater_equal(A_slice, active_threshold),
+
+        # Calculate probability of failure for current actions
+        failure_threshold = 0
+        prop_fail = 1-norm.cdf((A_slice - failure_threshold) / A_slice_s2)
+
+        thresh_idx = np.where(np.less(prop_fail, active_threshold),
                         [True], [False])
+
         # TODO: explore or don't more smartly
         # choose exploration based on uncertainty. Plot this uncertainty first
         if not thresh_idx.any(): # empty, pick the safest
@@ -275,7 +190,7 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
 
         y_new = np.array(measure).reshape(-1,1)
         y = np.concatenate((y, y_new))
-        gp.set_XY(X=X, Y=y)
+        estimator.set_data(X=X, Y=y)
         if verbose > 1:
             print("mapped measure (Q_map)" +
                 " est: "+ str(S_M_est[Q_map_proxy[s0_idx, a_idx]]) +
@@ -289,39 +204,74 @@ def learn(gp, x0, p_true, n_samples = 100, verbose = 0, tabula_rasa = False):
         # elif verbose > 0:
         #         print("error: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
 
-        Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
+        Q_M_est, Q_M_est_s2, S_M_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+                                                               viable_threshold=viable_threshold)
         # take another step
         s0 = s_next
         s0_idx = s_next_idx
-    gp.failed_samples.extend(failed_samples)
-    return gp
+    estimator.failed_samples.extend(failed_samples)
+    return estimator
 
 print("INITIAL ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_prior-Q_M_true))))
 # plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
 # plt.show()
 
-steps = 20
+steps = 10
 # gp = learn(gp, x0, p_true, steps=1, verbose = 1, tabula_rasa=True)
 # Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
 # print(" ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
-gp.failed_samples = list()
+estimator.failed_samples = list()
+
 import plotting.corl_plotters as cplot
 tabula_rasa = True
+
+np.random.seed(1)
+X = None
+Y = None
 for ndx in range(steps): # in case you want to do small increments
-    # TODO function to recompute prior, and restart (naive forgetting)
-    gp = learn(gp, x0, p_true, n_samples=1, verbose = 1, tabula_rasa=tabula_rasa)
-    Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
+
+    # TODO: I don't understand what x0 is. What are those 7 values?
+    estimator = learn(estimator, x0, p_true, n_samples=20, verbose=1, X=X, y=Y)
+
+    Q_M_est, Q_M_est_s2, S_M_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+                                                           viable_threshold=viable_threshold)
     Q_M_safe = np.copy(Q_M_est)
     Q_M_safe[np.less(Q_M_safe, active_threshold)] = 0
     Q_M_safe[np.greater_equal(Q_M_safe, active_threshold)] = 1
     S_M_safe = np.mean(Q_M_safe, axis=1)
     fig = cplot.plot_Q_S(Q_M_est, (S_M_safe, S_M_est, S_M_true), grids,
-                    samples = (gp.X, gp.Y), failed_samples = gp.failed_samples,
-                    S_labels=("safe estimate", "viable estimate", "ground truth"))
-    plt.savefig('./sample'+str(ndx))
-    plt.close('all')
+                         samples = (estimator.gp.X, estimator.gp.Y),
+                         failed_samples = estimator.failed_samples,
+                         S_labels=("safe estimate", "viable estimate", "ground truth"))
+    #plt.savefig('./sample'+str(ndx))
+    #plt.close('all')
+    plt.show()
     print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
     tabula_rasa = False
+
+    # Recompute prior, and restart (naive forgetting)
+
+    #Keep the failures:
+    if np.any(estimator.failed_samples):
+        X = estimator.gp.X[estimator.failed_samples,:]
+        Y = estimator.gp.Y[estimator.failed_samples,:]
+        estimator.failed_samples = [x for x in estimator.failed_samples if x]
+
+    else:
+        # TODO still a hack
+        X = np.array([[-100, -100]])
+        Y = np.array([[0]])
+        estimator.failed_samples = [True]
+
+    AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
+
+    Q_V = np.where(np.greater_equal(Q_M_est, viable_threshold), [True], [False])
+
+    estimator.prepare_data(AS_grid=AS_grid, Q_M=Q_M_est, Q_V=Q_V, Q_feas=Q_feas)
+    estimator.create_prior(save=False)
+
+    estimator.set_data(X=X, Y=Y)
+
 
 # Good things to plot
 # plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
