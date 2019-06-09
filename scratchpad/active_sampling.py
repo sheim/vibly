@@ -131,9 +131,10 @@ def learn(estimator, x0, p_true, n_samples = 100, verbose = 0, X = None, y = Non
 
         # Calculate probability of failure for current actions
         failure_threshold = 0
-        prop_fail = 1-norm.cdf((A_slice - failure_threshold) / A_slice_s2)
+        prop_fail = 1-norm.cdf((A_slice - failure_threshold) / np.sqrt(A_slice_s2))
 
-        thresh_idx = np.where(np.less(prop_fail, active_threshold),
+        probability_threshold = 0.1
+        thresh_idx = np.where(np.less(prop_fail, probability_threshold),
                         [True], [False])
 
         # TODO: explore or don't more smartly
