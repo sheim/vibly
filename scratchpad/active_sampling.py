@@ -7,6 +7,7 @@ import slippy.slip as proxy_model
 
 import slippy.estimate_measure as estimation
 from scipy.stats import norm
+from scipy.integrate import simps
 
 ################################################################################
 # Load and unpack data
@@ -45,22 +46,22 @@ estimator.create_prior(load='./model/prior.npy', save='./model/prior.npy')
 X_grid_1, X_grid_2 = np.meshgrid(grids['actions'], grids['states'])
 X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
 
-viable_threshold = 0.01 # TODO: tune this! and perhaps make it adaptive...
+viable_threshold = 0.1 # TODO: tune this! and perhaps make it adaptive...
 # TODO: I have a feeling using this more is quite key
 
 # TODO: using the GP with no data doesn't work put in a data point far away?
 estimator.set_data(X=np.array([[-100,-100]]), Y=np.array([[0]]))
 
-Q_M_est, Q_M_est_s2, S_M_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+Q_M_est, Q_M_est_s2, S_M_est, Q_V_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
                                                        viable_threshold=viable_threshold)
 Q_M_prior = np.copy(Q_M_est) # make a copy to compare later
-Q_M_prior_s2 = np.copy(Q_M_est_s2)
 S_M_prior = np.copy(S_M_est)
 
 ################################################################################
 # load ground truth
 ################################################################################
 import slippy.nslip as true_model
+# import slippy.slip as true_model
 
 infile = open('../data/nslip_map.pickle', 'rb')
 data = pickle.load(infile)
@@ -114,11 +115,11 @@ def learn(estimator, x0, p_true, n_samples = 100, verbose = 0, X = None, y = Non
         X = np.empty((0,2))
         y = np.empty((0,1))
 
-    Q_M_est, Q_M_est_s2, S_M_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+    Q_M_est, Q_M_est_s2, S_M_est, Q_V_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
                                                            viable_threshold=viable_threshold)
     s0 = np.random.uniform(0.4, 0.7)
     s0_idx = vibly.digitize_s(s0, grids['states'],
-                            s_grid_shape, to_bin = False)
+                            s_grid_shape, to_bin=False)
 
     failed_samples = [False]*n_samples
 
@@ -126,14 +127,15 @@ def learn(estimator, x0, p_true, n_samples = 100, verbose = 0, X = None, y = Non
         if verbose:
             print('iteration '+str(ndx+1))
         # slice actions available for those states
-        A_slice = Q_M_est[s0_idx, slice(None)]
-        A_slice_s2 = Q_M_est_s2[s0_idx, slice(None)]
+        A_slice = np.copy(Q_M_est[s0_idx, slice(None)])
+        A_slice_s2 = np.copy(Q_M_est_s2[s0_idx, slice(None)])
 
         # Calculate probability of failure for current actions
         failure_threshold = 0
-        prop_fail = 1-norm.cdf((A_slice - failure_threshold) / np.sqrt(A_slice_s2))
 
-        probability_threshold = 0.1
+        prop_fail = norm.cdf((failure_threshold - A_slice) / np.sqrt(A_slice_s2))
+
+        probability_threshold = 0.4
         thresh_idx = np.where(np.less(prop_fail, probability_threshold),
                         [True], [False])
 
@@ -176,11 +178,13 @@ def learn(estimator, x0, p_true, n_samples = 100, verbose = 0, X = None, y = Non
             measure = 0
         else:
             s_next = true_model.map2s(x_next, p_true)
-    # compare expected measure with true measure
+            # compare expected measure with true measure
             s_next_idx = vibly.digitize_s(s_next, grids['states'],
                                     s_grid_shape, to_bin = False)
+
             measure = S_M_est[s_next_idx]
-            # TODO: once we have a proper gp-projection for S_M, predict this
+
+
         if verbose > 1:
             print('measure mismatch: ' + str(measure - expected_measure))
             print("s: "+str(s0) + " a: " +str(a/np.pi*180))
@@ -205,7 +209,7 @@ def learn(estimator, x0, p_true, n_samples = 100, verbose = 0, X = None, y = Non
         # elif verbose > 0:
         #         print("error: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
 
-        Q_M_est, Q_M_est_s2, S_M_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+        Q_M_est, Q_M_est_s2, S_M_est, Q_V_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
                                                                viable_threshold=viable_threshold)
         # take another step
         s0 = s_next
@@ -217,7 +221,7 @@ print("INITIAL ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_prior-Q_M_true))))
 # plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
 # plt.show()
 
-steps = 10
+steps = 1
 # gp = learn(gp, x0, p_true, steps=1, verbose = 1, tabula_rasa=True)
 # Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
 # print(" ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
@@ -231,10 +235,14 @@ X = None
 Y = None
 for ndx in range(steps): # in case you want to do small increments
 
-    # TODO: I don't understand what x0 is. What are those 7 values?
-    estimator = learn(estimator, x0, p_true, n_samples=20, verbose=1, X=X, y=Y)
 
-    Q_M_est, Q_M_est_s2, S_M_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+    Q_M_est_old, _,  _ ,_ = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+                                                           viable_threshold=viable_threshold)
+
+    # TODO: I don't understand what x0 is. What are those 7 values?
+    estimator = learn(estimator, x0, p_true, n_samples=40, verbose=1, X=X, y=Y)
+
+    Q_M_est, Q_M_est_s2, S_M_est, Q_V_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
                                                            viable_threshold=viable_threshold)
     Q_M_safe = np.copy(Q_M_est)
     Q_M_safe[np.less(Q_M_safe, active_threshold)] = 0
@@ -251,6 +259,11 @@ for ndx in range(steps): # in case you want to do small increments
     tabula_rasa = False
 
     # Recompute prior, and restart (naive forgetting)
+
+    # TODO to do this right we should sample from both distributions :(
+    # "Error variance"
+    error = np.abs(Q_M_est - Q_M_est_old)
+    er_var = np.mean(error - np.mean(error)**2)
 
     #Keep the failures:
     if np.any(estimator.failed_samples):
@@ -275,7 +288,7 @@ for ndx in range(steps): # in case you want to do small increments
 
 
 # Good things to plot
-# plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
+plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
 # Q_M_trimmed = np.copy(Q_M_est) # see estimate_sets()
 # Q_M_trimmed[np.less(Q_M_trimmed, viable_threshold)] = 0 # level set
 # Q_M_trimmed[np.greater_equal(Q_M_trimmed, viable_threshold)] = 1
