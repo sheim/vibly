@@ -14,6 +14,9 @@ def p_map(x, p):
     Note that the control input is included in the parameter,
     and needs to be unpacked.
     '''
+    if check_failure(x, p):
+        return x, True
+
     x += (np.minimum(1, np.linalg.norm(x))*(p['nonlinear'](x, p)) +
           p['actions'])
 
