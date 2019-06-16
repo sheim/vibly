@@ -99,7 +99,7 @@ s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
 a_grid_shape = list(map(np.size, grids['actions']))
 a_bin_shape = tuple(dim+1 for dim in a_grid_shape)
 #### from GP approximation, choose parts of Q to sample
-active_threshold = 0.2
+active_threshold = 0.4
 # pick initial state
 s0 = np.random.uniform(0.4, 0.7)
 s0_idx = vibly.digitize_s(s0, grids['states'], s_grid_shape, to_bin = False)
@@ -117,7 +117,7 @@ def learn(estimator, x0, p_true, n_samples = 100, verbose = 0, X = None, y = Non
 
     Q_M_est, Q_M_est_s2, S_M_est, Q_V_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
                                                            viable_threshold=viable_threshold)
-    s0 = np.random.uniform(0.4, 0.7)
+    s0 = np.random.uniform(0.4, 0.8)
     s0_idx = vibly.digitize_s(s0, grids['states'],
                             s_grid_shape, to_bin=False)
 
@@ -133,10 +133,11 @@ def learn(estimator, x0, p_true, n_samples = 100, verbose = 0, X = None, y = Non
         # Calculate probability of failure for current actions
         failure_threshold = 0
 
-        prop_fail = norm.cdf((failure_threshold - A_slice) / np.sqrt(A_slice_s2))
+        prob_fail = norm.cdf((failure_threshold - A_slice) / np.sqrt(A_slice_s2))
 
-        probability_threshold = 0.4
-        thresh_idx = np.where(np.less(prop_fail, probability_threshold),
+        # NOTE: a higher value indicates accepting a higher chance of failing
+        probability_threshold = 0.4 # TODO this magic number should be outside
+        thresh_idx = np.where(np.less(prob_fail, probability_threshold),
                         [True], [False])
 
         # TODO: explore or don't more smartly
@@ -144,6 +145,7 @@ def learn(estimator, x0, p_true, n_samples = 100, verbose = 0, X = None, y = Non
         if not thresh_idx.any(): # empty, pick the safest
             if verbose > 1:
                 print('taking safest')
+            # TODO: take probabilistically the safest
             a_idx = np.argmax(A_slice)
             expected_measure = A_slice[a_idx]
         else: # not empty, pick one of these
@@ -151,11 +153,18 @@ def learn(estimator, x0, p_true, n_samples = 100, verbose = 0, X = None, y = Non
                 print('explore!')
             A_slice[~thresh_idx] = np.nan
             nan_idxs = np.argwhere(np.isnan(A_slice))
+            # TODO: why are we taking nan_idxs? it is already ~thresh_idx...
             # TODO: There seems to be a bug variance should be all equal when there is no data
             A_slice_s2[nan_idxs] = np.nan
-            a_idx = np.nanargmax(A_slice_s2) # use this for variance
+            # a_idx = np.nanargmax(A_slice_s2) # use this for variance
             # a_idx = np.nanargmin(A_slice)
+            prob_fail[nan_idxs] = np.nan
+            a_idx = np.nanargmax(prob_fail)
+            print("var: " + str(np.nanargmax(A_slice_s2)))
+            print("mean: " + str(np.nanargmin(A_slice)))
+            print("prob: " + str(np.nanargmax(prob_fail)))
             expected_measure = A_slice[a_idx]
+
 
         a = grids['actions'][0][a_idx]
         # apply action, get to the next state
@@ -221,7 +230,7 @@ print("INITIAL ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_prior-Q_M_true))))
 # plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
 # plt.show()
 
-steps = 1
+steps = 10
 # gp = learn(gp, x0, p_true, steps=1, verbose = 1, tabula_rasa=True)
 # Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
 # print(" ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
@@ -239,8 +248,7 @@ for ndx in range(steps): # in case you want to do small increments
     Q_M_est_old, _,  _ ,_ = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
                                                            viable_threshold=viable_threshold)
 
-    # TODO: I don't understand what x0 is. What are those 7 values?
-    estimator = learn(estimator, x0, p_true, n_samples=40, verbose=1, X=X, y=Y)
+    estimator = learn(estimator, x0, p_true, n_samples=1, verbose=1, X=X, y=Y)
 
     Q_M_est, Q_M_est_s2, S_M_est, Q_V_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
                                                            viable_threshold=viable_threshold)
