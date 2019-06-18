@@ -136,7 +136,7 @@ def learn(estimator, x0, p_true, n_samples = 100, verbose = 0, X = None, y = Non
         prob_fail = norm.cdf((failure_threshold - A_slice) / np.sqrt(A_slice_s2))
 
         # NOTE: a higher value indicates accepting a higher chance of failing
-        probability_threshold = 0.4 # TODO this magic number should be outside
+        probability_threshold = 0.15 # TODO this magic number should be outside
         thresh_idx = np.where(np.less(prob_fail, probability_threshold),
                         [True], [False])
 
@@ -156,10 +156,10 @@ def learn(estimator, x0, p_true, n_samples = 100, verbose = 0, X = None, y = Non
             # TODO: why are we taking nan_idxs? it is already ~thresh_idx...
             # TODO: There seems to be a bug variance should be all equal when there is no data
             A_slice_s2[nan_idxs] = np.nan
-            # a_idx = np.nanargmax(A_slice_s2) # use this for variance
+            a_idx = np.nanargmax(A_slice_s2) # use this for variance
             # a_idx = np.nanargmin(A_slice)
             prob_fail[nan_idxs] = np.nan
-            a_idx = np.nanargmax(prob_fail)
+            # a_idx = np.nanargmax(prob_fail)
             print("var: " + str(np.nanargmax(A_slice_s2)))
             print("mean: " + str(np.nanargmin(A_slice)))
             print("prob: " + str(np.nanargmax(prob_fail)))
@@ -230,7 +230,7 @@ print("INITIAL ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_prior-Q_M_true))))
 # plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
 # plt.show()
 
-steps = 10
+steps = 1
 # gp = learn(gp, x0, p_true, steps=1, verbose = 1, tabula_rasa=True)
 # Q_M_est, Q_M_est_s2, S_M_est = estimate_sets(gp, X_grid)
 # print(" ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
@@ -248,7 +248,7 @@ for ndx in range(steps): # in case you want to do small increments
     Q_M_est_old, _,  _ ,_ = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
                                                            viable_threshold=viable_threshold)
 
-    estimator = learn(estimator, x0, p_true, n_samples=1, verbose=1, X=X, y=Y)
+    estimator = learn(estimator, x0, p_true, n_samples = 20, verbose = 1, X = X, y = Y)
 
     Q_M_est, Q_M_est_s2, S_M_est, Q_V_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
                                                            viable_threshold=viable_threshold)
@@ -289,10 +289,10 @@ for ndx in range(steps): # in case you want to do small increments
 
     Q_V = np.where(np.greater_equal(Q_M_est, viable_threshold), [True], [False])
 
-    estimator.prepare_data(AS_grid=AS_grid, Q_M=Q_M_est, Q_V=Q_V, Q_feas=Q_feas)
-    estimator.create_prior(save=False)
+    # estimator.prepare_data(AS_grid=AS_grid, Q_M=Q_M_est, Q_V=Q_V, Q_feas=Q_feas)
+    # estimator.create_prior(save=False)
 
-    estimator.set_data(X=X, Y=Y)
+    # estimator.set_data(X=X, Y=Y)
 
 
 # Good things to plot

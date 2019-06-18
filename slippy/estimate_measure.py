@@ -7,7 +7,7 @@ import GPy
 from slippy.slip import *
 import slippy.viability as vibly
 from scipy.integrate import simps
-
+from scipy.stats import norm
 
 # Integrates over the actions, to see how a 'good' a state is
 def integral_projection(grid):
@@ -187,7 +187,7 @@ class MeasureEstimation:
     # Estimate the learned sets on a grid, Q_feas gives feasible points as well as the shape of the grid
     # TODO: How to make sure X_grid is in correct oder when reshaped into Q_feas.shape()?
     def estimate_sets(self, X_grid, grids, Q_feas, viable_threshold):
-
+        # TODO @Alex X_grid should be a grid 
         Q_M_est, Q_M_est_s2 = self.gp.predict(X_grid)
         Q_M_est = Q_M_est.reshape(Q_feas.shape)
         Q_M_est[np.logical_not(Q_feas)] = 0  # do not consider infeasible points
@@ -195,25 +195,20 @@ class MeasureEstimation:
         Q_M_est_s2 = Q_M_est_s2.reshape(Q_feas.shape)
         Q_M_est_s2[np.logical_not(Q_feas)] = 1e-10
 
-        # TODO Alex: Prob(Q_V)
-        Q_V_est, _ = self.gp_v.predict(X_grid)
-        Q_V_est = Q_V_est.reshape(Q_feas.shape)
+        Q_V_prob = norm.cdf((Q_M_est - 0) / np.sqrt(Q_M_est_s2)) # TODO @Alex check if you can just change the sign to get
+        # TODO @Alex get rid of safety_threshold magic number
+        # This is the $\tilde{\alpha}$ parameter
+        # this should be $\in [0, 0.5]
+        # put an assert into here for good measure
+        safety_threshold = 0.1
+        # assert(safety_threshold >= 0.0 && safety_threshold <= 0.5)
+        Q_V_est = Q_V_prob>(0.5 + safety_threshold)
+        # Q_V_est, _ = self.gp_v.predict(X_grid)
+        # Q_V_est = Q_V_est.reshape(Q_feas.shape)
         Q_V_est[np.logical_not(Q_feas)] = 0  # do not consider infeasible points
-
-
-        #Q_V_est = Q_V_est > 0.6 # Probability that the point is viable
 
         S_M_est = vibly.project_Q2S(Q_V_est, grids, np.mean)
 
-        # * or trim Q_M_est directly
-        # TODO: Why trim this?
-        # Q_M_est[np.less(Q_M_est, viable_threshold)] = 0
-        # S_M_est = vibly.project_Q2S(Q_M_est.astype(bool), grids, np.mean)
-
-
-        # TODO  perhaps always trim Q_M as well?
-        # though I guess that damages some properties...
-        # Q_M_est[np.less(Q_V_est, viable_threshold)] = 0
         return Q_M_est, Q_M_est_s2, S_M_est, Q_V_est
 
 
