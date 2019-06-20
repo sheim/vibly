@@ -49,8 +49,7 @@ X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
 viable_threshold = 0.1 # TODO: tune this! and perhaps make it adaptive...
 # TODO: I have a feeling using this more is quite key
 
-# TODO: using the GP with no data doesn't work put in a data point far away?
-estimator.set_data(X=np.array([[-100,-100]]), Y=np.array([[0]]))
+estimator.set_data_empty()
 
 Q_M_est, Q_M_est_s2, S_M_est, Q_V_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
                                                        viable_threshold=viable_threshold)
@@ -99,7 +98,8 @@ s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
 a_grid_shape = list(map(np.size, grids['actions']))
 a_bin_shape = tuple(dim+1 for dim in a_grid_shape)
 #### from GP approximation, choose parts of Q to sample
-active_threshold = 0.4
+alpha = 0.35
+active_threshold = 0.5+alpha
 # pick initial state
 s0 = np.random.uniform(0.4, 0.7)
 s0_idx = vibly.digitize_s(s0, grids['states'], s_grid_shape, to_bin = False)
@@ -130,10 +130,22 @@ def learn(estimator, x0, p_true, n_samples = 100, verbose = 0, X = None, y = Non
         A_slice = np.copy(Q_M_est[s0_idx, slice(None)])
         A_slice_s2 = np.copy(Q_M_est_s2[s0_idx, slice(None)])
 
+
+        # plt.imshow(Q_V_est, origin='lower')
+        # plt.show()
+        #
+        # plt.plot(np.copy(Q_V_est[s0_idx, slice(None)]))
+        # plt.show()
+        #
+        # plt.plot(A_slice)
+        # plt.plot(A_slice + 2*np.sqrt(A_slice_s2))
+        # plt.show()
+
         # Calculate probability of failure for current actions
         failure_threshold = 0
 
         prob_fail = norm.cdf((failure_threshold - A_slice) / np.sqrt(A_slice_s2))
+        prob_fail = 1 - np.copy(Q_V_est[s0_idx, slice(None)])
 
         # NOTE: a higher value indicates accepting a higher chance of failing
         probability_threshold = 0.15 # TODO this magic number should be outside
@@ -160,9 +172,9 @@ def learn(estimator, x0, p_true, n_samples = 100, verbose = 0, X = None, y = Non
             # a_idx = np.nanargmin(A_slice)
             prob_fail[nan_idxs] = np.nan
             # a_idx = np.nanargmax(prob_fail)
-            print("var: " + str(np.nanargmax(A_slice_s2)))
-            print("mean: " + str(np.nanargmin(A_slice)))
-            print("prob: " + str(np.nanargmax(prob_fail)))
+            # print("var: " + str(np.nanargmax(A_slice_s2)))
+            # print("mean: " + str(np.nanargmin(A_slice)))
+            # print("prob: " + str(np.nanargmax(prob_fail)))
             expected_measure = A_slice[a_idx]
 
 
@@ -248,11 +260,11 @@ for ndx in range(steps): # in case you want to do small increments
     Q_M_est_old, _,  _ ,_ = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
                                                            viable_threshold=viable_threshold)
 
-    estimator = learn(estimator, x0, p_true, n_samples = 20, verbose = 1, X = X, y = Y)
+    estimator = learn(estimator, x0, p_true, n_samples = 200, verbose = 1, X = X, y = Y)
 
     Q_M_est, Q_M_est_s2, S_M_est, Q_V_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
                                                            viable_threshold=viable_threshold)
-    Q_M_safe = np.copy(Q_M_est)
+    Q_M_safe = np.copy(Q_V_est)
     Q_M_safe[np.less(Q_M_safe, active_threshold)] = 0
     Q_M_safe[np.greater_equal(Q_M_safe, active_threshold)] = 1
     S_M_safe = np.mean(Q_M_safe, axis=1)
@@ -263,29 +275,27 @@ for ndx in range(steps): # in case you want to do small increments
     #plt.savefig('./sample'+str(ndx))
     #plt.close('all')
     plt.show()
-    print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_est-Q_M_true))))
+    print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(S_M_est-S_M_true))))
     tabula_rasa = False
 
     # Recompute prior, and restart (naive forgetting)
 
     # TODO to do this right we should sample from both distributions :(
     # "Error variance"
-    error = np.abs(Q_M_est - Q_M_est_old)
-    er_var = np.mean(error - np.mean(error)**2)
-
-    #Keep the failures:
-    if np.any(estimator.failed_samples):
-        X = estimator.gp.X[estimator.failed_samples,:]
-        Y = estimator.gp.Y[estimator.failed_samples,:]
-        estimator.failed_samples = [x for x in estimator.failed_samples if x]
-
-    else:
-        # TODO still a hack
-        X = np.array([[-100, -100]])
-        Y = np.array([[0]])
-        estimator.failed_samples = [True]
-
-    AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
+    # error = np.abs(Q_M_est - Q_M_est_old)
+    # er_var = np.mean(error - np.mean(error)**2)
+    #
+    # #Keep the failures:
+    # if np.any(estimator.failed_samples):
+    #     X = estimator.gp.X[estimator.failed_samples,:]
+    #     Y = estimator.gp.Y[estimator.failed_samples,:]
+    #     estimator.failed_samples = [x for x in estimator.failed_samples if x]
+    #
+    # else:
+    #     estimator.set_data_empty()
+    #     estimator.failed_samples = list()
+    #
+    # AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
 
     Q_V = np.where(np.greater_equal(Q_M_est, viable_threshold), [True], [False])
 

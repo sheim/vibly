@@ -6,14 +6,18 @@ import GPy
 
 from slippy.slip import *
 import slippy.viability as vibly
-from scipy.integrate import simps
-from scipy.stats import norm
+from scipy.stats import norm, lognorm
 
-# Integrates over the actions, to see how a 'good' a state is
-def integral_projection(grid):
+from scipy.special import logit, expit
 
-    # TODO more than one action dimension
-    return lambda a, axis: simps(y=a, x=grid, axis=axis[0])
+def clip(x):
+    return np.clip(x, -5, 5)
+
+def transform(x):
+    return x #clip(np.log(x))
+
+def inverse_transform(x):
+    return x #np.exp(x)
 
 class MeasureEstimation:
 
@@ -26,18 +30,14 @@ class MeasureEstimation:
         self.prior = None
         self.prior_mean = None
 
-        self.prior_v = None
-        self.prior_mean_v = None
-        self.prior_kernel_v = None
-        self.kernel_v = None
-        self.gp_v = None
-
         self.gp = None
         self.kernel = None
 
         np.random.seed(seed)
         self.state_dim = action_dim
         self.action_dim = state_dim
+
+        self.active_threshold = 0.01
 
     @property
     def input_dim(self):
@@ -67,7 +67,7 @@ class MeasureEstimation:
 
         bias = GPy.kern.Bias(input_dim=self.input_dim, variance=1.0, active_dims=None, name='bias')
 
-        return kernel_1 + kernel_2
+        return kernel_1 + kernel_2 # + bias + GPy.kern.Linear(input_dim=self.input_dim)
 
 
 
@@ -89,13 +89,16 @@ class MeasureEstimation:
         idx_notfeas = np.argwhere(~Q_feas.ravel()).ravel()
         idx_unsafe = np.argwhere(Q_feas.ravel() & ~Q_V.ravel()).ravel()
 
-        idx_sample_safe = np.random.choice(idx_safe, size=500, replace=False)
-        idx_sample_unsafe = np.random.choice(idx_unsafe, size=250, replace=False)
+        idx_sample_safe = np.random.choice(idx_safe, size=np.min([500, len(idx_safe)]), replace=False)
+        idx_sample_unsafe = np.random.choice(idx_unsafe, size=np.min([250, len(idx_unsafe)]), replace=False)
 
         idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
+        #idx = idx_sample_safe
+
+        Q[idx_unsafe] = - 0.1
 
         self.prior_data['AS'] = AS[idx, :]
-        self.prior_data['Q'] = Q[idx].reshape(-1, 1)
+        self.prior_data['Q'] = transform(Q[idx]).reshape(-1, 1)
         self.prior_data['V'] = V[idx].reshape(-1, 1)
 
     def create_prior(self, kernel=None, load='./model/prior.npy', save='./model/prior.npy', force_new_model=False):
@@ -108,12 +111,6 @@ class MeasureEstimation:
                                            kernel=self.prior_kernel,
                                            noise_var=0.01)
 
-        self.prior_kernel_v = GPy.kern.RBF(input_dim=self.input_dim, variance=1, lengthscale=.5, ARD=True, name='viable')
-
-        gp_prior_v = GPy.models.GPClassification(X=self.prior_data['AS'],
-                                                 Y=self.prior_data['V'],
-                                                 kernel=self.prior_kernel_v)
-
         if not force_new_model and load and Path(load).exists():
             gps = np.load(load)
 
@@ -122,26 +119,17 @@ class MeasureEstimation:
             gp_prior[:] = gps.item().get('gp_prior')  # Load the parameters
             gp_prior.update_model(True)  # Call the algebra only once
 
-            gp_prior_v.update_model(False)  # do not call the underlying expensive algebra on load
-            gp_prior_v.initialize_parameter()  # Initialize the parameters (connect the parameters up)
-            gp_prior_v[:] = gps.item().get('gp_prior_v')  # Load the parameters
-            gp_prior_v.update_model(True)  # Call the algebra only once
-
         else:
             gp_prior.likelihood.variance.constrain_bounded(1e-7, 1e-3)
             gp_prior.optimize_restarts(num_restarts=3)  # This is expensive
             print(gp_prior)
 
-            gp_prior_v.optimize_restarts(num_restarts=3)
-            print(gp_prior_v)
-
-        self.prior_v = gp_prior_v
         self.prior = gp_prior
 
         if save:
             file = Path(save)
             file.parent.mkdir(parents=True, exist_ok=True)
-            gps = {'gp_prior': gp_prior.param_array, 'gp_prior_v': gp_prior_v.param_array}
+            gps = {'gp_prior': gp_prior.param_array}
             np.save(save, gps)
 
         def prior_mean(x):
@@ -152,14 +140,6 @@ class MeasureEstimation:
         self.prior_mean.f = prior_mean
         self.prior_mean.update_gradients = lambda a, b: None
 
-        def prior_mean_v(x):
-            mu, s2 = gp_prior_v.predict(np.atleast_2d(x), include_likelihood=False)
-            return mu
-
-        self.prior_mean_v = GPy.core.Mapping(self.input_dim, 1)
-        self.prior_mean_v.f = prior_mean_v
-        self.prior_mean_v.update_gradients = lambda a, b: None
-
         # If there is no specific kernel supplied, use the prior
         if kernel is None:
 
@@ -168,9 +148,12 @@ class MeasureEstimation:
             # self.kernel.kern1.variance = self.kernel.kern1.variance
             # self.kernel.kern2.variance = self.kernel.kern2.variance
 
-        self.kernel_v = self.prior_kernel_v.copy()
+    def set_data(self, X=None, Y=None):
 
-    def set_data(self, X, Y):
+        Y = transform(Y)
+
+        if (X is None) or (Y is None):
+            self.set_data_empty()
 
         self.gp = GPy.models.GPRegression(X=X,
                                           Y=Y,
@@ -178,10 +161,11 @@ class MeasureEstimation:
                                           noise_var=0.01, #self.prior.likelihood.variance, # TODO: Is this a good idea?
                                           mean_function=self.prior_mean)
 
-        self.gp_v = GPy.models.GPClassification(X=X,
-                                          Y=(Y>0)*1,  # TODO explicitly give failure
-                                          kernel=self.kernel_v,
-                                          mean_function=self.prior_mean_v)
+
+    # Utility function to empty out data set
+    def set_data_empty(self):
+        # GPy fails with empty dataset. So put in a data point far removed from everything
+        self.set_data(X=np.array([[-100, -100]]), Y=np.array([[0]]))
 
 
     # Estimate the learned sets on a grid, Q_feas gives feasible points as well as the shape of the grid
@@ -189,20 +173,26 @@ class MeasureEstimation:
     def estimate_sets(self, X_grid, grids, Q_feas, viable_threshold):
         # TODO @Alex X_grid should be a grid 
         Q_M_est, Q_M_est_s2 = self.gp.predict(X_grid)
+
+        safety_threshold = transform(0)
+        Q_V_prob = norm.cdf((Q_M_est - safety_threshold) / np.sqrt(Q_M_est_s2)) # TODO @Alex check if you can just change the sign to get
+
+        Q_M_est = inverse_transform(Q_M_est)
         Q_M_est = Q_M_est.reshape(Q_feas.shape)
         Q_M_est[np.logical_not(Q_feas)] = 0  # do not consider infeasible points
 
         Q_M_est_s2 = Q_M_est_s2.reshape(Q_feas.shape)
         Q_M_est_s2[np.logical_not(Q_feas)] = 1e-10
 
-        Q_V_prob = norm.cdf((Q_M_est - 0) / np.sqrt(Q_M_est_s2)) # TODO @Alex check if you can just change the sign to get
+        #Q_V_prob = norm.cdf((Q_M_est - safety_threshold) / np.sqrt(Q_M_est_s2)) # TODO @Alex check if you can just change the sign to get
         # TODO @Alex get rid of safety_threshold magic number
         # This is the $\tilde{\alpha}$ parameter
         # this should be $\in [0, 0.5]
         # put an assert into here for good measure
-        safety_threshold = 0.1
+
         # assert(safety_threshold >= 0.0 && safety_threshold <= 0.5)
-        Q_V_est = Q_V_prob>(0.5 + safety_threshold)
+        #Q_V_est = Q_V_prob>(0.5 + safety_threshold)
+        Q_V_est = Q_V_prob.reshape(Q_feas.shape)
         # Q_V_est, _ = self.gp_v.predict(X_grid)
         # Q_V_est = Q_V_est.reshape(Q_feas.shape)
         Q_V_est[np.logical_not(Q_feas)] = 0  # do not consider infeasible points
@@ -252,8 +242,11 @@ if __name__ == "__main__":
     AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
     estimation = MeasureEstimation(state_dim=1, action_dim=1, seed=1)
     estimation.prepare_data(AS_grid=AS_grid, Q_M=Q_M, Q_V=Q_V, Q_feas=Q_feas)
-    estimation.create_prior(load='./model/prior.npy', save=False)
+    estimation.create_prior(load=False, save=False)
     estimation.set_data(X=np.array([[-100, -100]]), Y=np.array([[1]]))
+
+    #estimation.set_data(X=estimation.prior_data['AS'], Y=estimation.prior_data['Q'])
+
 
     X_train_1, X_train_2 = np.meshgrid(grids['actions'], grids['states'])
     X = np.column_stack((X_train_1.flatten(), X_train_2.flatten()))
