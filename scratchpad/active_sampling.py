@@ -55,6 +55,8 @@ Q_M_est, Q_M_est_s2, S_M_est, Q_V_est = estimator.estimate_sets(X_grid=X_grid, g
                                                        viable_threshold=viable_threshold)
 Q_M_prior = np.copy(Q_M_est) # make a copy to compare later
 S_M_prior = np.copy(S_M_est)
+Q_V_prior = np.copy(Q_V_est)
+
 
 ################################################################################
 # load ground truth
@@ -98,7 +100,7 @@ s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
 a_grid_shape = list(map(np.size, grids['actions']))
 a_bin_shape = tuple(dim+1 for dim in a_grid_shape)
 #### from GP approximation, choose parts of Q to sample
-alpha = 0.35
+alpha = -0.1
 active_threshold = 0.5+alpha
 # pick initial state
 s0 = np.random.uniform(0.4, 0.7)
@@ -142,13 +144,13 @@ def learn(estimator, x0, p_true, n_samples = 100, verbose = 0, X = None, y = Non
         # plt.show()
 
         # Calculate probability of failure for current actions
-        failure_threshold = 0
+        #failure_threshold = 0
+        #prob_fail = norm.cdf((failure_threshold - A_slice) / np.sqrt(A_slice_s2))
 
-        prob_fail = norm.cdf((failure_threshold - A_slice) / np.sqrt(A_slice_s2))
         prob_fail = 1 - np.copy(Q_V_est[s0_idx, slice(None)])
 
         # NOTE: a higher value indicates accepting a higher chance of failing
-        probability_threshold = 0.15 # TODO this magic number should be outside
+        probability_threshold = 1 - active_threshold
         thresh_idx = np.where(np.less(prob_fail, probability_threshold),
                         [True], [False])
 
@@ -196,12 +198,12 @@ def learn(estimator, x0, p_true, n_samples = 100, verbose = 0, X = None, y = Non
             s_next_idx = vibly.digitize_s(s_next, grids['states'],
                                     s_grid_shape, to_bin = False)
             # TODO: weight failures more than successes
-            measure = 0
+            measure = estimator.failure_value
         else:
             s_next = true_model.map2s(x_next, p_true)
             # compare expected measure with true measure
             s_next_idx = vibly.digitize_s(s_next, grids['states'],
-                                    s_grid_shape, to_bin = False)
+                                          s_grid_shape, to_bin=False)
 
             measure = S_M_est[s_next_idx]
 
@@ -238,7 +240,11 @@ def learn(estimator, x0, p_true, n_samples = 100, verbose = 0, X = None, y = Non
     estimator.failed_samples.extend(failed_samples)
     return estimator
 
-print("INITIAL ACCUMULATED ERROR: " + str(np.sum(np.abs(Q_M_prior-Q_M_true))))
+Q_M_safe = np.copy(Q_V_prior)
+Q_M_safe[np.less(Q_M_safe, active_threshold)] = 0
+Q_M_safe[np.greater_equal(Q_M_safe, active_threshold)] = 1
+S_M_safe_prior = np.mean(Q_M_safe, axis=1)
+print("INITIAL ACCUMULATED ERROR: " + str(np.sum(np.abs(S_M_safe_prior-S_M_true))))
 # plt.imshow(np.abs(Q_M_est-Q_M_true), origin='lower')
 # plt.show()
 
@@ -260,7 +266,7 @@ for ndx in range(steps): # in case you want to do small increments
     Q_M_est_old, _,  _ ,_ = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
                                                            viable_threshold=viable_threshold)
 
-    estimator = learn(estimator, x0, p_true, n_samples = 200, verbose = 1, X = X, y = Y)
+    estimator = learn(estimator, x0, p_true, n_samples = 100, verbose = 1, X = X, y = Y)
 
     Q_M_est, Q_M_est_s2, S_M_est, Q_V_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
                                                            viable_threshold=viable_threshold)
@@ -275,9 +281,11 @@ for ndx in range(steps): # in case you want to do small increments
     #plt.savefig('./sample'+str(ndx))
     #plt.close('all')
     plt.show()
-    print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(S_M_est-S_M_true))))
+    print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(S_M_safe-S_M_true))))
     tabula_rasa = False
 
+    X = estimator.gp.X
+    Y = estimator.gp.Y
     # Recompute prior, and restart (naive forgetting)
 
     # TODO to do this right we should sample from both distributions :(

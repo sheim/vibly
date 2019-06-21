@@ -45,7 +45,7 @@ def plot_Q_S(Q, S, grids, samples = None, failed_samples = None, S_labels = []):
     if samples is not None:
         action = samples[0][:,0]
         state = samples[0][:,1]
-        if failed_samples is not None:
+        if failed_samples is not None and len(failed_samples) > 0:
             ax_Q.scatter(action[failed_samples], state[failed_samples],
                         marker='x', edgecolors=[[0.9,0.3,0.3]], s=30,
                         facecolors=[[0.9,0.3,0.3]])

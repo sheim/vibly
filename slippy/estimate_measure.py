@@ -43,6 +43,11 @@ class MeasureEstimation:
     def input_dim(self):
         return self.action_dim + self.state_dim
 
+    # The failure value is chosen such that at the point there is only 2% probability left that the point is viable
+    @property
+    def failure_value(self):
+        return - 2*np.sqrt(self.gp.likelihood.variance)
+
     def init_default_kernel(self):
 
         # Initialize GP with a general kernel and constrain hyperparameter
@@ -94,8 +99,6 @@ class MeasureEstimation:
 
         idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
         #idx = idx_sample_safe
-
-        Q[idx_unsafe] = - 0.1
 
         self.prior_data['AS'] = AS[idx, :]
         self.prior_data['Q'] = transform(Q[idx]).reshape(-1, 1)
@@ -158,7 +161,7 @@ class MeasureEstimation:
         self.gp = GPy.models.GPRegression(X=X,
                                           Y=Y,
                                           kernel=self.kernel,
-                                          noise_var=0.01, #self.prior.likelihood.variance, # TODO: Is this a good idea?
+                                          noise_var=0.01,  # self.prior.likelihood.variance, # TODO: Is this a good idea?
                                           mean_function=self.prior_mean)
 
 
@@ -179,7 +182,7 @@ class MeasureEstimation:
 
         Q_M_est = inverse_transform(Q_M_est)
         Q_M_est = Q_M_est.reshape(Q_feas.shape)
-        Q_M_est[np.logical_not(Q_feas)] = 0  # do not consider infeasible points
+        Q_M_est[np.logical_not(Q_feas)] = - 3*np.sqrt(1e-10)  # do not consider infeasible points
 
         Q_M_est_s2 = Q_M_est_s2.reshape(Q_feas.shape)
         Q_M_est_s2[np.logical_not(Q_feas)] = 1e-10
@@ -242,7 +245,7 @@ if __name__ == "__main__":
     AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
     estimation = MeasureEstimation(state_dim=1, action_dim=1, seed=1)
     estimation.prepare_data(AS_grid=AS_grid, Q_M=Q_M, Q_V=Q_V, Q_feas=Q_feas)
-    estimation.create_prior(load=False, save=False)
+    estimation.create_prior(load='./model/prior.npy', save=False)
     estimation.set_data(X=np.array([[-100, -100]]), Y=np.array([[1]]))
 
     #estimation.set_data(X=estimation.prior_data['AS'], Y=estimation.prior_data['Q'])
@@ -265,4 +268,6 @@ if __name__ == "__main__":
 
     plt.imshow(Q_V_est, origin='lower')
     plt.show()
+
+    print(estimation.failure_value)
 
