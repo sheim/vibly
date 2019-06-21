@@ -100,7 +100,7 @@ s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
 a_grid_shape = list(map(np.size, grids['actions']))
 a_bin_shape = tuple(dim+1 for dim in a_grid_shape)
 #### from GP approximation, choose parts of Q to sample
-alpha = -0.1
+alpha = 0.3
 active_threshold = 0.5+alpha
 # pick initial state
 s0 = np.random.uniform(0.4, 0.7)
@@ -266,7 +266,7 @@ for ndx in range(steps): # in case you want to do small increments
     Q_M_est_old, _,  _ ,_ = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
                                                            viable_threshold=viable_threshold)
 
-    estimator = learn(estimator, x0, p_true, n_samples = 100, verbose = 1, X = X, y = Y)
+    estimator = learn(estimator, x0, p_true, n_samples = 35, verbose = 1, X = X, y = Y)
 
     Q_M_est, Q_M_est_s2, S_M_est, Q_V_est = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
                                                            viable_threshold=viable_threshold)
