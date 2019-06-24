@@ -30,9 +30,14 @@ Q_feas = vibly.get_feasibility_mask(proxy_model.feasible, proxy_model.mapSA2xp_h
 S_M_proxy = vibly.project_Q2S(Q_V_proxy, grids, np.mean)
 Q_M_proxy = vibly.map_S2Q(Q_map_proxy, S_M_proxy, Q_V_proxy)
 
-estimator = estimation.MeasureEstimation(state_dim=1, action_dim=1, seed=1)
+seed_n = np.random.randint(1,100)
+print("Seed: " + str(seed_n))
+
+estimator = estimation.MeasureEstimation(state_dim=1, action_dim=1, seed=seed_n)
 
 AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
+# AS_grid = np.array([35.0/180*np.pi, 0.5]) #np.meshgrid(grids['actions'][0], grids['states'][0])
+# Q_M_proxy = 1
 estimator.prepare_data(AS_grid=AS_grid, Q_M=Q_M_proxy, Q_V=Q_V_proxy, Q_feas=Q_feas)
 estimator.create_prior(load='./model/prior.npy', save='./model/prior.npy')
 
@@ -40,18 +45,19 @@ estimator.create_prior(load='./model/prior.npy', save='./model/prior.npy')
 # Exploration decay
 ################################################################################
 
-alpha_init = 0.9
-alpha_min = 0.9
+alpha_init = 0.85 # why aren't these passed to active_threshold_f?
+alpha_min = 0.9 # why are they locals instead?
+# TODO: active_threshold chosen depending on the min variance in that slice.
 
-def active_threshold_f(n, max):
+def active_threshold_f(n, max, adapt_type = 'exponential'):
+    # Exponential
+    if adapt_type is 'exponential':
+        k = np.log(1/0.01) / max
+        alpha = alpha_min + (alpha_init - alpha_min) * np.exp(-k*n)
+    elif adapt_type is 'linear':
+        alpha = alpha_min + (alpha_init - alpha_min) * n/max
 
-   # Exponential
-   k = np.log(1/0.01) / max
-   alpha = alpha_min + (alpha_init - alpha_min) * np.exp(-k*n)
-
-   # Linear
-   alpha = alpha_min + (alpha_init - alpha_min) * n/max
-   return alpha
+    return alpha
 
 
 active_threshold = active_threshold_f(0,10)
@@ -112,10 +118,6 @@ a_grid_shape = list(map(np.size, grids['actions']))
 a_bin_shape = tuple(dim+1 for dim in a_grid_shape)
 #### from GP approximation, choose parts of Q to sample
 
-# pick initial state
-s0 = np.random.uniform(0.4, 0.7)
-s0_idx = vibly.digitize_s(s0, grids['states'], s_grid_shape, to_bin = False)
-
 verbose = 1
 np.set_printoptions(precision=4)
 
@@ -123,8 +125,8 @@ def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
 
     # Init empty Dataset
     if X is None or y is None:
-        X = np.empty((0,estimator.input_dim))
-        y = np.empty((0,1))
+        X = np.empty((0, estimator.input_dim))
+        y = np.empty((0, 1))
 
     # In sets are currently Q_M_est, Q_M_est_s2, S_M_est, Q_V_est
     sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas, active_threshold=active_threshold)
@@ -219,7 +221,7 @@ estimator.failed_samples = list()
 
 import plotting.corl_plotters as cplot
 
-np.random.seed(1)
+np.random.seed(seed_n)
 X = None
 Y = None
 
@@ -229,7 +231,7 @@ for ndx in range(steps): # in case you want to do small increments
 
 
     set_old = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas, active_threshold=active_threshold)
-    active_threshold = active_threshold_f(ndx, steps)
+    active_threshold = active_threshold_f(ndx, steps, adapt_type='linear')
 
     estimator, s0 = learn(estimator, s0, p_true, n_samples=1, X=X, y=Y)
 
@@ -249,6 +251,9 @@ for ndx in range(steps): # in case you want to do small increments
     X = estimator.gp.X
     Y = estimator.gp.Y
 
+print(str(np.sum(estimator.failed_samples)) + " failures, out of " +
+      str(len(estimator.failed_samples)) + " samples. Failure rate: "
+      + str(np.sum(estimator.failed_samples)/len(estimator.failed_samples)))
     # Recompute prior, and restart (naive forgetting)
 
     # TODO to do this right we should sample from both distributions :(
