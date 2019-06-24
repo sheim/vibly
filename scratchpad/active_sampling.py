@@ -41,7 +41,7 @@ estimator.create_prior(load='./model/prior.npy', save='./model/prior.npy')
 ################################################################################
 
 alpha_init = 0.9
-alpha_min = 0.7
+alpha_min = 0.9
 
 def active_threshold_f(n, max):
 
@@ -75,35 +75,32 @@ Q_V_prior = np.copy(sets.Q_V_est)
 ################################################################################
 # load ground truth
 ################################################################################
-import slippy.nslip as true_model
+import slippy.slip as true_model
 # import slippy.slip as true_model
 
-infile = open('../data/nslip_map.pickle', 'rb')
+# infile = open('../data/nslip_map.pickle', 'rb')
+infile = open('../data/slip_map.pickle', 'rb')
 data = pickle.load(infile)
 infile.close()
 
 Q_map_true = data['Q_map']
 x0 = data['x0']
 p_true = data['p']
+p_true['x0'] = data['x0']
 x0 = true_model.reset_leg(x0, p_true)
 grids = data['grids']
+
+# x0 is just a placeholder needed for the simulation
+true_model.mapSA2xp = lambda q, p: true_model.mapSA2xp_height_angle(q, x0, p)
 
 ################################################################################
 # Compute measure from grid for warm-start
 ################################################################################
 Q_V_true, S_V_true = vibly.compute_QV(Q_map_true, grids)
-
 Q_feas = vibly.get_feasibility_mask(true_model.feasible, true_model.mapSA2xp_height_angle,
             grids=grids, x0=x0, p0=p_true)
 S_M_true = vibly.project_Q2S(Q_V_true, grids, np.mean)
-#S_M_true = S_M_true / grids['actions'][0].size
 Q_M_true = vibly.map_S2Q(Q_map_true, S_M_true, Q_V_true)
-# plt.imshow(Q_M_true - Q_M_proxy, origin='lower')
-# plt.show()
-
-# plt.imshow(Q_M_true - Q_M_est, origin='lower')
-# plt.show()
-# np.max(Q_M_est-Q_M_true)
 
 ################################################################################
 # Active Sampling part
@@ -123,9 +120,6 @@ verbose = 1
 np.set_printoptions(precision=4)
 
 def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
-
-    # TODO Steve: init properly
-    x0 = np.zeros((7,))
 
     # Init empty Dataset
     if X is None or y is None:
@@ -175,7 +169,7 @@ def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
 
         a = grids['actions'][0][a_idx]
         # apply action, get to the next state
-        x0, p_true = true_model.mapSA2xp_height_angle((s0, a), x0, p_true)
+        x0, p_true = true_model.mapSA2xp((s0, a), p_true)
         x_next, failed = true_model.poincare_map(x0, p_true)
         if failed:
             failed_samples[ndx] = True
@@ -197,7 +191,7 @@ def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
 
             measure = sets.S_M_est[s_next_idx]
 
-        #Add action state action pair to dataset
+        #Add action state pair to dataset
         q_new = np.array([[a, s0]])
         X = np.concatenate((X, q_new), axis=0)
 
@@ -220,7 +214,7 @@ S_M_safe_prior = np.copy(sets.S_M_safe)
 print("INITIAL ACCUMULATED ERROR: " + str(np.sum(np.abs(S_M_safe_prior-S_M_true))))
 
 
-steps = 100
+steps = 30
 estimator.failed_samples = list()
 
 import plotting.corl_plotters as cplot
@@ -247,10 +241,10 @@ for ndx in range(steps): # in case you want to do small increments
                          samples = (estimator.gp.X, estimator.gp.Y),
                          failed_samples = estimator.failed_samples,
                          S_labels=("safe estimate", "viable estimate", "ground truth"))
-    #plt.savefig('./sample'+str(ndx))
-    #plt.close('all')
-    plt.show()
-    print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(sets.S_M_safe-S_M_true))))
+    plt.savefig('./sample'+str(ndx))
+    plt.close('all')
+    # plt.show()
+    print(str(ndx) + " error: " + str(np.sum(np.abs(sets.S_M_safe-S_M_true))))
 
     X = estimator.gp.X
     Y = estimator.gp.Y
