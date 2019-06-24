@@ -19,6 +19,28 @@ def transform(x):
 def inverse_transform(x):
     return x #np.exp(x)
 
+
+class CurrentMeasureEstimation:
+
+    def __init__(self):
+        self.Q_M_est = None
+        self.Q_M_est_s2 = None
+        self.S_M_est = None
+        self.Q_V_est = None
+        self.S_M_safe = None
+
+    @staticmethod
+    def create(Q_M_est, Q_M_est_s2, S_M_est, Q_V_est, S_M_safe):
+        est = CurrentMeasureEstimation()
+        est.Q_M_est = Q_M_est
+        est.Q_M_est_s2 = Q_M_est_s2
+        est.S_M_est = S_M_est
+        est.Q_V_est = Q_V_est
+        est.S_M_safe = S_M_safe
+
+        return est
+
+
 class MeasureEstimation:
 
     def __init__(self, state_dim, action_dim, seed=None):
@@ -37,13 +59,11 @@ class MeasureEstimation:
         self.state_dim = action_dim
         self.action_dim = state_dim
 
-        self.active_threshold = 0.01
-
     @property
     def input_dim(self):
         return self.action_dim + self.state_dim
 
-    # The failure value is chosen such that at the point there is only 2% probability left that the point is viable
+    # The failure value is chosen such that at the point there is only some probability left that the point is viable
     @property
     def failure_value(self):
         return - 2*np.sqrt(self.gp.likelihood.variance)
@@ -94,11 +114,11 @@ class MeasureEstimation:
         idx_notfeas = np.argwhere(~Q_feas.ravel()).ravel()
         idx_unsafe = np.argwhere(Q_feas.ravel() & ~Q_V.ravel()).ravel()
 
-        idx_sample_safe = np.random.choice(idx_safe, size=np.min([500, len(idx_safe)]), replace=False)
-        idx_sample_unsafe = np.random.choice(idx_unsafe, size=np.min([250, len(idx_unsafe)]), replace=False)
+        idx_sample_safe = np.random.choice(idx_safe, size=np.min([100, len(idx_safe)]), replace=False)
+        idx_sample_unsafe = np.random.choice(idx_unsafe, size=np.min([100, len(idx_unsafe)]), replace=False)
 
-        idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
-        #idx = idx_sample_safe
+        # idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
+        idx = idx_sample_safe
 
         self.prior_data['AS'] = AS[idx, :]
         self.prior_data['Q'] = transform(Q[idx]).reshape(-1, 1)
@@ -173,15 +193,16 @@ class MeasureEstimation:
 
     # Estimate the learned sets on a grid, Q_feas gives feasible points as well as the shape of the grid
     # TODO: How to make sure X_grid is in correct oder when reshaped into Q_feas.shape()?
-    def estimate_sets(self, X_grid, grids, Q_feas, viable_threshold):
+    def estimate_sets(self, X_grid, grids, Q_feas, active_threshold):
         # TODO @Alex X_grid should be a grid 
         Q_M_est, Q_M_est_s2 = self.gp.predict(X_grid)
 
-        safety_threshold = transform(0)
+        safety_threshold = transform(0.01)
         Q_V_prob = norm.cdf((Q_M_est - safety_threshold) / np.sqrt(Q_M_est_s2)) # TODO @Alex check if you can just change the sign to get
 
         Q_M_est = inverse_transform(Q_M_est)
         Q_M_est = Q_M_est.reshape(Q_feas.shape)
+
         Q_M_est[np.logical_not(Q_feas)] = - 3*np.sqrt(1e-10)  # do not consider infeasible points
 
         Q_M_est_s2 = Q_M_est_s2.reshape(Q_feas.shape)
@@ -202,7 +223,14 @@ class MeasureEstimation:
 
         S_M_est = vibly.project_Q2S(Q_V_est, grids, np.mean)
 
-        return Q_M_est, Q_M_est_s2, S_M_est, Q_V_est
+        Q_M_safe = np.copy(Q_V_est)
+        Q_M_safe[np.less(Q_M_safe, active_threshold)] = 0
+        Q_M_safe[np.greater_equal(Q_M_safe, active_threshold)] = 1
+        S_M_safe = np.mean(Q_M_safe, axis=1)
+
+        sets = CurrentMeasureEstimation.create(Q_M_est, Q_M_est_s2, S_M_est, Q_V_est, S_M_safe)
+
+        return sets
 
 
 if __name__ == "__main__":
@@ -256,7 +284,7 @@ if __name__ == "__main__":
 
     Q_M_est, Q_M_est_s2, S_M_est, Q_V_est = estimation.estimate_sets(X_grid=X, grids=grids,
                                                                         Q_feas=Q_feas,
-                                                                        viable_threshold=0.1)
+                                                                        active_threshold=0.7)
 
     plt.plot(S_M_est)
     plt.plot(S_M)

@@ -275,6 +275,7 @@ def map2s(x, p):
     kinetic_energy = p['mass']/2*x[2]**2
     return potential_energy/(potential_energy + kinetic_energy)
 
+# TODO: Steve cleans this
 def map2x(x, p, s):
     '''
     map a desired dimensionless height `s` to it's state-vector
