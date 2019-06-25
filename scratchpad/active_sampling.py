@@ -31,8 +31,9 @@ S_M_proxy = vibly.project_Q2S(Q_V_proxy, grids, np.mean)
 Q_M_proxy = vibly.map_S2Q(Q_map_proxy, S_M_proxy, Q_V_proxy)
 
 seed_n = np.random.randint(1,100)
+# seed_n = 18
 print("Seed: " + str(seed_n))
-
+np.random.seed(seed_n)
 estimator = estimation.MeasureEstimation(state_dim=1, action_dim=1, seed=seed_n)
 
 AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
@@ -64,9 +65,11 @@ def interpo(a, b, n):
     return a + n*(b-a)
 
 # active_threshold = active_threshold_f(0,10)
-meet_point = 0.1
-active_threshold = 0.9
-measure_threshold = 0.01
+active_threshold_s = 0.25
+active_threshold_e = 0.1
+# meet_point = 0.1
+measure_threshold_s = 0.001
+measure_threshold_e = 0.1
 
 ################################################################################
 # Stuff
@@ -79,8 +82,8 @@ X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
 estimator.set_data_empty()
 
 sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
-                               measure_threshold=measure_threshold,
-                               active_threshold=active_threshold)
+                               measure_threshold=measure_threshold_s,
+                               active_threshold=active_threshold_s)
 
 Q_M_prior = np.copy(sets.Q_M_est) # make a copy to compare later
 S_M_prior = np.copy(sets.S_M_safe)
@@ -127,7 +130,7 @@ a_grid_shape = list(map(np.size, grids['actions']))
 a_bin_shape = tuple(dim+1 for dim in a_grid_shape)
 #### from GP approximation, choose parts of Q to sample
 
-verbose = 1
+verbose = 2
 np.set_printoptions(precision=4)
 
 def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
@@ -187,7 +190,7 @@ def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
             a_idx = np.nanargmax(A_slice_s2)
 
 
-        a = grids['actions'][0][a_idx]
+        a = grids['actions'][0][a_idx] + (np.random.rand()-0.5)*np.pi/36
         # apply action, get to the next state
         x0, p_true = true_model.mapSA2xp((s0, a), p_true)
         x_next, failed = true_model.poincare_map(x0, p_true)
@@ -235,11 +238,11 @@ S_M_safe_prior = np.copy(sets.S_M_safe)
 print("INITIAL ACCUMULATED ERROR: " + str(np.sum(np.abs(S_M_safe_prior-S_M_true))))
 
 
-steps = 100
+steps = 50
 estimator.failed_samples = list()
 
 import plotting.corl_plotters as cplot
-np.random.seed(seed_n)
+
 X = None
 Y = None
 
@@ -249,8 +252,8 @@ for ndx in range(steps): # in case you want to do small increments
 
 
     # active_threshold = active_threshold_f(ndx, steps, adapt_type='linear')
-    active_threshold = interpo(active_threshold, meet_point, ndx/steps)
-    measure_threshold =  interpo(measure_threshold, meet_point, ndx/steps)
+    active_threshold = interpo(active_threshold_s, active_threshold_e, ndx/steps)
+    measure_threshold =  interpo(measure_threshold_s, measure_threshold_e, ndx/steps)
 
     estimator, s0 = learn(estimator, s0, p_true, n_samples=1, X=X, y=Y)
 
@@ -272,31 +275,89 @@ for ndx in range(steps): # in case you want to do small increments
 
     print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(sets.S_M_safe-S_M_true))) + " Failure rate: " + str(np.mean(Y < 0)))
 
+# **NOW MOVE BACK DOWN!
+
+active_threshold_s = active_threshold_e
+active_threshold_e = active_threshold_e*0.5
+measure_threshold_s = active_threshold_e
+measure_threshold_e = active_threshold_e*0.5
+
+steps_2 = 50
+
+# X = None
+# Y = None
+
+for ndx in range(steps_2): # in case you want to do small increments
+
+    active_threshold = interpo(active_threshold_s, active_threshold_e, ndx/steps_2)
+    measure_threshold =  interpo(measure_threshold_s, measure_threshold_e, ndx/steps_2)
+
+    estimator, s0 = learn(estimator, s0, p_true, n_samples=1, X=X, y=Y)
 
 
-    # Recompute prior, and restart (naive forgetting)
+    sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+                                   measure_threshold=measure_threshold,
+                                   active_threshold=active_threshold)
 
-    # TODO to do this right we should sample from both distributions :(
-    # "Error variance"
-    # error = np.abs(Q_M_est - Q_M_est_old)
-    # er_var = np.mean(error - np.mean(error)**2)
-    #
-    # #Keep the failures:
-    # if np.any(estimator.failed_samples):
-    #     X = estimator.gp.X[estimator.failed_samples,:]
-    #     Y = estimator.gp.Y[estimator.failed_samples,:]
-    #     estimator.failed_samples = [x for x in estimator.failed_samples if x]
-    #
-    # else:
-    #     estimator.set_data_empty()
-    #     estimator.failed_samples = list()
-    #
-    # AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
+    fig = cplot.plot_Q_S(sets.Q_M_est, (sets.S_M_safe, sets.S_V_est, S_M_true), grids,
+                         samples = (estimator.gp.X, estimator.gp.Y),
+                         failed_samples = estimator.failed_samples,
+                         S_labels=("safe estimate", "viable estimate", "ground truth"))
+    plt.savefig('./sample'+str(ndx+steps))
+    plt.close('all')
+    # plt.show()
+
+    X = estimator.gp.X
+    Y = estimator.gp.Y
+
+    print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(sets.S_M_safe-S_M_true))) + " Failure rate: " + str(np.mean(Y < 0)))
+
+### ** TEST. Take the safe level-set, then randomly sample from inside it.
+
+sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+                                   measure_threshold=measure_threshold,
+                                   active_threshold=active_threshold)
+s0 = 0.5
+failures = 0
+for ndx in range(50): # in case you want to do small increments
+
+    s0_idx = vibly.digitize_s(s0, grids['states'],
+                            s_grid_shape, to_bin=False)
+
+    A_slice = np.copy(sets.Q_M_safe[s0_idx, slice(None)])
+    thresh_idx = np.where(np.greater(A_slice, 0.5),
+                    [True], [False])
+
+    if not thresh_idx.any(): # empty, pick the safest
+        if verbose > 1:
+            print('WARNING: LEFT SET!')
+        a_idx = np.argmax(A_slice)
+    else: # not empty, pick one of these
+        A_slice[~thresh_idx] = np.nan
+        # A_slice_s2[~thresh_idx] = np.nan
+        a_idx = np.random.choice(np.where(thresh_idx)[0])
 
 
-    # estimator.prepare_data(AS_grid=AS_grid, Q_M=Q_M_est, Q_V=Q_V, Q_feas=Q_feas)
-    # estimator.create_prior(save=False)
+    a = grids['actions'][0][a_idx] #+ (np.random.rand()-0.5)*np.pi/36
+    # apply action, get to the next state
+    x0, p_true = true_model.mapSA2xp((s0, a), p_true)
+    x_next, failed = true_model.poincare_map(x0, p_true)
+    if failed:
+        failures += 1
+        if verbose:
+            print("FAILED!")
+        # TODO: restart from expected good results
+        # Currently, just restart from some magic numbers
+        s_next = .5
+        s_next_idx = vibly.digitize_s(s_next, grids['states'],
+                                s_grid_shape, to_bin = False)
+    else:
+        s_next = true_model.map2s(x_next, p_true)
+        s_next_idx = vibly.digitize_s(s_next, grids['states'],
+                                        s_grid_shape, to_bin=False)
 
-    # estimator.set_data(X=X, Y=Y)
+    # take another step
+    s0 = s_next
+    s0_idx = s_next_idx
 
-
+print(str(failures))
