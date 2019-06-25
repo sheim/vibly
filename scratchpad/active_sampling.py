@@ -45,11 +45,11 @@ estimator.create_prior(load='./model/prior.npy', save='./model/prior.npy')
 # Exploration decay
 ################################################################################
 
-alpha_init = 0.85 # why aren't these passed to active_threshold_f?
-alpha_min = 0.9 # why are they locals instead?
-# TODO: active_threshold chosen depending on the min variance in that slice.
+alpha_init = 0.80
+alpha_min = 0.80
 
 def active_threshold_f(n, max, adapt_type = 'exponential'):
+    return 0.1
     # Exponential
     if adapt_type is 'exponential':
         k = np.log(1/0.01) / max
@@ -62,6 +62,8 @@ def active_threshold_f(n, max, adapt_type = 'exponential'):
 
 active_threshold = active_threshold_f(0,10)
 
+measure_threshold = 0.1
+
 ################################################################################
 # Stuff
 ################################################################################
@@ -72,9 +74,12 @@ X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
 
 estimator.set_data_empty()
 
-sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas, active_threshold=active_threshold)
+sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+                               measure_threshold=measure_threshold,
+                               active_threshold=active_threshold)
+
 Q_M_prior = np.copy(sets.Q_M_est) # make a copy to compare later
-S_M_prior = np.copy(sets.S_M_est)
+S_M_prior = np.copy(sets.S_M_safe)
 Q_V_prior = np.copy(sets.Q_V_est)
 
 
@@ -129,7 +134,9 @@ def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
         y = np.empty((0, 1))
 
     # In sets are currently Q_M_est, Q_M_est_s2, S_M_est, Q_V_est
-    sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas, active_threshold=active_threshold)
+    sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+                                   measure_threshold=measure_threshold,
+                                   active_threshold=active_threshold)
 
     s0_idx = vibly.digitize_s(s0, grids['states'],
                             s_grid_shape, to_bin=False)
@@ -142,24 +149,31 @@ def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
             print('iteration '+str(ndx+1))
 
         # TODO Alex: dont grid states, dont evalutate the whole sets
-
-        Q_V_slice = np.copy(sets.Q_V_est[s0_idx, slice(None)])
-
-        # NOTE: a higher value in active_threshold indicates accepting a LOWER chance of failing
-        thresh_idx = np.where(np.greater(Q_V_slice, active_threshold),
-                        [True], [False])
-
         # slice actions available for those states
-        A_slice = np.copy(sets.Q_M_est[s0_idx, slice(None)])
+        A_slice = np.copy(sets.Q_M_safe[s0_idx, slice(None)])
+
         A_slice_s2 = np.copy(sets.Q_M_est_s2[s0_idx, slice(None)])
 
+        thresh_idx = np.where(np.greater(A_slice, 0.7),
+                        [True], [False])
+
+
+        # debug plot
+        # A_true = np.copy(Q_M_true[s0_idx, slice(None)])
+        # Q_V_slice = np.copy(sets.Q_V_est[s0_idx, slice(None)])
+        # plt.plot(Q_V_slice)
+        # plt.plot(A_slice)
+        # plt.plot(A_slice- np.sqrt(A_slice_s2)*2)
+        # plt.plot(A_true)
+        # plt.plot(np.ones(A_true.shape)*0.15)
+        # plt.show()
 
         # TODO: explore or don't more smartly
         # choose exploration based on uncertainty. Plot this uncertainty first
         if not thresh_idx.any(): # empty, pick the safest
             if verbose > 1:
                 print('taking safest')
-            a_idx = np.argmax(Q_V_slice)
+            a_idx = np.argmax(A_slice)
         else: # not empty, pick one of these
             if verbose > 1:
                 print('explore!')
@@ -191,7 +205,7 @@ def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
             s_next_idx = vibly.digitize_s(s_next, grids['states'],
                                           s_grid_shape, to_bin=False)
 
-            measure = sets.S_M_est[s_next_idx]
+            measure = sets.S_V_est[s_next_idx]
 
         #Add action state pair to dataset
         q_new = np.array([[a, s0]])
@@ -202,7 +216,8 @@ def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
         estimator.set_data(X=X, Y=y)
 
         sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
-                                                               active_threshold=active_threshold)
+                                       measure_threshold=measure_threshold,
+                                       active_threshold=active_threshold)
         # take another step
         s0 = s_next
         s0_idx = s_next_idx
@@ -230,30 +245,30 @@ s0 = .5
 for ndx in range(steps): # in case you want to do small increments
 
 
-    set_old = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas, active_threshold=active_threshold)
     active_threshold = active_threshold_f(ndx, steps, adapt_type='linear')
 
     estimator, s0 = learn(estimator, s0, p_true, n_samples=1, X=X, y=Y)
 
 
-    sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas, active_threshold=active_threshold)
+    sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+                                   measure_threshold=measure_threshold,
+                                   active_threshold=active_threshold)
 
-
-    fig = cplot.plot_Q_S(sets.Q_M_est, (sets.S_M_safe, sets.S_M_est, S_M_true), grids,
+    fig = cplot.plot_Q_S(sets.Q_M_est, (sets.S_M_safe, sets.S_V_est, S_M_true), grids,
                          samples = (estimator.gp.X, estimator.gp.Y),
                          failed_samples = estimator.failed_samples,
                          S_labels=("safe estimate", "viable estimate", "ground truth"))
-    plt.savefig('./sample'+str(ndx))
-    plt.close('all')
-    # plt.show()
-    print(str(ndx) + " error: " + str(np.sum(np.abs(sets.S_M_safe-S_M_true))))
+    #plt.savefig('./sample'+str(ndx))
+    #plt.close('all')
+    plt.show()
 
     X = estimator.gp.X
     Y = estimator.gp.Y
 
-print(str(np.sum(estimator.failed_samples)) + " failures, out of " +
-      str(len(estimator.failed_samples)) + " samples. Failure rate: "
-      + str(np.sum(estimator.failed_samples)/len(estimator.failed_samples)))
+    print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(sets.S_M_safe-S_M_true))) + " Failure rate: " + str(np.mean(Y < 0)))
+
+
+
     # Recompute prior, and restart (naive forgetting)
 
     # TODO to do this right we should sample from both distributions :(

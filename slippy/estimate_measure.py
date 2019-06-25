@@ -6,18 +6,7 @@ import GPy
 
 from slippy.slip import *
 import slippy.viability as vibly
-from scipy.stats import norm, lognorm
-
-from scipy.special import logit, expit
-
-def clip(x):
-    return np.clip(x, -5, 5)
-
-def transform(x):
-    return x #clip(np.log(x))
-
-def inverse_transform(x):
-    return x #np.exp(x)
+from scipy.stats import norm
 
 
 class CurrentMeasureEstimation:
@@ -25,18 +14,19 @@ class CurrentMeasureEstimation:
     def __init__(self):
         self.Q_M_est = None
         self.Q_M_est_s2 = None
-        self.S_M_est = None
+        self.S_V_est = None
         self.Q_V_est = None
         self.S_M_safe = None
 
     @staticmethod
-    def create(Q_M_est, Q_M_est_s2, S_M_est, Q_V_est, S_M_safe):
+    def create(Q_M_est, Q_M_est_s2, S_V_est, Q_V_est, S_M_safe, Q_M_safe):
         est = CurrentMeasureEstimation()
         est.Q_M_est = Q_M_est
         est.Q_M_est_s2 = Q_M_est_s2
-        est.S_M_est = S_M_est
+        est.S_V_est = S_V_est
         est.Q_V_est = Q_V_est
         est.S_M_safe = S_M_safe
+        est.Q_M_safe = Q_M_safe
 
         return est
 
@@ -92,7 +82,7 @@ class MeasureEstimation:
 
         bias = GPy.kern.Bias(input_dim=self.input_dim, variance=1.0, active_dims=None, name='bias')
 
-        return kernel_1 + kernel_2 # + bias + GPy.kern.Linear(input_dim=self.input_dim)
+        return kernel_1 # + kernel_2 # + bias + GPy.kern.Linear(input_dim=self.input_dim)
 
 
 
@@ -121,7 +111,7 @@ class MeasureEstimation:
         idx = idx_sample_safe
 
         self.prior_data['AS'] = AS[idx, :]
-        self.prior_data['Q'] = transform(Q[idx]).reshape(-1, 1)
+        self.prior_data['Q'] = Q[idx].reshape(-1, 1)
         self.prior_data['V'] = V[idx].reshape(-1, 1)
 
     def create_prior(self, kernel=None, load='./model/prior.npy', save='./model/prior.npy', force_new_model=False):
@@ -173,7 +163,7 @@ class MeasureEstimation:
 
     def set_data(self, X=None, Y=None):
 
-        Y = transform(Y)
+        Y = Y
 
         if (X is None) or (Y is None):
             self.set_data_empty()
@@ -193,14 +183,12 @@ class MeasureEstimation:
 
     # Estimate the learned sets on a grid, Q_feas gives feasible points as well as the shape of the grid
     # TODO: How to make sure X_grid is in correct oder when reshaped into Q_feas.shape()?
-    def estimate_sets(self, X_grid, grids, Q_feas, active_threshold):
+    def estimate_sets(self, X_grid, grids, Q_feas, active_threshold, measure_threshold):
         # TODO @Alex X_grid should be a grid 
         Q_M_est, Q_M_est_s2 = self.gp.predict(X_grid)
 
-        safety_threshold = transform(0.01)
-        Q_V_prob = norm.cdf((Q_M_est - safety_threshold) / np.sqrt(Q_M_est_s2)) # TODO @Alex check if you can just change the sign to get
+        Q_V_est = norm.cdf((Q_M_est - measure_threshold) / np.sqrt(Q_M_est_s2)) # TODO @Alex check if you can just change the sign to get
 
-        Q_M_est = inverse_transform(Q_M_est)
         Q_M_est = Q_M_est.reshape(Q_feas.shape)
 
         Q_M_est[np.logical_not(Q_feas)] = - 3*np.sqrt(1e-10)  # do not consider infeasible points
@@ -208,27 +196,21 @@ class MeasureEstimation:
         Q_M_est_s2 = Q_M_est_s2.reshape(Q_feas.shape)
         Q_M_est_s2[np.logical_not(Q_feas)] = 1e-10
 
-        #Q_V_prob = norm.cdf((Q_M_est - safety_threshold) / np.sqrt(Q_M_est_s2)) # TODO @Alex check if you can just change the sign to get
-        # TODO @Alex get rid of safety_threshold magic number
-        # This is the $\tilde{\alpha}$ parameter
-        # this should be $\in [0, 0.5]
-        # put an assert into here for good measure
 
-        # assert(safety_threshold >= 0.0 && safety_threshold <= 0.5)
-        #Q_V_est = Q_V_prob>(0.5 + safety_threshold)
-        Q_V_est = Q_V_prob.reshape(Q_feas.shape)
-        # Q_V_est, _ = self.gp_v.predict(X_grid)
-        # Q_V_est = Q_V_est.reshape(Q_feas.shape)
+        # NOTE: TO threshold or not to threshold (Alex says no)
+        Q_V_est = Q_V_est.reshape(Q_feas.shape)
+
+        Q_V_est = np.where(np.greater(Q_V_est, 0.5),
+                        1, 0)
+
         Q_V_est[np.logical_not(Q_feas)] = 0  # do not consider infeasible points
 
-        S_M_est = vibly.project_Q2S(Q_V_est, grids, np.mean)
+        S_V_est = measure_threshold + vibly.project_Q2S(Q_V_est, grids, np.mean)
 
-        Q_M_safe = np.copy(Q_V_est)
-        Q_M_safe[np.less(Q_M_safe, active_threshold)] = 0
-        Q_M_safe[np.greater_equal(Q_M_safe, active_threshold)] = 1
-        S_M_safe = np.mean(Q_M_safe, axis=1)
+        Q_M_safe = norm.cdf((Q_M_est - active_threshold) / np.sqrt(Q_M_est_s2))
+        S_M_safe = active_threshold + vibly.project_Q2S(Q_M_safe, grids, np.mean)
 
-        sets = CurrentMeasureEstimation.create(Q_M_est, Q_M_est_s2, S_M_est, Q_V_est, S_M_safe)
+        sets = CurrentMeasureEstimation.create(Q_M_est, Q_M_est_s2, S_V_est, Q_V_est, S_M_safe, Q_M_safe)
 
         return sets
 
@@ -273,7 +255,7 @@ if __name__ == "__main__":
     AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
     estimation = MeasureEstimation(state_dim=1, action_dim=1, seed=1)
     estimation.prepare_data(AS_grid=AS_grid, Q_M=Q_M, Q_V=Q_V, Q_feas=Q_feas)
-    estimation.create_prior(load='./model/prior.npy', save=False)
+    estimation.create_prior(load=False, save='./model/prior.npy')  # './model/prior.npy'
     estimation.set_data(X=np.array([[-100, -100]]), Y=np.array([[1]]))
 
     #estimation.set_data(X=estimation.prior_data['AS'], Y=estimation.prior_data['Q'])
