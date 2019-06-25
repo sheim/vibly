@@ -40,7 +40,16 @@ AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
 # AS_grid = np.array([35.0/180*np.pi, 0.5]) #np.meshgrid(grids['actions'][0], grids['states'][0])
 # Q_M_proxy = 1
 estimator.prepare_data(AS_grid=AS_grid, Q_M=Q_M_proxy, Q_V=Q_V_proxy, Q_feas=Q_feas)
+
+initial_measure = .24
+estimator.prior_data['AS'] = np.atleast_2d(np.array([38/(180)*np.pi, .45]))
+estimator.prior_data['Q'] = np.array([[initial_measure]])
+
 estimator.create_prior(load='./model/prior.npy', save='./model/prior.npy')
+
+idx_safest = np.unravel_index(np.argmax(Q_M_proxy), Q_M_proxy.shape)
+
+
 
 ################################################################################
 # Exploration decay
@@ -50,7 +59,7 @@ alpha_init = 0.80
 alpha_min = 0.80
 
 def active_threshold_f(n, max, adapt_type = 'exponential'):
-    # return 0.3
+    return 0
     # Exponential
     if adapt_type is 'exponential':
         k = np.log(1/0.01) / max
@@ -64,6 +73,9 @@ def interpo(a, b, n):
     # assert n > 0 and n <=1
     return a + n*(b-a)
 
+active_threshold = active_threshold_f(0,10)
+
+measure_threshold = 0
 # active_threshold = active_threshold_f(0,10)
 active_threshold_s = 0.25
 active_threshold_e = 0.1
@@ -157,11 +169,11 @@ def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
 
         # TODO Alex: dont grid states, dont evalutate the whole sets
         # slice actions available for those states
-        A_slice = np.copy(sets.Q_M_safe[s0_idx, slice(None)])
+        A_slice = np.copy(sets.Q_M_est[s0_idx, slice(None)])
 
         A_slice_s2 = np.copy(sets.Q_M_est_s2[s0_idx, slice(None)])
 
-        thresh_idx = np.where(np.greater(A_slice, 0.5),
+        thresh_idx = np.where(np.greater(A_slice, initial_measure*.8),
                         [True], [False])
 
 
@@ -180,14 +192,23 @@ def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
         if not thresh_idx.any(): # empty, pick the safest
             if verbose > 1:
                 print('taking safest')
-            a_idx = np.argmax(A_slice)
+            a_idx = np.argmax(A_slice + np.random.randn(A_slice.shape[0]) * 0.02)
         else: # not empty, pick one of these
             if verbose > 1:
                 print('explore!')
             A_slice[~thresh_idx] = np.nan
             A_slice_s2[~thresh_idx] = np.nan
 
-            a_idx = np.nanargmax(A_slice_s2)
+            if(np.random.randint(0,100) < 90):
+
+                exploration_heristic = A_slice + 100*np.sqrt(A_slice_s2)
+                a_idx = np.nanargmax(exploration_heristic)
+            else:
+                Q_V_slice = np.copy(sets.Q_V_est[s0_idx, slice(None)])
+                viable_idx = np.where(np.greater(Q_V_slice, 0.5),
+                                      [True], [False])
+
+                a_idx = np.random.choice(np.where(viable_idx)[0])
 
 
         a = grids['actions'][0][a_idx] + (np.random.rand()-0.5)*np.pi/36
@@ -201,7 +222,7 @@ def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
 
             # TODO: restart from expected good results
             # Currently, just restart from some magic numbers
-            s_next = .5
+            s_next = .45
 
             s_next_idx = vibly.digitize_s(s_next, grids['states'],
                                     s_grid_shape, to_bin = False)
@@ -238,15 +259,18 @@ S_M_safe_prior = np.copy(sets.S_M_safe)
 print("INITIAL ACCUMULATED ERROR: " + str(np.sum(np.abs(S_M_safe_prior-S_M_true))))
 
 
-steps = 50
-estimator.failed_samples = list()
+steps = 10
+estimator.failed_samples = list([False])
 
 import plotting.corl_plotters as cplot
 
-X = None
-Y = None
+np.random.seed(seed_n)
 
-s0 = 0.6
+
+X = np.atleast_2d(np.array([38/(180)*np.pi, .45]))
+Y = np.array([[initial_measure]])
+
+s0 = .45
 
 for ndx in range(steps): # in case you want to do small increments
 
@@ -292,7 +316,7 @@ for ndx in range(steps_2): # in case you want to do small increments
     active_threshold = interpo(active_threshold_s, active_threshold_e, ndx/steps_2)
     measure_threshold =  interpo(measure_threshold_s, measure_threshold_e, ndx/steps_2)
 
-    estimator, s0 = learn(estimator, s0, p_true, n_samples=1, X=X, y=Y)
+    estimator, s0 = learn(estimator, s0, p_true, n_samples=100, X=X, y=Y)
 
 
     sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
@@ -312,6 +336,7 @@ for ndx in range(steps_2): # in case you want to do small increments
 
     print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(sets.S_M_safe-S_M_true))) + " Failure rate: " + str(np.mean(Y < 0)))
 
+    print(str(np.sum(np.abs(sets.Q_M_est - Q_M_true))))
 ### ** TEST. Take the safe level-set, then randomly sample from inside it.
 
 sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
