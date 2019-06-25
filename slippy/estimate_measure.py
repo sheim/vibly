@@ -104,8 +104,8 @@ class MeasureEstimation:
         idx_notfeas = np.argwhere(~Q_feas.ravel()).ravel()
         idx_unsafe = np.argwhere(Q_feas.ravel() & ~Q_V.ravel()).ravel()
 
-        idx_sample_safe = np.random.choice(idx_safe, size=np.min([100, len(idx_safe)]), replace=False)
-        idx_sample_unsafe = np.random.choice(idx_unsafe, size=np.min([100, len(idx_unsafe)]), replace=False)
+        idx_sample_safe = np.random.choice(idx_safe, size=np.min([3, len(idx_safe)]), replace=False)
+        idx_sample_unsafe = np.random.choice(idx_unsafe, size=np.min([10, len(idx_unsafe)]), replace=False)
 
         # idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
         idx = idx_sample_safe
@@ -199,16 +199,20 @@ class MeasureEstimation:
 
         # NOTE: TO threshold or not to threshold (Alex says no)
         Q_V_est = Q_V_est.reshape(Q_feas.shape)
-
         Q_V_est = np.where(np.greater(Q_V_est, 0.5),
                         1, 0)
 
         Q_V_est[np.logical_not(Q_feas)] = 0  # do not consider infeasible points
 
-        S_V_est = measure_threshold + vibly.project_Q2S(Q_V_est, grids, np.mean)
+        # S_V_est = measure_threshold + vibly.project_Q2S(Q_V_est, grids, np.mean)
+        S_V_est = vibly.project_Q2S(Q_V_est, grids, np.mean)
 
         Q_M_safe = norm.cdf((Q_M_est - active_threshold) / np.sqrt(Q_M_est_s2))
-        S_M_safe = active_threshold + vibly.project_Q2S(Q_M_safe, grids, np.mean)
+        Q_M_safem = np.copy(Q_M_safe)
+        Q_M_safem = np.where(np.greater(Q_M_safem, 0.5),
+                        1, 0)
+        # S_M_safe = active_threshold + vibly.project_Q2S(Q_M_safe, grids, np.mean)
+        S_M_safe = vibly.project_Q2S(Q_M_safem, grids, np.mean)
 
         sets = CurrentMeasureEstimation.create(Q_M_est, Q_M_est_s2, S_V_est, Q_V_est, S_M_safe, Q_M_safe)
 

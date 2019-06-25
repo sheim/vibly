@@ -49,7 +49,7 @@ alpha_init = 0.80
 alpha_min = 0.80
 
 def active_threshold_f(n, max, adapt_type = 'exponential'):
-    return 0.1
+    # return 0.3
     # Exponential
     if adapt_type is 'exponential':
         k = np.log(1/0.01) / max
@@ -59,10 +59,14 @@ def active_threshold_f(n, max, adapt_type = 'exponential'):
 
     return alpha
 
+def interpo(a, b, n):
+    # assert n > 0 and n <=1
+    return a + n*(b-a)
 
-active_threshold = active_threshold_f(0,10)
-
-measure_threshold = 0.1
+# active_threshold = active_threshold_f(0,10)
+meet_point = 0.1
+active_threshold = 0.9
+measure_threshold = 0.01
 
 ################################################################################
 # Stuff
@@ -154,7 +158,7 @@ def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
 
         A_slice_s2 = np.copy(sets.Q_M_est_s2[s0_idx, slice(None)])
 
-        thresh_idx = np.where(np.greater(A_slice, 0.7),
+        thresh_idx = np.where(np.greater(A_slice, 0.5),
                         [True], [False])
 
 
@@ -231,21 +235,22 @@ S_M_safe_prior = np.copy(sets.S_M_safe)
 print("INITIAL ACCUMULATED ERROR: " + str(np.sum(np.abs(S_M_safe_prior-S_M_true))))
 
 
-steps = 30
+steps = 100
 estimator.failed_samples = list()
 
 import plotting.corl_plotters as cplot
-
 np.random.seed(seed_n)
 X = None
 Y = None
 
-s0 = .5
+s0 = 0.6
 
 for ndx in range(steps): # in case you want to do small increments
 
 
-    active_threshold = active_threshold_f(ndx, steps, adapt_type='linear')
+    # active_threshold = active_threshold_f(ndx, steps, adapt_type='linear')
+    active_threshold = interpo(active_threshold, meet_point, ndx/steps)
+    measure_threshold =  interpo(measure_threshold, meet_point, ndx/steps)
 
     estimator, s0 = learn(estimator, s0, p_true, n_samples=1, X=X, y=Y)
 
@@ -258,9 +263,9 @@ for ndx in range(steps): # in case you want to do small increments
                          samples = (estimator.gp.X, estimator.gp.Y),
                          failed_samples = estimator.failed_samples,
                          S_labels=("safe estimate", "viable estimate", "ground truth"))
-    #plt.savefig('./sample'+str(ndx))
-    #plt.close('all')
-    plt.show()
+    plt.savefig('./sample'+str(ndx))
+    plt.close('all')
+    # plt.show()
 
     X = estimator.gp.X
     Y = estimator.gp.Y
