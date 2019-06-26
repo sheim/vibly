@@ -75,9 +75,13 @@ X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
 
 estimator.set_data_empty()
 
+estimator.set_grid_shape(X_grid, Q_map_proxy.shape)
+
 sets = estimator.estimate_sets(X_grid=X_grid, Q_feas=Q_feas,
                                measure_threshold=measure_threshold_s,
                                active_threshold=active_threshold_s)
+
+Q_M_safe = estimator.safe_level_set(0, 0.5)
 
 Q_M_prior = np.copy(sets.Q_M_est) # make a copy to compare later
 S_M_prior = np.copy(sets.S_M_safe)

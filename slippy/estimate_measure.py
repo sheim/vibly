@@ -188,11 +188,9 @@ class MeasureEstimation:
         # GPy fails with empty dataset. So put in a data point far removed from everything
         self.set_data(X=np.array([[-100, -100]]), Y=np.array([[0]]))
 
-    def project_Q2S(self, Q, proj_opt = None):
-        if proj_opt is None:
-            proj_opt = np.any
+    def project_Q2S(self, Q):
         a_axes = tuple(range(Q.ndim - self.action_dim, Q.ndim))
-        return proj_opt(Q, a_axes)
+        return np.mean(Q, a_axes)
 
     # Estimate the learned sets on a grid, Q_feas gives feasible points as well as the shape of the grid
     # TODO: How to make sure X_grid is in correct oder when reshaped into Q_feas.shape()?
@@ -215,29 +213,28 @@ class MeasureEstimation:
         Q_V_est[np.where(Q_V_est < magic)] = 0
         Q_V_est[np.where(Q_V_est > magic)] = 1
 
-        S_V_est = self.project_Q2S(Q_V_est, np.mean)
+        S_V_est = self.project_Q2S(Q_V_est)
 
         # S_V_est = measure_threshold + project_Q2S(Q_V_est, grids, np.mean)
-        S_V_est = self.project_Q2S(Q_V_est, np.mean)
+        S_V_est = self.project_Q2S(Q_V_est)
 
         Q_M_safe = norm.cdf((Q_M_est - active_threshold) / np.sqrt(Q_M_est_s2))
 
         Q_M_safe[np.where(Q_M_safe < magic)] = 0
         Q_M_safe[np.where(Q_M_safe > magic)] = 1
 
-        S_M_safe = self.project_Q2S(Q_M_safe, np.mean)
+        S_M_safe = self.project_Q2S(Q_M_safe)
         Q_M_safem = np.copy(Q_M_safe)
         Q_M_safem = np.where(np.greater(Q_M_safem, 0.5),
                         1, 0)
         # S_M_safe = active_threshold + project_Q2S(Q_M_safe, grids, np.mean)
-        S_M_safe = self.project_Q2S(Q_M_safem, np.mean)
+        S_M_safe = self.project_Q2S(Q_M_safem)
 
         sets = CurrentMeasureEstimation.create(Q_M_est, Q_M_est_s2, S_V_est, Q_V_est, S_M_safe, Q_M_safe)
 
         return sets
 
-    # TODO: make X_grid, grids, etc. properties of the class
-    def safe_level_set(self, safety_threshold, confidence_threshold = 0.5):
+    def safe_level_set(self, safety_threshold = 0, confidence_threshold = 0.5):
         # assert self.Q_shape != None, "Q_shape was not initialized"
         # assert self.X_grid != None, "X_grid was not initialized"
 
