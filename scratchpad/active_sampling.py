@@ -55,28 +55,10 @@ idx_safest = np.unravel_index(np.argmax(Q_M_proxy), Q_M_proxy.shape)
 # Exploration decay
 ################################################################################
 
-alpha_init = 0.80
-alpha_min = 0.80
-
-def active_threshold_f(n, max, adapt_type = 'exponential'):
-    return 0
-    # Exponential
-    if adapt_type is 'exponential':
-        k = np.log(1/0.01) / max
-        alpha = alpha_min + (alpha_init - alpha_min) * np.exp(-k*n)
-    elif adapt_type is 'linear':
-        alpha = alpha_min + (alpha_init - alpha_min) * n/max
-
-    return alpha
-
 def interpo(a, b, n):
     # assert n > 0 and n <=1
     return a + n*(b-a)
 
-active_threshold = active_threshold_f(0,10)
-
-measure_threshold = 0
-# active_threshold = active_threshold_f(0,10)
 active_threshold_s = 0.25
 active_threshold_e = 0.1
 # meet_point = 0.1
@@ -84,7 +66,7 @@ measure_threshold_s = 0.001
 measure_threshold_e = 0.1
 
 ################################################################################
-# Stuff
+# Stuff for comparing at the end
 ################################################################################
 
 X_grid_1, X_grid_2 = np.meshgrid(grids['actions'], grids['states'])
@@ -93,7 +75,7 @@ X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
 
 estimator.set_data_empty()
 
-sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+sets = estimator.estimate_sets(X_grid=X_grid, Q_feas=Q_feas,
                                measure_threshold=measure_threshold_s,
                                active_threshold=active_threshold_s)
 
@@ -106,10 +88,10 @@ Q_V_prior = np.copy(sets.Q_V_est)
 # load ground truth
 ################################################################################
 import slippy.slip as true_model
-# import slippy.slip as true_model
+# import slippy.nslip as true_model
 
-# infile = open('../data/nslip_map.pickle', 'rb')
 infile = open('../data/slip_map.pickle', 'rb')
+# infile = open('../data/nslip_map.pickle', 'rb')
 data = pickle.load(infile)
 infile.close()
 
@@ -153,7 +135,7 @@ def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
         y = np.empty((0, 1))
 
     # In sets are currently Q_M_est, Q_M_est_s2, S_M_est, Q_V_est
-    sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+    sets = estimator.estimate_sets(X_grid=X_grid, Q_feas=Q_feas,
                                    measure_threshold=measure_threshold,
                                    active_threshold=active_threshold)
 
@@ -210,8 +192,7 @@ def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
 
                 a_idx = np.random.choice(np.where(viable_idx)[0])
 
-
-        a = grids['actions'][0][a_idx] + (np.random.rand()-0.5)*np.pi/36
+        a = grids['actions'][0][a_idx] #+ (np.random.rand()-0.5)*np.pi/36
         # apply action, get to the next state
         x0, p_true = true_model.mapSA2xp((s0, a), p_true)
         x_next, failed = true_model.poincare_map(x0, p_true)
@@ -233,6 +214,7 @@ def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
             s_next_idx = vibly.digitize_s(s_next, grids['states'],
                                           s_grid_shape, to_bin=False)
 
+            # TODO get this by evaluating that slice of the GP
             measure = sets.S_V_est[s_next_idx]
 
         #Add action state pair to dataset
@@ -243,7 +225,7 @@ def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
         y = np.concatenate((y, y_new))
         estimator.set_data(X=X, Y=y)
 
-        sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+        sets = estimator.estimate_sets(X_grid=X_grid, Q_feas=Q_feas,
                                        measure_threshold=measure_threshold,
                                        active_threshold=active_threshold)
         # take another step
@@ -282,7 +264,7 @@ for ndx in range(steps): # in case you want to do small increments
     estimator, s0 = learn(estimator, s0, p_true, n_samples=1, X=X, y=Y)
 
 
-    sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+    sets = estimator.estimate_sets(X_grid=X_grid, Q_feas=Q_feas,
                                    measure_threshold=measure_threshold,
                                    active_threshold=active_threshold)
 
@@ -316,10 +298,10 @@ for ndx in range(steps_2): # in case you want to do small increments
     active_threshold = interpo(active_threshold_s, active_threshold_e, ndx/steps_2)
     measure_threshold =  interpo(measure_threshold_s, measure_threshold_e, ndx/steps_2)
 
-    estimator, s0 = learn(estimator, s0, p_true, n_samples=100, X=X, y=Y)
+    estimator, s0 = learn(estimator, s0, p_true, n_samples=1, X=X, y=Y)
 
 
-    sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+    sets = estimator.estimate_sets(X_grid=X_grid, Q_feas=Q_feas,
                                    measure_threshold=measure_threshold,
                                    active_threshold=active_threshold)
 
@@ -337,9 +319,10 @@ for ndx in range(steps_2): # in case you want to do small increments
     print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(sets.S_M_safe-S_M_true))) + " Failure rate: " + str(np.mean(Y < 0)))
 
     print(str(np.sum(np.abs(sets.Q_M_est - Q_M_true))))
+
 ### ** TEST. Take the safe level-set, then randomly sample from inside it.
 
-sets = estimator.estimate_sets(X_grid=X_grid, grids=grids, Q_feas=Q_feas,
+sets = estimator.estimate_sets(X_grid=X_grid, Q_feas=Q_feas,
                                    measure_threshold=measure_threshold,
                                    active_threshold=active_threshold)
 s0 = 0.5
