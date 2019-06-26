@@ -130,7 +130,7 @@ class MeasureEstimation:
         gp_prior = GPy.models.GPRegression(X=self.prior_data['AS'],
                                            Y=self.prior_data['Q'],
                                            kernel=self.prior_kernel,
-                                           noise_var=0.01)
+                                           noise_var=0.001)
 
         if not force_new_model and load and Path(load).exists():
             gps = np.load(load)
@@ -179,7 +179,7 @@ class MeasureEstimation:
         self.gp = GPy.models.GPRegression(X=X,
                                           Y=Y,
                                           kernel=self.kernel,
-                                          noise_var=0.01,  # self.prior.likelihood.variance, # TODO: Is this a good idea?
+                                          noise_var=0.001,  # self.prior.likelihood.variance,
                                           mean_function=self.prior_mean)
 
 
@@ -192,47 +192,6 @@ class MeasureEstimation:
         a_axes = tuple(range(Q.ndim - self.action_dim, Q.ndim))
         return np.mean(Q, a_axes)
 
-    # Estimate the learned sets on a grid, Q_feas gives feasible points as well as the shape of the grid
-    # TODO: How to make sure X_grid is in correct oder when reshaped into Q_feas.shape()?
-    def estimate_sets(self, X_grid, Q_feas, active_threshold, measure_threshold):
-        # TODO @Alex X_grid should be a grid 
-        Q_M_est, Q_M_est_s2 = self.gp.predict(X_grid)
-
-        Q_V_est = norm.cdf((Q_M_est - measure_threshold) / np.sqrt(Q_M_est_s2))
-
-        Q_M_est = Q_M_est.reshape(Q_feas.shape)
-
-        Q_M_est_s2 = Q_M_est_s2.reshape(Q_feas.shape)
-
-        # NOTE: TO threshold or not to threshold (Alex says no)
-        Q_V_est = Q_V_est.reshape(Q_feas.shape)
-
-        # plt.imshow(Q_V_est<0.4, origin='lower')
-        # plt.show()
-        magic = 0.5
-        Q_V_est[np.where(Q_V_est < magic)] = 0
-        Q_V_est[np.where(Q_V_est > magic)] = 1
-
-        S_V_est = self.project_Q2S(Q_V_est)
-
-        # S_V_est = measure_threshold + project_Q2S(Q_V_est, grids, np.mean)
-        S_V_est = self.project_Q2S(Q_V_est)
-
-        Q_M_safe = norm.cdf((Q_M_est - active_threshold) / np.sqrt(Q_M_est_s2))
-
-        Q_M_safe[np.where(Q_M_safe < magic)] = 0
-        Q_M_safe[np.where(Q_M_safe > magic)] = 1
-
-        S_M_safe = self.project_Q2S(Q_M_safe)
-        Q_M_safem = np.copy(Q_M_safe)
-        Q_M_safem = np.where(np.greater(Q_M_safem, 0.5),
-                        1, 0)
-        # S_M_safe = active_threshold + project_Q2S(Q_M_safe, grids, np.mean)
-        S_M_safe = self.project_Q2S(Q_M_safem)
-
-        sets = CurrentMeasureEstimation.create(Q_M_est, Q_M_est_s2, S_V_est, Q_V_est, S_M_safe, Q_M_safe)
-
-        return sets
 
     def safe_level_set(self, safety_threshold = 0, confidence_threshold = 0.5):
         # assert self.Q_shape != None, "Q_shape was not initialized"
@@ -240,9 +199,18 @@ class MeasureEstimation:
 
         Q_est, Q_est_s2 = self.gp.predict(self.X_grid)
         Q_level_set = norm.cdf((Q_est - safety_threshold) / np.sqrt(Q_est_s2))
-        Q_level_set[np.where(Q_level_set < confidence_threshold)] = 0
-        Q_level_set[np.where(Q_level_set > confidence_threshold)] = 1
+
+        if confidence_threshold is not None:
+            Q_level_set[np.where(Q_level_set < confidence_threshold)] = 0
+            Q_level_set[np.where(Q_level_set > confidence_threshold)] = 1
         return Q_level_set.reshape(self.Q_shape)
+
+
+    def Q_M(self):
+        Q_est, Q_est_s2 = self.gp.predict(self.X_grid)
+
+        return Q_est.reshape(self.Q_shape), Q_est_s2.reshape(self.Q_shape)
+
 
 if __name__ == "__main__":
     ################################################################################
