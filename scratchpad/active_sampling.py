@@ -39,7 +39,7 @@ estimator = estimation.MeasureEstimation(state_dim=1, action_dim=1, seed=seed_n)
 AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
 # AS_grid = np.array([35.0/180*np.pi, 0.5]) #np.meshgrid(grids['actions'][0], grids['states'][0])
 # Q_M_proxy = 1
-estimator.prepare_data(AS_grid=AS_grid, Q_M=Q_M_proxy, Q_V=Q_V_proxy, Q_feas=Q_feas)
+estimator.prepare_data(AS_grid=AS_grid, Q_M=Q_M_proxy, Q_V=Q_V_proxy)
 
 initial_measure = .24
 estimator.prior_data['AS'] = np.atleast_2d(np.array([38/(180)*np.pi, .45]))

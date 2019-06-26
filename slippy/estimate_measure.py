@@ -94,7 +94,7 @@ class MeasureEstimation:
 
 
 
-    def prepare_data(self, AS_grid, Q_M, Q_V, Q_feas):
+    def prepare_data(self, AS_grid, Q_M, Q_V):
 
         # Expects the AS_grid data to be in a n-d grid (e.g. a (3,5,5,5) ndarray) where n**d is the number of samples
         # To create such a grid from the grid points:
@@ -109,14 +109,13 @@ class MeasureEstimation:
 
         # Sample training points from safe and unsafe prior
         idx_safe = np.argwhere(Q_V.ravel()).ravel()
-        idx_notfeas = np.argwhere(~Q_feas.ravel()).ravel()
-        idx_unsafe = np.argwhere(Q_feas.ravel() & ~Q_V.ravel()).ravel()
+        idx_unsafe = np.argwhere(~Q_V.ravel()).ravel()
 
-        idx_sample_safe = np.random.choice(idx_safe, size=np.min([1, len(idx_safe)]), replace=False)
-        idx_sample_unsafe = np.random.choice(idx_unsafe, size=np.min([100, len(idx_unsafe)]), replace=False)
 
-        # idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
-        idx = idx_sample_safe
+        idx_sample_safe = np.random.choice(idx_safe, size=np.min([1000, len(idx_safe)]), replace=False)
+        idx_sample_unsafe = np.random.choice(idx_unsafe, size=np.min([500, len(idx_unsafe)]), replace=False)
+
+        idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
 
         self.prior_data['AS'] = AS[idx, :]
         self.prior_data['Q'] = Q[idx].reshape(-1, 1)
@@ -253,7 +252,7 @@ if __name__ == "__main__":
 
     AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
     estimation = MeasureEstimation(state_dim=1, action_dim=1, seed=1)
-    estimation.prepare_data(AS_grid=AS_grid, Q_M=Q_M, Q_V=Q_V, Q_feas=Q_feas)
+    estimation.prepare_data(AS_grid=AS_grid, Q_M=Q_M, Q_V=Q_V)
     estimation.create_prior(load=False, save='./model/prior.npy')  # './model/prior.npy'
     estimation.set_data(X=np.array([[-100, -100]]), Y=np.array([[1]]))
 
@@ -263,20 +262,10 @@ if __name__ == "__main__":
     X_train_1, X_train_2 = np.meshgrid(grids['actions'], grids['states'])
     X = np.column_stack((X_train_1.flatten(), X_train_2.flatten()))
 
-    Q_M_est, Q_M_est_s2, S_M_est, Q_V_est = estimation.estimate_sets(X_grid=X, grids=grids,
-                                                                        Q_feas=Q_feas,
-                                                                        active_threshold=0.7)
 
-    plt.plot(S_M_est)
     plt.plot(S_M)
     plt.show()
 
-    plt.imshow(Q_M_est, origin='lower')
-    plt.show()
-
-
-    plt.imshow(Q_V_est, origin='lower')
-    plt.show()
 
     print(estimation.failure_value)
 
