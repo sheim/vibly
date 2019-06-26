@@ -49,6 +49,14 @@ class MeasureEstimation:
         self.state_dim = action_dim
         self.action_dim = state_dim
 
+        self.X_grid = None
+        self.Q_shape = None
+
+    def set_grid_shape(self, X_grid, Q_shape):
+        self.X_grid = X_grid
+        self.Q_shape = Q_shape
+        # assert, Q_shape and X_grid make sense.
+
     @property
     def input_dim(self):
         return self.action_dim + self.state_dim
@@ -203,7 +211,7 @@ class MeasureEstimation:
 
         # plt.imshow(Q_V_est<0.4, origin='lower')
         # plt.show()
-        magic = 0.6
+        magic = 0.5
         Q_V_est[np.where(Q_V_est < magic)] = 0
         Q_V_est[np.where(Q_V_est > magic)] = 1
 
@@ -229,8 +237,15 @@ class MeasureEstimation:
         return sets
 
     # TODO: make X_grid, grids, etc. properties of the class
-    def safe_level_set(self, hello):
-        return None
+    def safe_level_set(self, safety_threshold, confidence_threshold = 0.5):
+        # assert self.Q_shape != None, "Q_shape was not initialized"
+        # assert self.X_grid != None, "X_grid was not initialized"
+
+        Q_est, Q_est_s2 = self.gp.predict(self.X_grid)
+        Q_level_set = norm.cdf((Q_est - safety_threshold) / np.sqrt(Q_est_s2))
+        Q_level_set[np.where(Q_level_set < confidence_threshold)] = 0
+        Q_level_set[np.where(Q_level_set > confidence_threshold)] = 1
+        return Q_level_set.reshape(self.Q_shape)
 
 if __name__ == "__main__":
     ################################################################################
