@@ -59,11 +59,13 @@ def interpo(a, b, n):
     # assert n > 0 and n <=1
     return a + n*(b-a)
 
-active_threshold_s = 0
-active_threshold_e = 0
-# meet_point = 0.1
-measure_threshold_s = 0
-measure_threshold_e = 0
+
+measure_confidence = 0.8
+exploration_confidence = .95
+exploration_confidence_s = 0.95
+exploration_confidence_e = 0.85
+measure_confidence_s = 0.75
+measure_confidence_e = 0.85
 
 ################################################################################
 # Stuff for comparing at the end
@@ -76,10 +78,6 @@ X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
 estimator.set_data_empty()
 
 estimator.set_grid_shape(X_grid, Q_map_proxy.shape)
-
-
-measure_confidence = 0.8
-exploration_confidence = .95
 
 Q_V_prior = estimator.safe_level_set(safety_threshold = 0, confidence_threshold = measure_confidence)
 Q_M_prior, Q_M_s2_prior = estimator.Q_M()
@@ -129,7 +127,7 @@ a_bin_shape = tuple(dim+1 for dim in a_grid_shape)
 verbose = 2
 np.set_printoptions(precision=4)
 
-def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
+def learn(estimator, s0, p_true, n_samples=100, X=None, y=None):
 
     # Init empty Dataset
     if X is None or y is None:
@@ -141,16 +139,15 @@ def learn(estimator, s0, p_true, n_samples = 100, X = None, y = None):
 
     failed_samples = [False]*n_samples
 
-
     for ndx in range(n_samples):
 
         if verbose:
             print('iteration '+str(ndx+1))
 
         Q_V = estimator.safe_level_set(safety_threshold=0, confidence_threshold=measure_confidence)
-        Q_M, Q_M_s2 = estimator.Q_M()
         S_M_0 = estimator.project_Q2S(Q_V)
 
+        Q_M, Q_M_s2 = estimator.Q_M()
 
         Q_V_explore = estimator.safe_level_set(safety_threshold=0, confidence_threshold=exploration_confidence)
 
@@ -224,7 +221,7 @@ S_M_safe_prior = np.copy(S_M_prior)
 print("INITIAL ACCUMULATED ERROR: " + str(np.sum(np.abs(S_M_safe_prior-S_M_true))))
 
 
-steps = 5
+steps = 20
 estimator.failed_samples = list([False])
 
 import plotting.corl_plotters as cplot
@@ -237,39 +234,40 @@ Y = np.array([[initial_measure]])
 
 s0 = .45
 
-for ndx in range(steps): # in case you want to do small increments
-
-
+for ndx in range(steps):  # in case you want to do small increments
     # active_threshold = active_threshold_f(ndx, steps, adapt_type='linear')
-    active_threshold = interpo(active_threshold_s, active_threshold_e, ndx/steps)
-    measure_threshold = interpo(measure_threshold_s, measure_threshold_e, ndx/steps)
+    exploration_confidence = interpo(exploration_confidence_s,
+                                     exploration_confidence_e, ndx/steps)
+    measure_confidence = interpo(measure_confidence_s,
+                                 measure_confidence_e, ndx/steps)
 
-    estimator, s0 = learn(estimator, s0, p_true, n_samples=50, X=X, y=Y)
+    estimator, s0 = learn(estimator, s0, p_true, n_samples=10, X=X, y=Y)
 
-    Q_V = estimator.safe_level_set(safety_threshold=0, confidence_threshold=measure_confidence)
+    Q_V = estimator.safe_level_set(safety_threshold=0,
+                                   confidence_threshold=measure_confidence)
     Q_M, Q_M_s2 = estimator.Q_M()
     S_M_0 = estimator.project_Q2S(Q_V)
 
     Q_V_exp = estimator.safe_level_set(safety_threshold=0, confidence_threshold=exploration_confidence)
 
-
-
     fig = cplot.plot_Q_S(Q_V+Q_V_exp+Q_V_true*3, (S_M_0, S_M_true), grids,
-                         samples = (estimator.gp.X, estimator.gp.Y),
-                         failed_samples = estimator.failed_samples,
+                         samples=(estimator.gp.X, estimator.gp.Y),
+                         failed_samples=estimator.failed_samples,
                          S_labels=("safe estimate", "ground truth"))
-    #plt.savefig('./sample'+str(ndx))
-    #plt.close('all')
-    plt.show()
+    plt.savefig('./sample'+str(ndx))
+    plt.close('all')
+    # plt.show()
 
     X = estimator.gp.X
     Y = estimator.gp.Y
 
-    print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(S_M_0-S_M_true))) + " Failure rate: " + str(np.mean(Y < 0)))
+    print(str(ndx) + " ACCUMULATED ERROR: "
+          + str(np.sum(np.abs(S_M_0-S_M_true)))
+          + " Failure rate: " + str(np.mean(Y < 0)))
 
 # **NOW MOVE BACK DOWN!
 
-# active_threshold_s = active_threshold_e
+# exploration_confidence_s = active_threshold_e
 # active_threshold_e = active_threshold_e*0.5
 # measure_threshold_s = active_threshold_e
 # measure_threshold_e = active_threshold_e*0.5
