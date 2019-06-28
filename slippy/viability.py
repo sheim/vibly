@@ -114,7 +114,7 @@ def get_state_from_ravel(bin_idx, s_grid):
     Get state from bin id. Ideally, interpolate
     For now, just returning a grid point
     '''
-    print("TO DO: interpolate properly")  # TODO
+    # print("TO DO: interpolate properly")  # TODO
     bin_idx = np.atleast_1d(bin_idx)
     grid_idx = np.zeros(len(s_grid), dtype='int')
     s = np.zeros(len(s_grid))
@@ -163,13 +163,25 @@ def digitize_s(s, s_grid, shape=None, to_bin=True):
         return np.ravel_multi_index(s_idx, shape)
 
 
-def compute_Q_map(grids, poincare_map, verbose=0):
+# def get_s(sdx, s_grid):
+#     # TODO: make this pythonic, it is ugly AF now...
+#     s_grid_shape = list(map(np.size, s_grid))
+#     grid_idx = np.unravel_index(sdx, s_grid_shape)
+#     s = np.zeros(len(s_grid))
+#     for dim in range(len(s_grid)):
+#         s[dim] = s_grid[dim][grid_idx[dim]]
+
+#     return s
+
+
+def compute_Q_map(grids, poincare_map, verbose=0, check_grid=False):
     ''' Compute the transition map of a system with 1D state and 1D action
     NOTES
     - s_grid and a_grid have to be iterable lists of lists
     e.g. if they have only 1 dimension, they should be `s_grid = ([1, 2], )`
     - use poincare_map to carry parameters
     '''
+    # TODO get rid of check_grid, solve the problem permanently
 
     # initialize 1D, reshape later
     # shape of state-space grid
@@ -185,11 +197,9 @@ def compute_Q_map(grids, poincare_map, verbose=0):
 
     Q_map = np.zeros((total_gridpoints, 1), dtype=int)
     Q_F = np.zeros((total_gridpoints, 1), dtype=bool)
+    if check_grid:
+        Q_on_grid = np.copy(Q_F)  # HACK: keep track of wether you are in a bin
 
-    # TODO: also compute transitions diff maps etc.
-    # TODO: generate purely with numpy (meshgrids?).
-    # TODO ... since converting lists to np.arrays is slow
-    # QTransition = Q_map
     for idx, state_action in enumerate(np.array(list(
             it.product(*grids['states'], *grids['actions'])))):
 
@@ -199,7 +209,6 @@ def compute_Q_map(grids, poincare_map, verbose=0):
                 print('.', end=' ')
 
         x, p = poincare_map.sa2xp(state_action, poincare_map.x, poincare_map.p)
-
         x_next, failed = poincare_map(x, p)
 
         if not failed:
@@ -209,13 +218,31 @@ def compute_Q_map(grids, poincare_map, verbose=0):
             # algorithm in the paper, for our systems it is a bit more faster
             # bin_idx = np.digitize(state_val, s_grid[state_dx])
             # sbin = np.digitize(s_next, s)
-            Q_map[idx] = digitize_s(s_next, grids['states'], s_bin_shape)
+            if check_grid:
+                for sdx, sval in enumerate(np.atleast_1d(s_next)):
+                    if ~np.isin(sval, grids['states'][sdx]):
+                        Q_map[idx] = digitize_s(s_next, grids['states'],
+                                                s_bin_shape)
+                        break
+                else:
+                    Q_on_grid[idx] = True
+                    Q_map[idx] = digitize_s(s_next, grids['states'],
+                                            s_grid_shape, to_bin=False)
+            else:
+                Q_map[idx] = digitize_s(s_next, grids['states'], s_bin_shape)
+
+            # check if s happens to be right on the grid-point
         else:
             Q_F[idx] = 1
 
     Q_map = Q_map.reshape(s_grid_shape + a_grid_shape)
     Q_F = Q_F.reshape(s_grid_shape + a_grid_shape)
-    return (Q_map, Q_F)
+
+    if check_grid:
+        Q_on_grid = Q_on_grid.reshape(s_grid_shape + a_grid_shape)
+        return (Q_map, Q_F, Q_on_grid)
+    else:
+        return (Q_map, Q_F)
 
 
 def project_Q2S(Q, grids, proj_opt=None):
@@ -225,7 +252,7 @@ def project_Q2S(Q, grids, proj_opt=None):
     return proj_opt(Q, a_axes)
 
 
-def compute_QV(Q_map, grids, Q_V=None):
+def compute_QV(Q_map, grids, Q_V=None, Q_on_grid=None):
     '''
     Starting from the transition map and set of non-failing state-action
     pairs, compute the viable sets. The input Q_V is referred to as Q_N in the
@@ -237,6 +264,9 @@ def compute_QV(Q_map, grids, Q_V=None):
     if Q_V is None:
         Q_V = np.copy(Q_map)  # TODO: is this okay in general?
         Q_V = Q_V.astype(bool)
+    # if you have no info, treat everything as if in a bin
+    if Q_on_grid is None:
+        Q_on_grid = np.zeros(Q_V.shape, dtype=bool)
     # initialize empty of S_old
     # initialize estimate of S_V
     S_V = project_Q2S(Q_V, grids)
@@ -249,7 +279,8 @@ def compute_QV(Q_map, grids, Q_V=None):
             # iterate over all a
             if is_viable:
                 # if s_k isOutside S_V:
-                if is_outside(Q_map[qdx], grids['states'], S_V):
+                if is_outside(Q_map[qdx], grids['states'], S_V,
+                              on_grid=Q_on_grid[qdx]):
                     Q_V[qdx] = False
                     # remove (s,a) from Q_V
         S_old = S_V
@@ -258,15 +289,24 @@ def compute_QV(Q_map, grids, Q_V=None):
     return Q_V, S_V
 
 
-def is_outside(s, s_grid, S_V, already_binned=True):
+def is_outside(s, s_grid, S_V, already_binned=True, on_grid=False):
     '''
     given a level set S, check if s lands in a bin inside of S or not
     '''
+
     # only checking 1 state vector
     if not already_binned:  # TODO Check this
         bin_idx = digitize_s(s, s_grid)  # get unraveled indices
     else:
         bin_idx = np.unravel_index(s, tuple(x+1 for x in map(np.size, s_grid)))
+
+    if on_grid:  # s is already binned in the flat
+        s_grid_shape = list(map(np.size, s_grid))
+        sdx = np.unravel_index(s, s_grid_shape)
+        if S_V[sdx]:
+            return False
+        else:
+            return True
 
     for dim_idx, grid in enumerate(s_grid):
         # if outside the left-most or right-most side of grid, mark as outside
