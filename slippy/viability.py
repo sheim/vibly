@@ -43,7 +43,7 @@ def compute_Q_2D(s_grid, a_grid, poincare_map):
     for idx, state_action in enumerate(it.product(s_grid, a_grid)):
         if idx % (n/10) == 0:
             print('.', end=' ')
-        x, p = poincare_map.sa2xp(state_action, poincare_map.x, poincare_map.p)
+        x, p = poincare_map.sa2xp(state_action, poincare_map.p)
 
         x_next, failed = poincare_map(x, p)
 
@@ -208,7 +208,7 @@ def compute_Q_map(grids, poincare_map, verbose=0, check_grid=False):
             if idx % (total_bins/10) == 0:
                 print('.', end=' ')
 
-        x, p = poincare_map.sa2xp(state_action, poincare_map.x, poincare_map.p)
+        x, p = poincare_map.sa2xp(state_action, poincare_map.p)
         x_next, failed = poincare_map(x, p)
 
         if not failed:
@@ -368,7 +368,7 @@ def get_feasibility_mask(feasible, sa2xp, grids, x0, p0):
     # TODO: can probably simplify this
     for idx, state_action in enumerate(np.array(list(
             it.product(*grids['states'], *grids['actions'])))):
-        x, p = sa2xp(state_action, x0, p0)
+        x, p = sa2xp(state_action, p0)
         Q_feasible[idx] = feasible(x, p)
 
     return Q_feasible.reshape(s_shape + a_shape)

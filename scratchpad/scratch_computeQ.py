@@ -20,9 +20,6 @@ grids = {'states':(s_grid,), 'actions':(a_grid,)}
 Q_map, Q_F = compute_Q_map(grids, poincare_map)
 
 # save file
-# data2save = {"s_grid": s_grid, "a_grid": a_grid, "Q_map": Q_map, "Q_F": Q_F,
-#             "poincare_map":poincare_map, "p":p}
-# np.savez('test.npz', **data2save)
 
 plt.imshow(Q_map, origin = 'lower')
 plt.show()

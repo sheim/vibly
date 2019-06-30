@@ -293,10 +293,10 @@ def map2x(x, p, s):
     x = reset_leg(x, p)
     return x_new
 
-def mapSA2xp_height_angle(state_action, x, p):
+def mapSA2xp_height_angle(state_action, p):
     '''
     Specifically map state_actions to x and p
     '''
     p['angle_of_attack'] = state_action[1]
-    x = map2x(x, p, state_action[0])
+    x = map2x(p['x0'], p, state_action[0])
     return x, p

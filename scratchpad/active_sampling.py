@@ -29,7 +29,7 @@ S_M_proxy = vibly.project_Q2S(Q_V_proxy, grids, np.mean)
 Q_M_proxy = vibly.map_S2Q(Q_map_proxy, S_M_proxy, Q_V_proxy)
 
 seed_n = np.random.randint(1, 100)
-# seed_n = 18
+# seed_n = 23
 print("Seed: " + str(seed_n))
 np.random.seed(seed_n)
 estimator = estimation.MeasureEstimation(state_dim=1, action_dim=1, seed=seed_n)
@@ -37,7 +37,7 @@ estimator = estimation.MeasureEstimation(state_dim=1, action_dim=1, seed=seed_n)
 AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
 estimator.prepare_data(AS_grid=AS_grid, Q_M=Q_M_proxy, Q_V=Q_V_proxy)
 
-initial_measure = .3
+initial_measure = .2
 estimator.prior_data['AS'] = np.atleast_2d(np.array([38/(180)*np.pi, .45]))
 estimator.prior_data['Q'] = np.array([[initial_measure]])
 
@@ -55,10 +55,10 @@ def interpo(a, b, n):
 
 measure_confidence = 0.8
 exploration_confidence = .95
-exploration_confidence_s = 0.95
-exploration_confidence_e = 0.85
-measure_confidence_s = 0.75
-measure_confidence_e = 0.85
+exploration_confidence_s = 0.9
+exploration_confidence_e = 0.9
+measure_confidence_s = 0.7
+measure_confidence_e = 0.9
 
 safety_threshold_s = 0.0
 safety_threshold_e = 0.0
@@ -92,7 +92,7 @@ x0 = true_model.reset_leg(x0, p_true)
 grids = data['grids']
 
 # x0 is just a placeholder needed for the simulation
-true_model.mapSA2xp = lambda q, p: true_model.mapSA2xp_height_angle(q, x0, p)
+true_model.mapSA2xp = true_model.mapSA2xp_height_angle
 
 # ** Compute measure from grid for warm-start
 Q_V_true, S_V_true = vibly.compute_QV(Q_map_true, grids)
@@ -228,7 +228,7 @@ for ndx in range(steps):  # in case you want to do small increments
     safety_threshold = interpo(safety_threshold_s, safety_threshold_e,
                                ndx/steps)
 
-    estimator, s0 = learn(estimator, s0, p_true, n_samples=10, X=X, y=Y)
+    estimator, s0 = learn(estimator, s0, p_true, n_samples=5, X=X, y=Y)
 
     Q_V = estimator.safe_level_set(safety_threshold=safety_threshold,
                                    confidence_threshold=measure_confidence)
@@ -299,9 +299,9 @@ for ndx in range(steps):  # in case you want to do small increments
 Q_V = estimator.safe_level_set(safety_threshold=0.05, confidence_threshold=exploration_confidence)
 Q_M, Q_M_s2 = estimator.Q_M()
 S_M_0 = estimator.project_Q2S(Q_V)
-s0 = 0.5
+s0 = 0.45
 failures = 0
-for ndx in range(50): # in case you want to do small increments
+for ndx in range(100): # in case you want to do small increments
 
     s0_idx = vibly.digitize_s(s0, grids['states'],
                             s_grid_shape, to_bin=False)
@@ -332,7 +332,8 @@ for ndx in range(50): # in case you want to do small increments
             print((s0, a))
         # TODO: restart from expected good results
         # Currently, just restart from some magic numbers
-        s_next = .5
+        s_next_idx = np.random.choice(np.where(S_M_0 > 0)[0])
+        s_next = grids['states'][0][s_next_idx]
         s_next_idx = vibly.digitize_s(s_next, grids['states'],
                                 s_grid_shape, to_bin = False)
     else:
