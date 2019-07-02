@@ -96,12 +96,11 @@ true_model.mapSA2xp = true_model.mapSA2xp_height_angle
 
 # ** Compute measure from grid for warm-start
 Q_V_true, S_V_true = vibly.compute_QV(Q_map_true, grids)
-Q_feas = vibly.get_feasibility_mask(true_model.feasible, true_model.mapSA2xp_height_angle,
-            grids=grids, x0=x0, p0=p_true)
+Q_feas = vibly.get_feasibility_mask(true_model.feasible,
+                                    true_model.mapSA2xp_height_angle,
+                                    grids=grids, x0=x0, p0=p_true)
 S_M_true = vibly.project_Q2S(Q_V_true, grids, np.mean)
 Q_M_true = vibly.map_S2Q(Q_map_true, S_M_true, Q_V_true)
-
-# ** Active Sampling part
 
 s_grid_shape = list(map(np.size, grids['states']))
 s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
@@ -120,7 +119,7 @@ def learn(estimator, s0, p_true, n_samples=100, X=None, y=None):
         y = np.empty((0, 1))
 
     s0_idx = vibly.digitize_s(s0, grids['states'],
-                            s_grid_shape, to_bin=False)
+                              s_grid_shape, to_bin=False)
 
     failed_samples = [False]*n_samples
 

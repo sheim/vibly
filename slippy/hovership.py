@@ -1,5 +1,5 @@
 import numpy as np
-
+import scipy.integrate as integrate
 '''
 space attempting to reconnoitre the surface of a planet.
 Must ensure not to go to the dark side of the planet.
@@ -25,9 +25,19 @@ def p_map(x, p):
     if check_failure(x, p):
         return x, True
 
-    x[0] += gravity(x, p) - p['thrust']
-    x[0] = np.max([0, x[0]])  # saturate at ceiling (x=0)
-    return x, check_failure(x, p)
+    # unpack
+    THRUST = p['thrust']
+    GRAVITY = p['gravity']
+    MAX_TIME = 1.0/p['control_frequency']
+
+    def continuous_dynamics(t, x):
+        x[0] += np.max([0, x[0]])*GRAVITY - THRUST
+        x[0] = np.max([0, x[0]])  # saturate at ceiling (x=0)
+        return x
+
+    sol = integrate.solve_ivp(continuous_dynamics, t_span=[0, MAX_TIME], y0=x)
+
+    return sol.y[:, -1], check_failure(sol.y[:, -1], p)
 
 
 def check_failure(x, p):

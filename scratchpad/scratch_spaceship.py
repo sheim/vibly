@@ -8,14 +8,17 @@ import slippy.viability as vibly
 
 p = {'n_states': 2,
      'wind': 0.3,
-     'gravity': 0.255,
+     'gravity': 0.25,
      'thrust': 0,
      'max_thrust': 0.5,
      'min_thrust': 0.0,
      'x0_upper_bound': 2,
-     'x0_lower_bound': 0.1,
+     'x0_lower_bound': 0.0,
      'x1_upper_bound': 1,
-     'x1_lower_bound': -1}
+     'x1_lower_bound': -1,
+     'timestep': 1,
+     'control_frequency': 100  # hertz
+     }
 x0 = np.array([0.5, 0])
 
 # poincare_map.p = p

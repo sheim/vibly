@@ -1,4 +1,5 @@
 import numpy as np
+import scipy.integrate as integrate
 
 '''
 space attempting to reconnoitre the surface of a planet.
@@ -13,16 +14,6 @@ p: dict of parameters. For convenience, actions are also stored here.
 # map: x_k+1, failed = map
 
 
-def wind(x, p):
-    # return -0.5*x[1]
-    # stretch = (p['x0_upper_bound']-p['x0_lower_bound'])*2*np.pi
-    return p['wind']*np.sin(x[0]*np.pi)
-
-
-def gravity(x, p):
-    return np.max([0, x[0]])*p['gravity']
-
-
 def p_map(x, p):
     '''
     Dynamics function of your system
@@ -32,11 +23,19 @@ def p_map(x, p):
     if check_failure(x, p):
         return x, True
 
-    x[0] += gravity(x, p) - p['thrust']
-    x[0] = np.max([p['x0_lower_bound'], x[0]])  # saturate at ceiling
-    x[1] += wind(x, p)
+    THRUST = p['thrust']
+    WIND = p['wind']
+    GRAVITY = p['gravity']
+    MAX_TIME = 1.0/p['control_frequency']
 
-    return x, check_failure(x, p)
+    def continuous_dynamics(t, x):
+        x[0] += np.max([0, x[0]])*GRAVITY - THRUST
+        x[1] += WIND*np.sin(x[0]*np.pi)
+        return x
+
+    sol = integrate.solve_ivp(continuous_dynamics, t_span=[0, MAX_TIME], y0=x)
+
+    return sol.y[:, -1], check_failure(sol.y[:, -1], p)
 
 
 def check_failure(x, p):
@@ -56,7 +55,7 @@ def check_failure(x, p):
 
 
 # Viability functions
-def sa2xp(state_action, x, p):
+def sa2xp(state_action, p):
     x = np.atleast_1d(state_action[:p['n_states']])
     p['thrust'] = np.atleast_1d(state_action[p['n_states']:])
     return x, p
