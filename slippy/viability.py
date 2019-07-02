@@ -318,13 +318,16 @@ def is_outside(s, s_grid, S_V, already_binned=True, on_grid=False):
             return True
         elif bin_idx[dim_idx] >= grid.size:
             return True
-        else:
-            # check if enclosing grid points are viable or not
-            index_vec = np.zeros(len(s_grid), dtype=int)
-            index_vec[dim_idx] = 1
-            if (not S_V[tuple(bin_idx)] or
-                    not S_V[tuple(bin_idx - index_vec)]):
-                return True
+    # Need to redo the loop. In the first loop, we check if any of the points
+    # has exited the grid. This needs to be done first to ensure we don't try
+    # to index outside the grid
+    for dim_idx, grid in enumerate(s_grid):
+        # check if enclosing grid points are viable or not
+        index_vec = np.zeros(len(s_grid), dtype=int)
+        index_vec[dim_idx] = 1
+        if (not S_V[tuple(bin_idx)] or
+                not S_V[tuple(bin_idx - index_vec)]):
+            return True
 
         return False
 
