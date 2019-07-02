@@ -12,10 +12,6 @@ p: dict of parameters. For convenience, actions are also stored here.
 # map: x_k+1, failed = map
 
 
-def gravity(x, p):
-    return np.max([0, x[0]])*p['gravity']
-
-
 def p_map(x, p):
     '''
     Dynamics function of your system
@@ -31,7 +27,7 @@ def p_map(x, p):
     MAX_TIME = 1.0/p['control_frequency']
 
     def continuous_dynamics(t, x):
-        x[0] += np.max([0, x[0]])*GRAVITY - THRUST
+        x[0] += np.max([.25, x[0]])*GRAVITY - THRUST
         x[0] = np.max([0, x[0]])  # saturate at ceiling (x=0)
         return x
 
@@ -54,7 +50,7 @@ def check_failure(x, p):
 def sa2xp(state_action, p):
     x = np.atleast_1d(state_action[:p['n_states']])
     p['thrust'] = np.atleast_1d(state_action[p['n_states']:])
-    return x, p
+    return x.flatten(), p
 
 
 def xp2s(x, p):

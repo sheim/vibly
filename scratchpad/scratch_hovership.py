@@ -5,10 +5,10 @@ from slippy.hovership import p_map
 import slippy.viability as vibly
 
 p = {'n_states': 1,
-     'gravity': 0.6,
+     'gravity': .8,
      'thrust': 0,
      'ground_height': 1,
-     'control_frequency': 100  # hertz
+     'control_frequency': 420  # hertz
      }
 x0 = np.array([0.5, 0])
 

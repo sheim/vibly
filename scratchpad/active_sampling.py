@@ -2,166 +2,121 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pickle
 
+import plotting.corl_plotters as cplot
+
 import slippy.viability as vibly
-import slippy.slip as proxy_model
 
-import slippy.estimate_measure as estimation
-
-
-################################################################################
-# Load and unpack data
-################################################################################
-infile = open('../data/slip_map.pickle', 'rb')
-data = pickle.load(infile)
-infile.close()
-
-Q_map_proxy = data['Q_map']
-x0 = data['x0']
-p_proxy = data['p']
-grids = data['grids']
-
-# ** Compute measure from grid for warm-start
-Q_V_proxy, S_V_proxy = vibly.compute_QV(Q_map_proxy, grids)
-
-S_M_proxy = vibly.project_Q2S(Q_V_proxy, grids, np.mean)
-Q_M_proxy = vibly.map_S2Q(Q_map_proxy, S_M_proxy, Q_V_proxy)
-
-seed_n = np.random.randint(1, 100)
-
-print("Seed: " + str(seed_n))
-np.random.seed(seed_n)
-estimator = estimation.MeasureEstimation(state_dim=1, action_dim=1, seed=seed_n)
-
-learn_hyperparameters = False
-if learn_hyperparameters:
-    AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
-    estimator.learn_hyperparameter(AS_grid=AS_grid, Q_M=Q_M_proxy, save='./model/prior.npy')
+import slippy.estimate_measure as estimate_measure
 
 
-
-
-X_grid_1, X_grid_2 = np.meshgrid(grids['actions'], grids['states'])
-X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
-
-estimator.set_grid_shape(X_grid, Q_map_proxy.shape)
-
-estimator.set_data_empty()
-
-## Start from bad prior
-
-# This comes from knowledge of the system
-initial_measure = .2
-X_seed = np.atleast_2d(np.array([38 / (180) * np.pi, .45]))
-y_seed = np.array([[initial_measure]])
-
-estimator.init_estimator(X_seed, y_seed, load='./model/prior.npy')
-
-
-## Start from good prior
-# idx_safe = np.argwhere(Q_V_proxy.ravel()).ravel()
-# idx_unsafe = np.argwhere(~Q_V_proxy.ravel()).ravel()
-#
-# idx_sample_safe = np.random.choice(idx_safe, size=np.min([200, len(idx_safe)]), replace=False)
-# idx_sample_unsafe = np.random.choice(idx_unsafe, size=np.min([100, len(idx_unsafe)]), replace=False)
-#
-# idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
-#
-# X_prior = X_grid[idx, :]
-# y_prior = Q_M_proxy.ravel()
-# y_prior = y_prior[idx].reshape(-1, 1)
-#
-# estimator.init_estimator(X_prior, y_prior, load='./model/prior.npy')
-
-
-################################################################################
-# Marching Thresholds
-################################################################################
-
-def interpo(a, b, n):
+def linear_interpolation(a, b, n):
     # assert n > 0 and n <=1
-    return a + n*(b-a)
+    return a + n * (b - a)
 
 
-exploration_confidence_s = 0.95
-exploration_confidence_e = 0.95
-measure_confidence_s = 0.7
-measure_confidence_e = 0.7
+class MeasureLearner:
 
-safety_threshold_s = 0.0
-safety_threshold_e = 0.0
+    def __init__(self, model_data, model):
 
-################################################################################
-# Safe prior for later comparisons
-################################################################################
+        self.current_estimation = None
 
+        self.model_data = model_data
 
-Q_V_prior = estimator.safe_level_set(safety_threshold = 0, confidence_threshold = measure_confidence_s)
-Q_M_prior, Q_M_s2_prior = estimator.Q_M()
-S_M_prior = estimator.project_Q2S(Q_V_prior)
+        grids = model_data['grids']
+        self.grids = grids
 
-################################################################################
-# load ground truth model
-################################################################################
+        Q_map_proxy = model_data['Q_map']
+        self.grid_shape = Q_map_proxy.shape
 
-# ** load ground truth
-import slippy.slip as true_model
-# import slippy.nslip as true_model
+        p_true = model_data['p']
+        p_true['x0'] = model_data['x0']
+        self.p = p_true
 
-infile = open('../data/slip_map.pickle', 'rb')
-data = pickle.load(infile)
-infile.close()
+        seed_n = np.random.randint(1, 100)
 
-Q_map_true = data['Q_map']
-x0 = data['x0']
-p_true = data['p']
-p_true['x0'] = data['x0']
-x0 = true_model.reset_leg(x0, p_true)
-grids = data['grids']
+        print("Seed: " + str(seed_n))
+        self.seed = np.random.seed(seed_n)
 
-# x0 is just a placeholder needed for the simulation
-true_model.mapSA2xp = true_model.mapSA2xp_height_angle
+        # A bunch of parameters to adjust. These are just defaults
 
-# ** Compute measure from grid for warm-start
-Q_V_true, S_V_true = vibly.compute_QV(Q_map_true, grids)
-Q_feas = vibly.get_feasibility_mask(true_model.feasible,
-                                    true_model.mapSA2xp_height_angle,
-                                    grids=grids, x0=x0, p0=p_true)
-S_M_true = vibly.project_Q2S(Q_V_true, grids, np.mean)
-Q_M_true = vibly.map_S2Q(Q_map_true, S_M_true, Q_V_true)
+        self.exploration_confidence_s = 0.95
+        self.exploration_confidence_e = 0.95
+        self.measure_confidence_s = 0.7
+        self.measure_confidence_e = 0.7
 
-s_grid_shape = list(map(np.size, grids['states']))
-s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
-a_grid_shape = list(map(np.size, grids['actions']))
-a_bin_shape = tuple(dim+1 for dim in a_grid_shape)
+        self.safety_threshold_s = 0.0
+        self.safety_threshold_e = 0.0
 
-verbose = 2
-np.set_printoptions(precision=4)
+        self.interpolation = linear_interpolation
 
+        self.model = model
 
-def learn(estimator, s0, p_true, n_samples=100, X=None, y=None):
+        # Sampled measures
+        self.X = None
+        self.y = None
+        self.failed_samples = list()
 
-    # Init empty Dataset
-    if X is None or y is None:
-        X = np.empty((0, estimator.input_dim))
-        y = np.empty((0, 1))
+        self.verbose = 2
 
-    s0_idx = vibly.digitize_s(s0, grids['states'],
-                              s_grid_shape, to_bin=False)
+    def init_estimation(self, seed_data, prior_model_path = './model/prior.npy'):
 
-    failed_samples = [False]*n_samples
+        grids = self.grids
+        state_dim = len(grids['states'])
+        action_dim = len(grids['actions'])
 
-    for ndx in range(n_samples):
+        estimation = estimate_measure.MeasureEstimation(state_dim=state_dim, action_dim=action_dim, seed=self.seed)
 
-        Q_V = estimator.safe_level_set(safety_threshold=0,
-                                       confidence_threshold=measure_confidence)
-        S_M_0 = estimator.project_Q2S(Q_V)
+        AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
 
-        Q_M, Q_M_s2 = estimator.Q_M()
+        learn_hyperparameters = True
+        if learn_hyperparameters:
 
-        Q_V_explore = estimator.safe_level_set(safety_threshold=0,
-                                       confidence_threshold=exploration_confidence)
+            Q_M_proxy = self.model_data['Q_M']
+            Q_V_proxy = self.model_data['Q_V']
+
+            estimation.learn_hyperparameter(AS_grid=AS_grid, Q_M=Q_M_proxy, Q_V=Q_V_proxy, save=prior_model_path)
+
+        X_grid_points = np.vstack(map(np.ravel, AS_grid)).T
+        estimation.set_grid_shape(X_grid_points, self.grid_shape)
+        estimation.set_data_empty()
+
+        X_seed = seed_data['X']
+        y_seed = seed_data['y']
+
+        estimation.init_estimator(X_seed, y_seed, load='./model/prior.npy')
+        estimation.set_data_empty()
+
+        self.current_estimation = estimation
+
+        # Add the seed to to the initial data set?
+        # self.X = X_seed
+        # self.Y = y_seed
+
+    def sample(self, s0, measure_confidence, exploration_confidence, ndx):
+
+        estimation = self.current_estimation
+
+        # Init empty Dataset
+        if self.X is None or self.y is None:
+            self.X = np.empty((0, estimation.input_dim))
+            self.y = np.empty((0, 1))
 
         # TODO Alex: dont grid states, dont evalutate the whole sets
+        s_grid_shape = list(map(np.size, self.grids['states']))
+        s0_idx = vibly.digitize_s(s0, self.grids['states'],
+                                  s_grid_shape, to_bin=False)
+
+
+        Q_V = estimation.safe_level_set(safety_threshold=0,
+                                        confidence_threshold=measure_confidence)
+
+        S_M_0 = estimation.project_Q2S(Q_V)
+
+        Q_M, Q_M_s2 = estimation.Q_M()
+
+        Q_V_explore = estimation.safe_level_set(safety_threshold=0,
+                                                confidence_threshold=exploration_confidence)
+
         # slice actions available for those states
         A_slice = np.copy(Q_V_explore[s0_idx, slice(None)])
 
@@ -170,15 +125,13 @@ def learn(estimator, s0, p_true, n_samples=100, X=None, y=None):
         thresh_idx = np.array(A_slice, dtype=bool)
 
         if not thresh_idx.any():  # empty, pick the safest
-            if verbose > 1:
-                print('taking safest on iteration '+str(ndx+1))
+            if self.verbose > 1:
+                print('taking safest on iteration ' + str(ndx + 1))
 
-            Q_V_prop = estimator.safe_level_set(safety_threshold=0,
-                                           confidence_threshold=None)
+            Q_V_prop = estimation.safe_level_set(safety_threshold=0, confidence_threshold=None)
             Q_prop_slice = np.copy(Q_V_prop[s0_idx, slice(None)])
+            a_idx = np.argmax(Q_prop_slice + np.random.randn(A_slice.shape[0]) * 0.01)
 
-            a_idx = np.argmax(Q_prop_slice
-                              + np.random.randn(A_slice.shape[0])*0.01)
         else:  # not empty, pick one of these
 
             A_slice[~thresh_idx] = np.nan
@@ -187,147 +140,193 @@ def learn(estimator, s0, p_true, n_samples=100, X=None, y=None):
             exploration_heuristic = np.sqrt(A_slice_s2)
             a_idx = np.nanargmax(exploration_heuristic)
 
-        a = grids['actions'][0][a_idx]  #+ (np.random.rand()-0.5)*np.pi/36
+        a = self.grids['actions'][0][a_idx]  # + (np.random.rand()-0.5)*np.pi/36
         # apply action, get to the next state
-        x0, p_true = true_model.mapSA2xp((s0, a), p_true)
-        x_next, failed = true_model.poincare_map(x0, p_true)
-        if failed:
-            failed_samples[ndx] = True
-            if verbose:
-                print('FAILED on iteration '+str(ndx+1))
+        x0, p_true = self.model.mapSA2xp((s0, a), self.p)
+        x_next, failed = self.model.p_map(x0, p_true)
 
-            S_M_safe = estimator.project_Q2S(Q_V_explore)
+        if failed:
+            self.failed_samples.append(True)
+            if self.verbose:
+                print('FAILED on iteration ' + str(ndx + 1))
+
+            S_M_safe = estimation.project_Q2S(Q_V_explore)
 
             # TODO make dimensions work
             s_next_idx = np.random.choice(np.where(S_M_safe > 0)[0])
-            s_next = grids['states'][0][s_next_idx]
+            s_next = self.grids['states'][0][s_next_idx]
 
-            measure = estimator.failure_value
+            measure = self.current_estimation.failure_value
         else:
-            s_next = true_model.map2s(x_next, p_true)
-            s_next_idx = vibly.digitize_s(s_next, grids['states'],
+            self.failed_samples.append(False)
+
+            s_next = self.model.map2s(x_next, p_true)
+            s_next_idx = vibly.digitize_s(s_next, self.grids['states'],
                                           s_grid_shape, to_bin=False)
 
             measure = S_M_0[s_next_idx]
 
-        #Add action state pair to dataset
+
+        # Add action state pair to dataset
         q_new = np.array([[a, s0]])
-        X = np.concatenate((X, q_new), axis=0)
+        self.X = np.concatenate((self.X, q_new), axis=0)
 
-        y_new = np.array(measure).reshape(-1,1)
-        y = np.concatenate((y, y_new))
-        estimator.set_data(X=X, Y=y)
+        y_new = np.array(measure).reshape(-1, 1)
+        self.y = np.concatenate((self.y, y_new))
+        estimation.set_data(X=self.X, Y=self.y)
 
-        # take another step
-        s0 = s_next
-        s0_idx = s_next_idx
+        self.current_estimation = estimation
 
-    estimator.failed_samples.extend(failed_samples)
+        return s_next, s_next_idx
 
-    return estimator, s_next
+    def run(self, n_samples, s0):
 
+        ### TODO: where to put this?
 
-S_M_safe_prior = np.copy(S_M_prior)
-print("INITIAL ACCUMULATED ERROR: " + str(np.sum(np.abs(S_M_safe_prior-S_M_true))))
+        Q_map_true = self.model_data['Q_map']
+        grids = self.grids
 
+        Q_M_true = self.model_data['Q_M']
+        Q_V_true = self.model_data['Q_V']
+        S_M_true = self.model_data['S_M']
 
-steps = 20
-estimator.failed_samples = list([False])
+        for ndx in range(n_samples):
 
-import plotting.corl_plotters as cplot
+            exploration_confidence = self.interpolation(self.exploration_confidence_s, self.exploration_confidence_e, ndx / n_samples)
 
-np.random.seed(seed_n)
+            measure_confidence = self.interpolation(self.measure_confidence_s,self.measure_confidence_e, ndx / n_samples)
 
+            safety_threshold = self.interpolation(self.safety_threshold_s, self.safety_threshold_e, ndx / n_samples)
 
-X = np.atleast_2d(np.array([38/(180)*np.pi, .45]))
-Y = np.array([[initial_measure]])
+            s0, s0_idx = self.sample(s0,
+                                        measure_confidence=measure_confidence,
+                                        exploration_confidence=exploration_confidence,
+                                        ndx=ndx)
 
-s0 = .45
+            # Plot every n-th iteration
+            if ndx % 100 == 0 or ndx-1 == n_samples:
 
-for ndx in range(steps):  # in case you want to do small increments
-    # active_threshold = active_threshold_f(ndx, steps, adapt_type='linear')
-    exploration_confidence = interpo(exploration_confidence_s,
-                                     exploration_confidence_e, ndx/steps)
-    measure_confidence = interpo(measure_confidence_s,
-                                 measure_confidence_e, ndx/steps)
-    safety_threshold = interpo(safety_threshold_s, safety_threshold_e,
-                               ndx/steps)
+                Q_V = self.current_estimation.safe_level_set(safety_threshold=safety_threshold,
+                                               confidence_threshold=measure_confidence)
+                S_M_0 = self.current_estimation.project_Q2S(Q_V)
 
-    estimator, s0 = learn(estimator, s0, p_true, n_samples=5, X=X, y=Y)
+                Q_V_exp = self.current_estimation.safe_level_set(safety_threshold=0,
+                                                   confidence_threshold=
+                                                   exploration_confidence)
 
-    Q_V = estimator.safe_level_set(safety_threshold=safety_threshold,
-                                   confidence_threshold=measure_confidence)
-    Q_M, Q_M_s2 = estimator.Q_M()
-    S_M_0 = estimator.project_Q2S(Q_V)
+                fig = cplot.plot_Q_S(Q_V + Q_V_exp + Q_V_true * 3, (S_M_0, S_M_true), grids,
+                                     samples=(self.X,self.y),
+                                     failed_samples=self.failed_samples,
+                                     S_labels=("safe estimate", "ground truth"))
+                # plt.savefig('./sample'+str(ndx))
+                # plt.close('all')
+                plt.show()
 
-    Q_V_exp = estimator.safe_level_set(safety_threshold=0,
-                                       confidence_threshold=
-                                       exploration_confidence)
-
-    fig = cplot.plot_Q_S(Q_V+Q_V_exp+Q_V_true*3, (S_M_0, S_M_true), grids,
-                         samples=(estimator.gp.X, estimator.gp.Y),
-                         failed_samples=estimator.failed_samples,
-                         S_labels=("safe estimate", "ground truth"))
-    # plt.savefig('./sample'+str(ndx))
-    # plt.close('all')
-    plt.show()
-
-    X = estimator.gp.X
-    Y = estimator.gp.Y
-
-    print(str(ndx) + " ACCUMULATED ERROR: "
-          + str(np.sum(np.abs(S_M_0-S_M_true)))
-          + " Failure rate: " + str(np.mean(Y < 0)))
+                print(str(ndx) + " ACCUMULATED ERROR: "
+                      + str(np.sum(np.abs(S_M_0 - S_M_true)))
+                      + " Failure rate: " + str(np.mean(self.y < 0)))
 
 
 
-Q_V = estimator.safe_level_set(safety_threshold=0.05, confidence_threshold=exploration_confidence)
-Q_M, Q_M_s2 = estimator.Q_M()
-S_M_0 = estimator.project_Q2S(Q_V)
-s0 = 0.45
-failures = 0
-for ndx in range(100): # in case you want to do small increments
+if __name__ == "__main__":
 
-    s0_idx = vibly.digitize_s(s0, grids['states'],
-                            s_grid_shape, to_bin=False)
+    import slippy.slip as true_model
+
+    #TODO Steve
+    true_model.mapSA2xp = true_model.mapSA2xp_height_angle
+    true_model.p_map = true_model.poincare_map
+
+    ################################################################################
+    # Load model data
+    ################################################################################
+    infile = open('../data/slip_map.pickle', 'rb')
+    data = pickle.load(infile)
+    infile.close()
+
+    ## Start from bad prior
+
+    # This comes from knowledge of the system
+
+    X_seed = np.atleast_2d(np.array([38 / (180) * np.pi, .45]))
+    y_seed = np.array([[.2]])
+
+    ## TODO: Start from good prior
+
+    # idx_safe = np.argwhere(Q_V_proxy.ravel()).ravel()
+    # idx_unsafe = np.argwhere(~Q_V_proxy.ravel()).ravel()
+    #
+    # idx_sample_safe = np.random.choice(idx_safe, size=np.min([200, len(idx_safe)]), replace=False)
+    # idx_sample_unsafe = np.random.choice(idx_unsafe, size=np.min([100, len(idx_unsafe)]), replace=False)
+    #
+    # idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
+    #
+    # X_prior = X_grid[idx, :]
+    # y_prior = Q_M_proxy.ravel()
+    # y_prior = y_prior[idx].reshape(-1, 1)
+
+    seed_data = {'X': X_seed, 'y': y_seed}
+
+    sampler = MeasureLearner(model=true_model, model_data=data)
+    sampler.init_estimation(seed_data=seed_data, prior_model_path='./model/prior.npy')
+
+    s0 = .45
+
+    sampler.run(n_samples=100, s0=s0)
 
 
-    A_slice = np.copy(Q_V[s0_idx, slice(None)])
-
-    thresh_idx = np.array(A_slice, dtype=bool)
-
-    if not thresh_idx.any(): # empty, pick the safest
-        if verbose > 1:
-            print('WARNING: LEFT SET!')
-        a_idx = np.argmax(A_slice)
-    else: # not empty, pick one of these
-        A_slice[~thresh_idx] = np.nan
-        # A_slice_s2[~thresh_idx] = np.nan
-        a_idx = np.random.choice(np.where(thresh_idx)[0])
 
 
-    a = grids['actions'][0][a_idx] #+ (np.random.rand()-0.5)*np.pi/36
-    # apply action, get to the next state
-    x0, p_true = true_model.mapSA2xp((s0, a), p_true)
-    x_next, failed = true_model.poincare_map(x0, p_true)
-    if failed:
-        failures += 1
-        if verbose:
-            print("FAILED!")
-            print((s0, a))
-        # TODO: restart from expected good results
-        # Currently, just restart from some magic numbers
-        s_next_idx = np.random.choice(np.where(S_M_0 > 0)[0])
-        s_next = grids['states'][0][s_next_idx]
-        s_next_idx = vibly.digitize_s(s_next, grids['states'],
-                                s_grid_shape, to_bin = False)
-    else:
-        s_next = true_model.map2s(x_next, p_true)
-        s_next_idx = vibly.digitize_s(s_next, grids['states'],
-                                        s_grid_shape, to_bin=False)
 
-    # take another step
-    s0 = s_next
-    s0_idx = s_next_idx
 
-print(str(failures))
+# TODO : remimplement tests
+
+# Q_V = estimator.safe_level_set(safety_threshold=0.05, confidence_threshold=exploration_confidence)
+# Q_M, Q_M_s2 = estimator.Q_M()
+# S_M_0 = estimator.project_Q2S(Q_V)
+# s0 = 0.45
+# failures = 0
+# for ndx in range(100): # in case you want to do small increments
+#
+#     s0_idx = vibly.digitize_s(s0, grids['states'],
+#                             s_grid_shape, to_bin=False)
+#
+#
+#     A_slice = np.copy(Q_V[s0_idx, slice(None)])
+#
+#     thresh_idx = np.array(A_slice, dtype=bool)
+#
+#     if not thresh_idx.any(): # empty, pick the safest
+#         if verbose > 1:
+#             print('WARNING: LEFT SET!')
+#         a_idx = np.argmax(A_slice)
+#     else: # not empty, pick one of these
+#         A_slice[~thresh_idx] = np.nan
+#         # A_slice_s2[~thresh_idx] = np.nan
+#         a_idx = np.random.choice(np.where(thresh_idx)[0])
+#
+#
+#     a = grids['actions'][0][a_idx] #+ (np.random.rand()-0.5)*np.pi/36
+#     # apply action, get to the next state
+#     x0, p_true = true_model.mapSA2xp((s0, a), p_true)
+#     x_next, failed = true_model.poincare_map(x0, p_true)
+#     if failed:
+#         failures += 1
+#         if verbose:
+#             print("FAILED!")
+#             print((s0, a))
+#         # TODO: restart from expected good results
+#         # Currently, just restart from some magic numbers
+#         s_next_idx = np.random.choice(np.where(S_M_0 > 0)[0])
+#         s_next = grids['states'][0][s_next_idx]
+#         s_next_idx = vibly.digitize_s(s_next, grids['states'],
+#                                 s_grid_shape, to_bin = False)
+#     else:
+#         s_next = true_model.map2s(x_next, p_true)
+#         s_next_idx = vibly.digitize_s(s_next, grids['states'],
+#                                         s_grid_shape, to_bin=False)
+#
+#     # take another step
+#     s0 = s_next
+#     s0_idx = s_next_idx
+#
+# print(str(failures))

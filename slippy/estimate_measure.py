@@ -77,8 +77,8 @@ class MeasureEstimation:
         idx_unsafe = np.argwhere(~Q_V.ravel()).ravel()
 
 
-        idx_sample_safe = np.random.choice(idx_safe, size=np.min([1000, len(idx_safe)]), replace=False)
-        idx_sample_unsafe = np.random.choice(idx_unsafe, size=np.min([500, len(idx_unsafe)]), replace=False)
+        idx_sample_safe = np.random.choice(idx_safe, size=np.min([100, len(idx_safe)]), replace=False)
+        idx_sample_unsafe = np.random.choice(idx_unsafe, size=np.min([50, len(idx_unsafe)]), replace=False)
 
         idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
 
@@ -136,10 +136,6 @@ class MeasureEstimation:
         self.prior_mean.update_gradients = lambda a, b: None
 
         self.kernel = self.prior_kernel.copy()
-
-        # self.kernel.kern1.variance = self.kernel.kern1.variance
-        # self.kernel.kern2.variance = self.kernel.kern2.variance
-
 
     def set_data(self, X=None, Y=None):
 
