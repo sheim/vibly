@@ -8,36 +8,10 @@ from slippy.slip import *
 import slippy.viability as vibly
 from scipy.stats import norm
 
-
-class CurrentMeasureEstimation:
-
-    def __init__(self):
-        self.Q_M_est = None
-        self.Q_M_est_s2 = None
-        self.S_V_est = None
-        self.Q_V_est = None
-        self.S_M_safe = None
-
-    @staticmethod
-    def create(Q_M_est, Q_M_est_s2, S_V_est, Q_V_est, S_M_safe, Q_M_safe):
-        est = CurrentMeasureEstimation()
-        est.Q_M_est = Q_M_est
-        est.Q_M_est_s2 = Q_M_est_s2
-        est.S_V_est = S_V_est
-        est.Q_V_est = Q_V_est
-        est.S_M_safe = S_M_safe
-        est.Q_M_safe = Q_M_safe
-
-        return est
-
-
 class MeasureEstimation:
 
     def __init__(self, state_dim, action_dim, seed=None):
-        self.prior_data = {
-            'AS': None,    # The action state space, TODO: make it state action space?
-            'Q': None      # The measure to be learned
-        }
+
         self.prior_kernel = None
         self.prior = None
         self.prior_mean = None
@@ -81,20 +55,13 @@ class MeasureEstimation:
 
         kernel_2.variance.constrain_bounded(1e-3, 1e4)
 
-        kernel_3 = GPy.kern.Poly(input_dim=self.input_dim,
-                                 variance=1.0,
-                                 scale=1.0,
-                                 bias=1.0,
-                                 order=4.0,
-                                 name='poly')
 
-        bias = GPy.kern.Bias(input_dim=self.input_dim, variance=1.0, active_dims=None, name='bias')
 
-        return kernel_1 # + kernel_2 # + bias + GPy.kern.Linear(input_dim=self.input_dim)
+        return kernel_1 # + kernel_2
 
 
 
-    def prepare_data(self, AS_grid, Q_M, Q_V):
+    def learn_hyperparameter(self, AS_grid, Q_M, save='./model/prior.npy'):
 
         # Expects the AS_grid data to be in a n-d grid (e.g. a (3,5,5,5) ndarray) where n**d is the number of samples
         # To create such a grid from the grid points:
@@ -104,8 +71,6 @@ class MeasureEstimation:
 
         AS = np.vstack(map(np.ravel, AS_grid)).T
         Q = Q_M.ravel().T
-        V = Q_V.ravel().T * 1 # convert to 0,1
-
 
         # Sample training points from safe and unsafe prior
         idx_safe = np.argwhere(Q_V.ravel()).ravel()
@@ -117,21 +82,39 @@ class MeasureEstimation:
 
         idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
 
-        self.prior_data['AS'] = AS[idx, :]
-        self.prior_data['Q'] = Q[idx].reshape(-1, 1)
-        self.prior_data['V'] = V[idx].reshape(-1, 1)
+        X_train = AS[idx, :]
+        y_train = Q[idx].reshape(-1, 1)
 
-    def create_prior(self, kernel=None, load='./model/prior.npy', save='./model/prior.npy', force_new_model=False):
-
-        # Prior kernel is always the default one learned from data
         self.prior_kernel = self.init_default_kernel()
 
-        gp_prior = GPy.models.GPRegression(X=self.prior_data['AS'],
-                                           Y=self.prior_data['Q'],
+        gp_prior = GPy.models.GPRegression(X=X_train,
+                                           Y=y_train,
                                            kernel=self.prior_kernel,
                                            noise_var=0.001)
 
-        if not force_new_model and load and Path(load).exists():
+        gp_prior.likelihood.variance.constrain_bounded(1e-7, 1e-3)
+        gp_prior.optimize_restarts(num_restarts=3)  # This is expensive
+
+        if save:
+            file = Path(save)
+            file.parent.mkdir(parents=True, exist_ok=True)
+            gps = {'gp_prior': gp_prior.param_array}
+            np.save(save, gps)
+        else:
+            print('Warning: Model NOT saved. All the work was for naught')
+
+
+
+    def init_estimator(self, X, y, load='./model/prior.npy'):
+
+        self.prior_kernel = self.init_default_kernel()
+
+        gp_prior = GPy.models.GPRegression(X=X,
+                                           Y=y,
+                                           kernel=self.prior_kernel,
+                                           noise_var=0.001)
+
+        if load and Path(load).exists():
             gps = np.load(load)
 
             gp_prior.update_model(False)  # do not call the underlying expensive algebra on load
@@ -140,17 +123,9 @@ class MeasureEstimation:
             gp_prior.update_model(True)  # Call the algebra only once
 
         else:
-            gp_prior.likelihood.variance.constrain_bounded(1e-7, 1e-3)
-            gp_prior.optimize_restarts(num_restarts=3)  # This is expensive
-            print(gp_prior)
+            print('WARNING: No model found. Using default kernel parameters. Make sure you really want to do this!')
 
         self.prior = gp_prior
-
-        if save:
-            file = Path(save)
-            file.parent.mkdir(parents=True, exist_ok=True)
-            gps = {'gp_prior': gp_prior.param_array}
-            np.save(save, gps)
 
         def prior_mean(x):
             mu, s2 = gp_prior.predict(np.atleast_2d(x))
@@ -160,17 +135,13 @@ class MeasureEstimation:
         self.prior_mean.f = prior_mean
         self.prior_mean.update_gradients = lambda a, b: None
 
-        # If there is no specific kernel supplied, use the prior
-        if kernel is None:
+        self.kernel = self.prior_kernel.copy()
 
-            self.kernel = self.prior_kernel.copy()
+        # self.kernel.kern1.variance = self.kernel.kern1.variance
+        # self.kernel.kern2.variance = self.kernel.kern2.variance
 
-            # self.kernel.kern1.variance = self.kernel.kern1.variance
-            # self.kernel.kern2.variance = self.kernel.kern2.variance
 
     def set_data(self, X=None, Y=None):
-
-        Y = Y
 
         if (X is None) or (Y is None):
             self.set_data_empty()
@@ -181,11 +152,10 @@ class MeasureEstimation:
                                           noise_var=0.001,  # self.prior.likelihood.variance,
                                           mean_function=self.prior_mean)
 
-
     # Utility function to empty out data set
     def set_data_empty(self):
         # GPy fails with empty dataset. So put in a data point far removed from everything
-        self.set_data(X=np.array([[-100, -100]]), Y=np.array([[0]]))
+        self.set_data(X=np.array([[-1000, -1000]]), Y=np.array([[0]]))
 
     def project_Q2S(self, Q):
         a_axes = tuple(range(Q.ndim - self.action_dim, Q.ndim))
@@ -230,12 +200,9 @@ if __name__ == "__main__":
     ################################################################################
     # Compute measure from grid for warm-start
     ################################################################################
-    # TODO: Get rid of all of this. Instead, do this manually in the script
-    # TODO outside, and pass in the warm-starting results.
+
     Q_V, S_V = vibly.compute_QV(Q_map, grids)
 
-    Q_feas = vibly.get_feasibility_mask(feasible, mapSA2xp_height_angle,
-                grids=grids, x0=x0, p0=p)
     S_M = vibly.project_Q2S(Q_V, grids, np.mean)
     # S_M = vibly.project_Q2S(Q_V, grids, np.mean)
 
@@ -252,20 +219,44 @@ if __name__ == "__main__":
 
     AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
     estimation = MeasureEstimation(state_dim=1, action_dim=1, seed=1)
-    estimation.prepare_data(AS_grid=AS_grid, Q_M=Q_M, Q_V=Q_V)
-    estimation.create_prior(load=False, save='./model/prior.npy')  # './model/prior.npy'
-    estimation.set_data(X=np.array([[-100, -100]]), Y=np.array([[1]]))
+
+    # Uncomment if you want to learn the hyperparameters of the GP. This might take a while
+    # estimation.learn_hyperparameter(AS_grid, Q_M, save='./model/prior.npy')
+
+    X_seed = np.atleast_2d(np.array([38 / (180) * np.pi, .45]))
+
+    initial_measure = .2
+    y_seed = np.array([[initial_measure]])
+
+    estimation.init_estimator(X_seed, y_seed, load='./model/prior.npy')
+
+
+    X_grid_1, X_grid_2 = np.meshgrid(grids['actions'], grids['states'])
+    X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
+
+    estimation.set_grid_shape(X_grid, Q_M.shape)
+
 
     #estimation.set_data(X=estimation.prior_data['AS'], Y=estimation.prior_data['Q'])
 
+    # Start from an empty data set
+    estimation.set_data_empty()
 
-    X_train_1, X_train_2 = np.meshgrid(grids['actions'], grids['states'])
-    X = np.column_stack((X_train_1.flatten(), X_train_2.flatten()))
+    X_1, X_2 = np.meshgrid(grids['actions'], grids['states'])
+    X = np.column_stack((X_1.flatten(), X_1.flatten()))
 
-
-    plt.plot(S_M)
+    Q_V_est = estimation.safe_level_set(safety_threshold=0, confidence_threshold=0.6)
+    S_M_est = estimation.project_Q2S(Q_V_est)
+    plt.plot(S_M_est)
     plt.show()
 
+    Q_M_mean, Q_M_S2 = estimation.Q_M()
+    plt.imshow(Q_M_mean, origin='lower')
+    plt.show()
 
-    print(estimation.failure_value)
+    # estimation.set_data(X=X_seed, Y=y_seed)
+    # Q_V_est = estimation.safe_level_set(safety_threshold=0, confidence_threshold=0.6)
+    # S_M_est = estimation.project_Q2S(Q_V_est)
+    # plt.plot(S_M_est)
+    # plt.show()
 

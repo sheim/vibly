@@ -23,64 +23,72 @@ grids = data['grids']
 # ** Compute measure from grid for warm-start
 Q_V_proxy, S_V_proxy = vibly.compute_QV(Q_map_proxy, grids)
 
-Q_feas = vibly.get_feasibility_mask(proxy_model.feasible, proxy_model.mapSA2xp_height_angle,
-            grids=grids, x0=x0, p0=p_proxy)
 S_M_proxy = vibly.project_Q2S(Q_V_proxy, grids, np.mean)
 Q_M_proxy = vibly.map_S2Q(Q_map_proxy, S_M_proxy, Q_V_proxy)
 
 seed_n = np.random.randint(1, 100)
-# seed_n = 23
+
 print("Seed: " + str(seed_n))
 np.random.seed(seed_n)
 estimator = estimation.MeasureEstimation(state_dim=1, action_dim=1, seed=seed_n)
 
-AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
-estimator.prepare_data(AS_grid=AS_grid, Q_M=Q_M_proxy, Q_V=Q_V_proxy)
+learn_hyperparameters = False
+if learn_hyperparameters:
+    AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
+    estimator.learn_hyperparameter(AS_grid=AS_grid, Q_M=Q_M_proxy, save='./model/prior.npy')
 
+
+# This comes from knowledge of the system
 initial_measure = .2
-estimator.prior_data['AS'] = np.atleast_2d(np.array([38/(180)*np.pi, .45]))
-estimator.prior_data['Q'] = np.array([[initial_measure]])
 
-estimator.create_prior(load='./model/prior.npy', save=False)
+X_seed = np.atleast_2d(np.array([38 / (180) * np.pi, .45]))
+y_seed = np.array([[initial_measure]])
 
-idx_safest = np.unravel_index(np.argmax(Q_M_proxy), Q_M_proxy.shape)
+estimator.init_estimator(X_seed, y_seed, load='./model/prior.npy')
 
-# ** Marching Thresholds
+X_grid_1, X_grid_2 = np.meshgrid(grids['actions'], grids['states'])
+X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
 
+estimator.set_grid_shape(X_grid, Q_map_proxy.shape)
+
+estimator.set_data_empty()
+
+
+################################################################################
+# Marching Thresholds
+################################################################################
 
 def interpo(a, b, n):
     # assert n > 0 and n <=1
     return a + n*(b-a)
 
 
-measure_confidence = 0.8
-exploration_confidence = .95
-exploration_confidence_s = 0.9
-exploration_confidence_e = 0.9
+exploration_confidence_s = 0.95
+exploration_confidence_e = 0.95
 measure_confidence_s = 0.7
-measure_confidence_e = 0.9
+measure_confidence_e = 0.7
 
 safety_threshold_s = 0.0
 safety_threshold_e = 0.0
 
-# ** Stuff for comparing at the end
+################################################################################
+# Safe prior for later comparisons
+################################################################################
 
-X_grid_1, X_grid_2 = np.meshgrid(grids['actions'], grids['states'])
-X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
 
-estimator.set_data_empty()
-estimator.set_grid_shape(X_grid, Q_map_proxy.shape)
-
-Q_V_prior = estimator.safe_level_set(safety_threshold = 0, confidence_threshold = measure_confidence)
+Q_V_prior = estimator.safe_level_set(safety_threshold = 0, confidence_threshold = measure_confidence_s)
 Q_M_prior, Q_M_s2_prior = estimator.Q_M()
 S_M_prior = estimator.project_Q2S(Q_V_prior)
+
+################################################################################
+# load ground truth model
+################################################################################
 
 # ** load ground truth
 import slippy.slip as true_model
 # import slippy.nslip as true_model
 
 infile = open('../data/slip_map.pickle', 'rb')
-# infile = open('../data/nslip_map.pickle', 'rb')
 data = pickle.load(infile)
 infile.close()
 
@@ -106,7 +114,7 @@ s_grid_shape = list(map(np.size, grids['states']))
 s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
 a_grid_shape = list(map(np.size, grids['actions']))
 a_bin_shape = tuple(dim+1 for dim in a_grid_shape)
-# ** from GP approximation, choose parts of Q to sample
+
 verbose = 2
 np.set_printoptions(precision=4)
 
@@ -153,8 +161,7 @@ def learn(estimator, s0, p_true, n_samples=100, X=None, y=None):
             a_idx = np.argmax(Q_prop_slice
                               + np.random.randn(A_slice.shape[0])*0.01)
         else:  # not empty, pick one of these
-            # if verbose > 1:
-            #     print('explore!')
+
             A_slice[~thresh_idx] = np.nan
             A_slice_s2[~thresh_idx] = np.nan
 
@@ -242,9 +249,9 @@ for ndx in range(steps):  # in case you want to do small increments
                          samples=(estimator.gp.X, estimator.gp.Y),
                          failed_samples=estimator.failed_samples,
                          S_labels=("safe estimate", "ground truth"))
-    plt.savefig('./sample'+str(ndx))
-    plt.close('all')
-    # plt.show()
+    # plt.savefig('./sample'+str(ndx))
+    # plt.close('all')
+    plt.show()
 
     X = estimator.gp.X
     Y = estimator.gp.Y
@@ -253,46 +260,6 @@ for ndx in range(steps):  # in case you want to do small increments
           + str(np.sum(np.abs(S_M_0-S_M_true)))
           + " Failure rate: " + str(np.mean(Y < 0)))
 
-# **NOW MOVE BACK DOWN!
-
-# exploration_confidence_s = active_threshold_e
-# active_threshold_e = active_threshold_e*0.5
-# measure_threshold_s = active_threshold_e
-# measure_threshold_e = active_threshold_e*0.5
-#
-# steps_2 = 50
-#
-# # X = None
-# # Y = None
-#
-# for ndx in range(steps_2): # in case you want to do small increments
-#
-#     active_threshold = interpo(active_threshold_s, active_threshold_e, ndx/steps_2)
-#     measure_threshold =  interpo(measure_threshold_s, measure_threshold_e, ndx/steps_2)
-#
-#     estimator, s0 = learn(estimator, s0, p_true, n_samples=1, X=X, y=Y)
-#
-#
-#     sets = estimator.estimate_sets(X_grid=X_grid, Q_feas=Q_feas,
-#                                    measure_threshold=measure_threshold,
-#                                    active_threshold=active_threshold)
-#
-#     fig = cplot.plot_Q_S(sets.Q_M_est, (sets.S_M_safe, sets.S_V_est, S_M_true), grids,
-#                          samples = (estimator.gp.X, estimator.gp.Y),
-#                          failed_samples = estimator.failed_samples,
-#                          S_labels=("safe estimate", "viable estimate", "ground truth"))
-#     plt.savefig('./sample'+str(ndx+steps))
-#     plt.close('all')
-#     # plt.show()
-#
-#     X = estimator.gp.X
-#     Y = estimator.gp.Y
-#
-#     print(str(ndx) + " ACCUMULATED ERROR: " + str(np.sum(np.abs(sets.S_M_safe-S_M_true))) + " Failure rate: " + str(np.mean(Y < 0)))
-#
-#     print(str(np.sum(np.abs(sets.Q_M_est - Q_M_true))))
-
-### ** TEST. Take the safe level-set, then randomly sample from inside it.
 
 
 Q_V = estimator.safe_level_set(safety_threshold=0.05, confidence_threshold=exploration_confidence)
