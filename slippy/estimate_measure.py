@@ -61,7 +61,7 @@ class MeasureEstimation:
 
 
 
-    def learn_hyperparameter(self, AS_grid, Q_M, save='./model/prior.npy'):
+    def learn_hyperparameter(self, AS_grid, Q_M, Q_V, save='./model/prior.npy'):
 
         # Expects the AS_grid data to be in a n-d grid (e.g. a (3,5,5,5) ndarray) where n**d is the number of samples
         # To create such a grid from the grid points:
@@ -221,7 +221,7 @@ if __name__ == "__main__":
     estimation = MeasureEstimation(state_dim=1, action_dim=1, seed=1)
 
     # Uncomment if you want to learn the hyperparameters of the GP. This might take a while
-    # estimation.learn_hyperparameter(AS_grid, Q_M, save='./model/prior.npy')
+    # estimation.learn_hyperparameter(AS_grid, Q_M, Q_V, save='./model/prior.npy')
 
     X_seed = np.atleast_2d(np.array([38 / (180) * np.pi, .45]))
 
@@ -235,9 +235,6 @@ if __name__ == "__main__":
     X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
 
     estimation.set_grid_shape(X_grid, Q_M.shape)
-
-
-    #estimation.set_data(X=estimation.prior_data['AS'], Y=estimation.prior_data['Q'])
 
     # Start from an empty data set
     estimation.set_data_empty()

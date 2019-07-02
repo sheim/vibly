@@ -38,13 +38,7 @@ if learn_hyperparameters:
     estimator.learn_hyperparameter(AS_grid=AS_grid, Q_M=Q_M_proxy, save='./model/prior.npy')
 
 
-# This comes from knowledge of the system
-initial_measure = .2
 
-X_seed = np.atleast_2d(np.array([38 / (180) * np.pi, .45]))
-y_seed = np.array([[initial_measure]])
-
-estimator.init_estimator(X_seed, y_seed, load='./model/prior.npy')
 
 X_grid_1, X_grid_2 = np.meshgrid(grids['actions'], grids['states'])
 X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
@@ -52,6 +46,31 @@ X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
 estimator.set_grid_shape(X_grid, Q_map_proxy.shape)
 
 estimator.set_data_empty()
+
+## Start from bad prior
+
+# This comes from knowledge of the system
+initial_measure = .2
+X_seed = np.atleast_2d(np.array([38 / (180) * np.pi, .45]))
+y_seed = np.array([[initial_measure]])
+
+estimator.init_estimator(X_seed, y_seed, load='./model/prior.npy')
+
+
+## Start from good prior
+# idx_safe = np.argwhere(Q_V_proxy.ravel()).ravel()
+# idx_unsafe = np.argwhere(~Q_V_proxy.ravel()).ravel()
+#
+# idx_sample_safe = np.random.choice(idx_safe, size=np.min([200, len(idx_safe)]), replace=False)
+# idx_sample_unsafe = np.random.choice(idx_unsafe, size=np.min([100, len(idx_unsafe)]), replace=False)
+#
+# idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
+#
+# X_prior = X_grid[idx, :]
+# y_prior = Q_M_proxy.ravel()
+# y_prior = y_prior[idx].reshape(-1, 1)
+#
+# estimator.init_estimator(X_prior, y_prior, load='./model/prior.npy')
 
 
 ################################################################################
