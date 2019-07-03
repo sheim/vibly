@@ -58,7 +58,7 @@ class MeasureLearner:
 
         self.verbose = 2
 
-    def init_estimation(self, seed_data, prior_model_path = './model/prior.npy'):
+    def init_estimation(self, seed_data, prior_model_path = './model/prior.npy', learn_hyperparameters=False):
 
         grids = self.grids
         state_dim = len(grids['states'])
@@ -68,7 +68,6 @@ class MeasureLearner:
 
         AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
 
-        learn_hyperparameters = True
         if learn_hyperparameters:
 
             Q_M_proxy = self.model_data['Q_M']
