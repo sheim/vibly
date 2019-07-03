@@ -43,7 +43,7 @@ Q_map, Q_F, Q_on_grid = vibly.compute_Q_map(grids, p_map, verbose=2,
 
 Q_V, S_V = vibly.compute_QV(Q_map, grids, ~Q_F, Q_on_grid=Q_on_grid)
 S_M = vibly.project_Q2S(Q_V, grids, np.mean)
-Q_M = vibly.map_S2Q(Q_map, S_M, Q_V)
+Q_M = vibly.map_S2Q(Q_map, S_M, Q_V, Q_on_grid)
 
 print("size of viability kernel: " + str(np.mean(S_M)))
 print("size of Q_M: " + str(np.mean(Q_M)))
