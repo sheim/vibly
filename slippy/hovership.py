@@ -22,12 +22,13 @@ def p_map(x, p):
         return x, True
 
     # unpack
-    THRUST = p['thrust']
+    THRUST = np.min([p['max_thrust'], p['thrust']])
+    BASE_GRAVITY = p['base_gravity']
     GRAVITY = p['gravity']
     MAX_TIME = 1.0/p['control_frequency']
 
     def continuous_dynamics(t, x):
-        x[0] += np.max([.25, x[0]])*GRAVITY - THRUST
+        x[0] += BASE_GRAVITY + np.max([0, np.tanh(0.75*x[0])])*GRAVITY - THRUST
         x[0] = np.max([0, x[0]])  # saturate at ceiling (x=0)
         return x
 

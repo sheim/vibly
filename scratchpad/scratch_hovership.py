@@ -5,9 +5,11 @@ from slippy.hovership import p_map
 import slippy.viability as vibly
 
 p = {'n_states': 1,
-     'gravity': .8,
+     'base_gravity': 0.1,
+     'gravity': .9,
      'thrust': 0,
-     'ground_height': 1,
+     'max_thrust': 0.95,
+     'ground_height': 2,
      'control_frequency': 420  # hertz
      }
 x0 = np.array([0.5, 0])
@@ -35,7 +37,7 @@ Q_M = vibly.map_S2Q(Q_map, S_M, Q_V)
 # save data as pickle
 ################################################################################
 import pickle
-filename = 'hover_map' + '.pickle'
+filename = '../data/hover_map' + '.pickle'
 data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
              "Q_M": Q_M, "S_M": S_M, "p": p, "x0": x0, "P_map": p_map}
 outfile = open(filename, 'wb')
