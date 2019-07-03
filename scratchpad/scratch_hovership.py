@@ -9,7 +9,7 @@ p = {'n_states': 1,
      'gravity': .9,
      'thrust': 0,
      'max_thrust': 0.95,
-     'ground_height': 2,
+     'ceiling': 2,
      'control_frequency': 420  # hertz
      }
 x0 = np.array([0.5, 0])
@@ -23,7 +23,7 @@ p_map.x = x0  # do we still need these? I don't think so...
 p_map.sa2xp = sys.sa2xp
 p_map.xp2s = sys.xp2s
 
-s_grid = (np.linspace(-0.0, 1.1*p['ground_height'], 101),)
+s_grid = (np.linspace(-0.0, p['ceiling'], 101),)
 
 a_grid = (np.linspace(0.0, 0.5, 51),)
 
@@ -50,7 +50,7 @@ outfile.close()
 
 # S_M = vibly.project_Q2S(Q_V, grids, proj_opt=np.mean)
 
-plt.imshow(Q_M)
+plt.imshow(Q_M, origin='lower')
 plt.show()
 # plt.imshow(Q_V)
 # plt.show()

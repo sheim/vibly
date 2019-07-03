@@ -1,8 +1,5 @@
 import numpy as np
-import matplotlib.pyplot as plt
 import pickle
-
-import plotting.corl_plotters as cplot
 
 import slippy.viability as vibly
 
@@ -178,52 +175,39 @@ class MeasureLearner:
 
         return s_next, s_next_idx
 
-    def run(self, n_samples, s0):
+    def run(self, n_samples, s0, callback = None):
 
-        ### TODO: where to put this?
-
-        Q_map_true = self.model_data['Q_map']
-        grids = self.grids
-
-        Q_M_true = self.model_data['Q_M']
-        Q_V_true = self.model_data['Q_V']
-        S_M_true = self.model_data['S_M']
+        # Callback for e.g. plotting
+        if callable(callback):
+            thresholds = {
+                'exploration_confidence': self.exploration_confidence_s,
+                'measure_confidence': self.measure_confidence_s,
+                'safety_threshold': self.safety_threshold_s
+            }
+            callback(self, 0, thresholds)
 
         for ndx in range(n_samples):
 
             exploration_confidence = self.interpolation(self.exploration_confidence_s, self.exploration_confidence_e, ndx / n_samples)
 
-            measure_confidence = self.interpolation(self.measure_confidence_s,self.measure_confidence_e, ndx / n_samples)
+            measure_confidence = self.interpolation(self.measure_confidence_s, self.measure_confidence_e, ndx / n_samples)
 
             safety_threshold = self.interpolation(self.safety_threshold_s, self.safety_threshold_e, ndx / n_samples)
 
             s0, s0_idx = self.sample(s0,
-                                        measure_confidence=measure_confidence,
-                                        exploration_confidence=exploration_confidence,
-                                        ndx=ndx)
+                                     measure_confidence=measure_confidence,
+                                     exploration_confidence=exploration_confidence,
+                                     ndx=ndx)
 
-            # Plot every n-th iteration
-            if ndx % 100 == 0 or ndx-1 == n_samples:
+            # Callback for e.g. plotting
+            if callable(callback):
+                thresholds = {
+                    'exploration_confidence': exploration_confidence,
+                    'measure_confidence': measure_confidence,
+                    'safety_threshold': safety_threshold
+                }
+                callback(self, ndx, thresholds)
 
-                Q_V = self.current_estimation.safe_level_set(safety_threshold=safety_threshold,
-                                               confidence_threshold=measure_confidence)
-                S_M_0 = self.current_estimation.project_Q2S(Q_V)
-
-                Q_V_exp = self.current_estimation.safe_level_set(safety_threshold=0,
-                                                   confidence_threshold=
-                                                   exploration_confidence)
-
-                fig = cplot.plot_Q_S(Q_V + Q_V_exp + Q_V_true * 3, (S_M_0, S_M_true), grids,
-                                     samples=(self.X,self.y),
-                                     failed_samples=self.failed_samples,
-                                     S_labels=("safe estimate", "ground truth"))
-                # plt.savefig('./sample'+str(ndx))
-                # plt.close('all')
-                plt.show()
-
-                print(str(ndx) + " ACCUMULATED ERROR: "
-                      + str(np.sum(np.abs(S_M_0 - S_M_true)))
-                      + " Failure rate: " + str(np.mean(self.y < 0)))
 
 
 

@@ -26,10 +26,11 @@ def p_map(x, p):
     BASE_GRAVITY = p['base_gravity']
     GRAVITY = p['gravity']
     MAX_TIME = 1.0/p['control_frequency']
+    CEILING = p['ceiling']
 
     def continuous_dynamics(t, x):
-        x[0] += BASE_GRAVITY + np.max([0, np.tanh(0.75*x[0])])*GRAVITY - THRUST
-        x[0] = np.max([0, x[0]])  # saturate at ceiling (x=0)
+        x[0] -= BASE_GRAVITY + np.max([0, np.tanh(0.75*(CEILING - x[0]))])*GRAVITY - THRUST
+        x[0] = np.min([CEILING, x[0]])  # saturate at ceiling (x=0)
         return x
 
     sol = integrate.solve_ivp(continuous_dynamics, t_span=[0, MAX_TIME], y0=x)
@@ -41,7 +42,7 @@ def check_failure(x, p):
     '''
     Check if a state is in the failure set.
     '''
-    if x[0] > p['ground_height']:
+    if x[0] < 0:
         return True
     else:
         return False
