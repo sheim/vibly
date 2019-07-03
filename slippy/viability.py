@@ -332,11 +332,18 @@ def is_outside(s, s_grid, S_V, already_binned=True, on_grid=False):
         return False
 
 
-def map_S2Q(Q_map, S_M, Q_V=None):
+def map_S2Q(Q_map, S_M, Q_V=None, Q_on_grid=None):
     '''
     map the measure of robustness of S to the state action space Q, via
     inverse dynamics (using the lookup table).
     '''
+
+    # TODO move binning into a helper-function. Currently used in
+    # is_outside also, and elsewhere.
+
+    if Q_on_grid is None:
+        Q_on_grid = np.zeros_like(Q_map, dtype=bool)
+
     if Q_V is None:
         Q_V = Q_map.astype(bool)
 
@@ -344,7 +351,11 @@ def map_S2Q(Q_map, S_M, Q_V=None):
     # iterate over viable state-action pairs in Q_V
     for qdx, is_viable in np.ndenumerate(Q_V):
         if is_viable:  # only check states-action pairs that are viable
-            sdx = np.unravel_index(Q_map[qdx], S_M.shape)
+            if Q_on_grid[qdx]:
+                sdx = np.unravel_index(Q_map[qdx], S_M.shape)
+            else:
+                sdx = np.unravel_index(Q_map[qdx],
+                                       list(x+1 for x in S_M.shape))
             Q_M[qdx] = S_M[sdx]
 
     return Q_M
