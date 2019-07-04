@@ -1,4 +1,7 @@
 import numpy as np
+import matplotlib
+matplotlib.rcParams['figure.figsize'] = 14, 7
+
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, BoundaryNorm
 
@@ -24,7 +27,7 @@ def create_set_colormap():
     return ListedColormap(colors)
 
 
-def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S, grids, samples = None, failed_samples = None, S_labels = [],
+def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids, samples = None, failed_samples = None, S_labels = [],
              action_space_label='', state_space_label=''):
     # TODO change S_true, simply have S as a tuple of Ss, and add names
     extent = [grids['actions'][0][0],
@@ -32,11 +35,8 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S, grids, samples = None, failed_s
               grids['states'][0][0],
               grids['states'][0][-1]]
 
-    if type(S) is not tuple:
-        S = (S,)
-
     fig = plt.figure(constrained_layout=True, figsize=(10, 5))
-    gs = fig.add_gridspec(1, 2)
+    gs = fig.add_gridspec(1, 2,  width_ratios=[3, 1])
 
     ax_Q = fig.add_subplot(gs[0, 0])
     ax_S = fig.add_subplot(gs[0, 1], sharey=ax_Q)
@@ -53,13 +53,14 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S, grids, samples = None, failed_s
         # ax_S.legend(['safe estimate', 'ground truth'])
     # print(s_max)
     # ax_S.set_xlim((0, s_max + 0.1))
-    for s in S:
-        ax_S.plot(s, grids['states'][0])
+
+    ax_S.plot(S_M_0, grids['states'][0], color=(210/256, 245/256, 60/256, 1.))
+    ax_S.plot(S_M_true, grids['states'][0], color=(174/256, 212/256, 117/256, 1.))
 
     if S_labels:
         ax_S.legend(S_labels)
 
-    ax_S.set_xlim(ax_Q.get_xlim())
+    ax_S.set_xlim((0, max(S_M_true)*1.2))
     ax_S.set_xlabel('safe actions available')
     # ax_S.set_ylabel('state space: height at apex')
     aspect_ratio_Q = 'auto'# 1.5

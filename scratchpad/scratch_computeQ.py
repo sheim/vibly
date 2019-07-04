@@ -29,8 +29,8 @@ Q_M = vibly.map_S2Q(Q_map, S_M, Q_V=Q_V)
 import pickle
 
 filename = 'slip_map' + '.pickle'
-data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
-            "p": p, "x0": x0, "P_map": poincare_map}
+data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V, "Q_M": Q_M,
+             "S_M": S_M, "p": p, "x0": x0, "P_map": poincare_map}
 outfile = open(filename, 'wb')
 pickle.dump(data2save, outfile)
 outfile.close()
