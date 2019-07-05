@@ -1,6 +1,8 @@
 import slippy.slip as true_model
 import numpy as np
 import pickle
+import datetime
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import plotting.corl_plotters as cplot
@@ -45,8 +47,16 @@ seed_data = {'X': X_seed, 'y': y_seed}
 sampler = sampling.MeasureLearner(model=true_model, model_data=data)
 sampler.init_estimation(seed_data=seed_data, prior_model_path='./model/prior.npy', learn_hyperparameters=False)
 
+sampler.exploration_confidence_s = 0.98
+sampler.exploration_confidence_e = 0.9
+sampler.measure_confidence_s = 0.7
+sampler.measure_confidence_e = 0.9
 
-n_samples = 250
+sampler.seed = 66
+
+n_samples = 500
+
+random_string = str(np.random.randint(1, 10000))
 
 def plot_callback(sampler, ndx, thresholds):
     # Plot every n-th iteration
@@ -67,6 +77,33 @@ def plot_callback(sampler, ndx, thresholds):
         Q_V_exp = sampler.current_estimation.safe_level_set(safety_threshold=0,
                                                          confidence_threshold=thresholds['exploration_confidence'])
 
+        today = [datetime.date.today()]
+        time = datetime.datetime.now()
+        time_string = time.strftime('%H:%M:%S')
+        folder_name = 'slip_experiment' + '_' + str(today[0]) + '_random' + random_string
+        filename = 'slip_experiment' + '_' + str(today[0]) + '_' + time_string + '_' + 'ndx' + str(ndx) + '_data'
+
+
+        data2save = {
+            'Q_V_true': Q_V_true,
+            'Q_V_exp': Q_V_exp,
+            'Q_V': Q_V,
+            'S_M_0': S_M_0,
+            'S_M_true': S_M_true,
+            'grids': grids,
+            'sampler.failed_samples': sampler.failed_samples,
+            'ndx': ndx,
+            'threshold': thresholds
+        }
+
+        path = './data/experiments/' + folder_name + '/'
+        file = Path(path)
+        file.mkdir(parents=True, exist_ok=True)
+
+        outfile = open(path + filename, 'wb')
+        pickle.dump(data2save, outfile)
+        outfile.close()
+
         fig = cplot.plot_Q_S(Q_V_true, Q_V_exp, Q_V, S_M_0, S_M_true, grids,
                              samples=(sampler.X, sampler.y),
                              failed_samples=sampler.failed_samples,
@@ -74,9 +111,11 @@ def plot_callback(sampler, ndx, thresholds):
                              action_space_label='angle of attack [rad]',
                              state_space_label='normalized height at apex')
 
-        # plt.savefig('./sample'+str(ndx))
-        # plt.close('all')
+        plt.savefig(path + filename + '_fig', format='pdf')
+        plt.tight_layout()
         plt.show()
+        plt.close('all')
+        # plt.show()
 
         if sampler.y is not None:
             print(str(ndx) + " ACCUMULATED ERROR: "
