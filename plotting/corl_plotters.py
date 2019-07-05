@@ -5,16 +5,13 @@ matplotlib.rcParams['figure.figsize'] = 14, 7
 import matplotlib.pyplot as plt
 from matplotlib.colors import ListedColormap, BoundaryNorm
 
-
-def frame_image(img, frame_width):
-    b = frame_width # border size in pixel
-    ny, nx = img.shape[0], img.shape[1] # resolution / number of pixels in x and y
-    if img.ndim == 3: # rgb or rgba array
-        framed_img = np.zeros((b+ny+b, b+nx+b, img.shape[2]))
-    elif img.ndim == 2: # grayscale image
-        framed_img = np.zeros((b+ny+b, b+nx+b))
-    framed_img[b:-b, b:-b] = img
-    return framed_img
+yellow = [255, 225, 25]
+blue = [0, 130, 200]  # Viable
+lavender = [230, 190, 255]  # optimistic
+maroon = [128, 0, 0]  # cautious
+navy = [0, 0, 128]
+grey = [170, 255, 195]  # unviable, not yet failed
+red = [230, 25, 75]  # failed
 
 def create_set_colormap():
 
@@ -26,6 +23,15 @@ def create_set_colormap():
     ])
     return ListedColormap(colors)
 
+def frame_image(img, frame_width):
+    b = frame_width # border size in pixel
+    ny, nx = img.shape[0], img.shape[1] # resolution / number of pixels in x and y
+    if img.ndim == 3: # rgb or rgba array
+        framed_img = np.zeros((b+ny+b, b+nx+b, img.shape[2]))
+    elif img.ndim == 2: # grayscale image
+        framed_img = np.zeros((b+ny+b, b+nx+b))
+    framed_img[b:-b, b:-b] = img
+    return framed_img
 
 def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids, samples = None, failed_samples = None, S_labels = [],
              action_space_label='', state_space_label=''):
@@ -103,7 +109,7 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids, samples = 
 
 
     # this needs to happen after the scatter plot
-    ax_Q.imshow(img, origin='lower',extent=extent, aspect=aspect_ratio_Q,
+    ax_Q.imshow(img, origin='lower', extent=extent, aspect=aspect_ratio_Q,
             interpolation='none', cmap=cmap, norm=norm)
     ax_Q.set_xlabel('action space: ' + action_space_label)
     ax_Q.set_ylabel('state space: ' + state_space_label)
