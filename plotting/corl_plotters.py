@@ -35,7 +35,7 @@ explore_color = dark_blue
 truth_color = green
 
 failure_color = light_orange
-unviable_color = light_blue
+unviable_color = light_purple
 
 def create_set_colormap():
 
