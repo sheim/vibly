@@ -50,6 +50,8 @@ def plot_callback(sampler, ndx, thresholds):
         Q_M_true = sampler.model_data['Q_M']
         Q_V_true = sampler.model_data['Q_V']
         S_M_true = sampler.model_data['S_M']
+        Q_F = sampler.model_data['Q_F']
+
 
 
         Q_V = sampler.current_estimation.safe_level_set(safety_threshold=thresholds['safety_threshold'],
@@ -90,9 +92,7 @@ def plot_callback(sampler, ndx, thresholds):
         fig = cplot.plot_Q_S(Q_V_true, Q_V_exp, Q_V, S_M_0, S_M_true, grids,
                              samples=(sampler.X, sampler.y),
                              failed_samples=sampler.failed_samples,
-                             S_labels=("safe estimate", "ground truth"),
-                             action_space_label='upward thrust',
-                             state_space_label='height above ground')
+                             S_labels=("safe estimate", "ground truth"), Q_F=Q_F)
 
         plt.savefig(path + filename + '_fig', format='pdf')
         plt.tight_layout()

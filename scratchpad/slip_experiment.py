@@ -47,20 +47,20 @@ seed_data = {'X': X_seed, 'y': y_seed}
 sampler = sampling.MeasureLearner(model=true_model, model_data=data)
 sampler.init_estimation(seed_data=seed_data, prior_model_path='./model/prior.npy', learn_hyperparameters=False)
 
-sampler.exploration_confidence_s = 0.98
-sampler.exploration_confidence_e = 0.9
-sampler.measure_confidence_s = 0.7
-sampler.measure_confidence_e = 0.9
+sampler.exploration_confidence_s = 0.95
+sampler.exploration_confidence_e = 0.98
+sampler.measure_confidence_s = 0.8
+sampler.measure_confidence_e = 0.98
 
 sampler.seed = 66
 
-n_samples = 500
+n_samples = 200
 
 random_string = str(np.random.randint(1, 10000))
 
 def plot_callback(sampler, ndx, thresholds):
     # Plot every n-th iteration
-    if ndx % 50 == 0 or ndx + 1 == n_samples:
+    if ndx % 25 == 0 or ndx + 1 == n_samples:
 
         Q_map_true = sampler.model_data['Q_map']
         grids = sampler.grids
@@ -68,6 +68,7 @@ def plot_callback(sampler, ndx, thresholds):
         Q_M_true = sampler.model_data['Q_M']
         Q_V_true = sampler.model_data['Q_V']
         S_M_true = sampler.model_data['S_M']
+        Q_F = sampler.model_data['Q_F']
 
 
         Q_V = sampler.current_estimation.safe_level_set(safety_threshold=thresholds['safety_threshold'],
@@ -108,11 +109,9 @@ def plot_callback(sampler, ndx, thresholds):
                              samples=(sampler.X, sampler.y),
                              failed_samples=sampler.failed_samples,
                              S_labels=("safe estimate", "ground truth"),
-                             action_space_label='angle of attack [rad]',
-                             state_space_label='normalized height at apex')
+                             Q_F = Q_F)
 
-        plt.savefig(path + filename + '_fig', format='pdf')
-        plt.tight_layout()
+        plt.savefig(path + filename + '_fig', format='pdf', bbox_inches="tight", pad_inches=0)
         plt.show()
         plt.close('all')
         # plt.show()
