@@ -45,20 +45,26 @@ y_seed = np.array([[.2]])
 seed_data = {'X': X_seed, 'y': y_seed}
 
 sampler = sampling.MeasureLearner(model=true_model, model_data=data)
-sampler.init_estimation(seed_data=seed_data, prior_model_path='../model/prior.npy', learn_hyperparameters=False)
+# use '../model/slip_prior_proxy.npy' for incorrect prior
+# use '../model/slip_prior_true.npy' for prior regressed over ground truth
+sampler.init_estimation(seed_data=seed_data, prior_model_path='../model/slip_prior_proxy.npy', learn_hyperparameters=False)
 
 sampler.exploration_confidence_s = 0.95
-sampler.exploration_confidence_e = 0.98
-sampler.measure_confidence_s = 0.75
-sampler.measure_confidence_e = 0.98
+sampler.exploration_confidence_e = 0.999
+sampler.measure_confidence_s = 0.80
+sampler.measure_confidence_e = 0.999
+sampler.safety_threshold_s = 0.0
+sampler.safety_threshold_e = 0.02
 
-sampler.seed = 66
+# randomize, but keep track of it in case you want to reproduce
+sampler.seed = np.random.randint(1, 100)
+print(sampler.seed)
 
-n_samples = 200
+n_samples = 500
 
 random_string = str(np.random.randint(1, 10000))
 
-plot_callback = cplot.create_plot_callback(n_samples, 'slip_nice', random_string=random_string)
+plot_callback = cplot.create_plot_callback(n_samples, 'slip_nice', random_string=random_string, every=20)
 
 s0 = .45
 

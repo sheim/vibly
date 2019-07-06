@@ -38,7 +38,7 @@ sampler.exploration_confidence_e = 0.999
 sampler.measure_confidence_s = 0.80
 sampler.measure_confidence_e = 0.999
 sampler.safety_threshold_s = 0.0
-sampler.safety_threshold_e = 0.15
+sampler.safety_threshold_e = 0.0
 
 n_samples = 250
 
