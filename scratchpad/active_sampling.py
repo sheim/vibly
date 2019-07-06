@@ -131,9 +131,7 @@ class MeasureLearner:
 
             A_slice[~thresh_idx] = np.nan
             A_slice_s2[~thresh_idx] = np.nan
-
-            exploration_heuristic = np.sqrt(A_slice_s2)
-            a_idx = np.nanargmax(exploration_heuristic)
+            a_idx = np.nanargmax(A_slice_s2)
 
         a = self.grids['actions'][0][a_idx]  # + (np.random.rand()-0.5)*np.pi/36
         # apply action, get to the next state
