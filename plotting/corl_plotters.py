@@ -4,6 +4,10 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.colors import ListedColormap, BoundaryNorm
 
+import pickle
+import datetime
+from pathlib import Path
+
 matplotlib.rcParams['figure.figsize'] = 5.5, 7
 
 font = {'size'   : 8}
@@ -30,12 +34,15 @@ green = [178,223,138]
 light_orange = [253,205,172]
 light_purple = [203,213,232]
 
+orange = [253,174,97]
+yellow= [255,255,191]
+
 optimistic_color = light_blue
 explore_color = dark_blue
 truth_color = green
 
-failure_color = light_orange
-unviable_color = light_purple
+failure_color = orange
+unviable_color = yellow
 
 def create_set_colormap():
 
@@ -69,7 +76,7 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
               grids['states'][0][0],
               grids['states'][0][-1]]
 
-    fig = plt.figure(constrained_layout=True, figsize=(5.5/2, 2.4))
+    fig = plt.figure(constrained_layout=True, figsize=(5.5, 2.4))
     gs = fig.add_gridspec(1, 2,  width_ratios=[3, 1])
     gs1 = gridspec.GridSpec(1, 2)
     gs1.update(wspace=0.01, hspace=0.01)
@@ -114,12 +121,12 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
                          facecolors=[[0.9, 0.3, 0.3]])
             failed_samples = np.logical_not(failed_samples)
             ax_Q.scatter(action[failed_samples], state[failed_samples],
-                         edgecolors=[[0.9, 0.3, 0.3]], s=30,
-                         marker='o', facecolors='none')
+                         facecolors=[[0.9, 0.3, 0.3]], s=30,
+                         marker='.', edgecolors='none')
         else:
             ax_Q.scatter(action, state,
-                         edgecolors=[[0.9, 0.3, 0.3]], s=30,
-                         marker='o', facecolors='none')
+                         facecolors=[[0.9, 0.3, 0.3]], s=30,
+                         marker='.', edgecolors='none')
 
     X, Y = np.meshgrid(grids['actions'][0], grids['states'][0])
     ax_Q.contour(X, Y, Q_V_true, [.5], colors='k')
@@ -161,5 +168,74 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
     ax_Q.set_ylim((grids['states'][0][0] - frame_width_y,
                    grids['states'][0][-1] + frame_width_y))
 
-    fig.subplots_adjust(0, 0, 1, 1)
+    #fig.subplots_adjust(0, 0, 1, 1)
     return fig
+
+
+def create_plot_callback(n_samples, experiment_name, random_string):
+
+    def plot_callback(sampler, ndx, thresholds):
+        # Plot every n-th iteration
+        if ndx % 50 == 0 or ndx + 1 == n_samples:
+
+            Q_map_true = sampler.model_data['Q_map']
+            grids = sampler.grids
+
+            Q_M_true = sampler.model_data['Q_M']
+            Q_V_true = sampler.model_data['Q_V']
+            S_M_true = sampler.model_data['S_M']
+            Q_F = sampler.model_data['Q_F']
+
+            Q_V = sampler.current_estimation.safe_level_set(safety_threshold=thresholds['safety_threshold'],
+                                                            confidence_threshold=thresholds['measure_confidence'])
+            S_M_0 = sampler.current_estimation.project_Q2S(Q_V)
+
+            Q_V_exp = sampler.current_estimation.safe_level_set(safety_threshold=0,
+                                                                confidence_threshold=thresholds[
+                                                                    'exploration_confidence'])
+
+            today = [datetime.date.today()]
+            time = datetime.datetime.now()
+            time_string = time.strftime('%H:%M:%S')
+            folder_name = experiment_name + '_' + str(today[0]) + '_random' + random_string
+            filename = experiment_name + '_' + str(today[0]) + '_' + time_string + '_' + 'ndx' + str(
+                ndx) + '_data'
+
+            path = './data/experiments/' + folder_name + '/'
+
+            data2save = {
+                'Q_V_true': Q_V_true,
+                'Q_V_exp': Q_V_exp,
+                'Q_V': Q_V,
+                'S_M_0': S_M_0,
+                'S_M_true': S_M_true,
+                'grids': grids,
+                'sampler.failed_samples': sampler.failed_samples,
+                'ndx': ndx,
+                'threshold': thresholds
+            }
+
+            file = Path(path)
+            file.mkdir(parents=True, exist_ok=True)
+
+            outfile = open(path + filename, 'wb')
+            pickle.dump(data2save, outfile)
+            outfile.close()
+
+            fig = plot_Q_S(Q_V_true, Q_V_exp, Q_V, S_M_0, S_M_true, grids,
+                                 samples=(sampler.X, sampler.y),
+                                 failed_samples=sampler.failed_samples, Q_F=Q_F)
+
+            plt.savefig(path + filename + '_fig', format='pdf')
+            plt.tight_layout()
+            plt.show()
+            plt.close('all')
+            # plt.show()
+
+            if sampler.y is not None:
+                print(str(ndx) + " ACCUMULATED ERROR: "
+                      + str(np.sum(np.abs(S_M_0 - S_M_true)))
+                      + " Failure rate: " + str(np.mean(sampler.y < 0)))
+
+    return plot_callback
+
