@@ -198,11 +198,11 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
     return fig
 
 
-def create_plot_callback(n_samples, experiment_name, random_string):
+def create_plot_callback(n_samples, experiment_name, random_string, every=50, show_flag=True):
 
     def plot_callback(sampler, ndx, thresholds):
         # Plot every n-th iteration
-        if ndx % 50 == 0 or ndx + 1 == n_samples or ndx == -1:
+        if ndx % every == 0 or ndx + 1 == n_samples or ndx == -1:
 
             Q_map_true = sampler.model_data['Q_map']
             grids = sampler.grids
@@ -254,7 +254,8 @@ def create_plot_callback(n_samples, experiment_name, random_string):
 
             plt.savefig(path + filename + '_fig', format='pdf')
             plt.tight_layout()
-            plt.show()
+            if show_flag:
+                plt.show()
             plt.close('all')
             # plt.show()
 
