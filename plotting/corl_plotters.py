@@ -131,6 +131,9 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
 
     # Build image from sets
 
+    ax_Q.contour(X, Y, Q_V_safe, [.5], colors='k')
+    ax_Q.contour(X, Y, Q_V_explore, [.5], colors='k')
+
     ax_Q.contourf(X, Y, Q_V_safe, [.5,2],
                   hatches=['\\\\',None], colors=[tuple((c)/256 for c in optimistic_color), (0,0,0,0)],
                   alpha=0.7)
