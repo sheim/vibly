@@ -45,7 +45,7 @@ y_seed = np.array([[.2]])
 seed_data = {'X': X_seed, 'y': y_seed}
 
 sampler = sampling.MeasureLearner(model=true_model, model_data=data)
-sampler.init_estimation(seed_data=seed_data, prior_model_path='./model/prior.npy', learn_hyperparameters=False)
+sampler.init_estimation(seed_data=seed_data, prior_model_path='../model/prior.npy', learn_hyperparameters=False)
 
 sampler.exploration_confidence_s = 0.95
 sampler.exploration_confidence_e = 0.98

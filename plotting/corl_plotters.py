@@ -69,7 +69,7 @@ def frame_image(img, frame_width):
 
 
 def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
-             samples=None, failed_samples=None, S_labels=[], Q_F=None):
+             samples=None, failed_samples=None, Q_F=None):
     # TODO change S_true, simply have S as a tuple of Ss, and add names
     extent = [grids['actions'][0][0],
               grids['actions'][0][-1],
@@ -97,10 +97,19 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
     # print(s_max)
     # ax_S.set_xlim((0, s_max + 0.1))
 
+
+
+    c = tuple(c/256 for c in truth_color)
+    #ax_S.plot(S_M_true, grids['states'][0],
+    #          color=c)
+    ax_S.fill_betweenx(grids['states'][0], 0, S_M_true, facecolor=c)
+
+    c = tuple(c/256 for c in optimistic_color)
     ax_S.plot(S_M_0, grids['states'][0],
-              color=tuple(c/256 for c in optimistic_color))
-    ax_S.plot(S_M_true, grids['states'][0],
-              color=tuple(c/256 for c in truth_color))
+              color=c)
+
+    ax_S.fill_betweenx(grids['states'][0], 0, S_M_0, facecolor="none", hatch="\\", edgecolor='k')
+
 
     # if S_labels:
     #     ax_S.legend(S_labels, loc=2, ncol=1)
@@ -112,6 +121,42 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
     aspect_ratio_Q = 'auto'  # 1.5
     # aspect_ratio_S = ax_Q.get_xlim() / s_max
     # ax_S.set_aspect(aspect_ratio_S)
+
+
+    X, Y = np.meshgrid(grids['actions'][0], grids['states'][0])
+
+    ax_Q.contour(X, Y, Q_V_true, [.5], colors='k')
+    # ax_Q.contour(X, Y, Q_V_explore, [.5], colors='k')
+    # ax_Q.contour(X, Y, Q_V_safe, [.5], colors='k')
+
+    # Build image from sets
+
+    ax_Q.contourf(X, Y, Q_V_safe, [.5,2],
+                  hatches=['\\',None], colors=[tuple((c)/256 for c in optimistic_color), (0,0,0,0)],
+                  alpha=0.7)
+
+    ax_Q.contourf(X, Y, Q_V_explore, [.5,2],
+                  hatches=['//',None], colors=[tuple((c)/256 for c in explore_color), (0,0,0,0)],
+                  alpha=0.7)
+
+    img = np.zeros(Q_V_true.shape)
+    img[Q_V_true == 1] = 0.5
+    if Q_F is not None:
+        img[Q_F] = 1.5
+    img[Q_V_true == 1] = 2.5
+    #img[Q_V_safe == 1] = 3.5
+    #img[Q_V_explore == 1] = 4.5
+
+    # img = frame_image(img, 10)
+
+    cmap = create_set_colormap()
+    bounds = [0, 1, 2, 3, 4,5]
+    norm = BoundaryNorm(bounds, cmap.N)
+
+    # this needs to happen after the scatter plot
+    ax_Q.imshow(img, origin='lower', extent=extent, aspect=aspect_ratio_Q,
+                interpolation='none', cmap=cmap, norm=norm)
+
     if samples is not None and samples[0] is not None:
         action = samples[0][:, 0]
         state = samples[0][:, 1]
@@ -128,30 +173,6 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
                          facecolors=[[0.9, 0.3, 0.3]], s=30,
                          marker='.', edgecolors='none')
 
-    X, Y = np.meshgrid(grids['actions'][0], grids['states'][0])
-    ax_Q.contour(X, Y, Q_V_true, [.5], colors='k')
-    # ax_Q.contour(X, Y, Q_V_explore, [.5], colors='k')
-    # ax_Q.contour(X, Y, Q_V_safe, [.5], colors='k')
-
-    # Build image from sets
-
-    img = np.zeros(Q_V_true.shape)
-    img[Q_V_true == 1] = 0.5
-    if Q_F is not None:
-        img[Q_F] = 1.5
-    img[Q_V_true == 1] = 2.5
-    img[Q_V_safe == 1] = 3.5
-    img[Q_V_explore == 1] = 4.5
-
-    # img = frame_image(img, 10)
-
-    cmap = create_set_colormap()
-    bounds = [0, 1, 2, 3, 4,5]
-    norm = BoundaryNorm(bounds, cmap.N)
-
-    # this needs to happen after the scatter plot
-    ax_Q.imshow(img, origin='lower', extent=extent, aspect=aspect_ratio_Q,
-                interpolation='none', cmap=cmap, norm=norm)
     ax_Q.set_xlabel('action space $A$')
     ax_Q.set_ylabel('state space $S$')
 
@@ -176,7 +197,7 @@ def create_plot_callback(n_samples, experiment_name, random_string):
 
     def plot_callback(sampler, ndx, thresholds):
         # Plot every n-th iteration
-        if ndx % 50 == 0 or ndx + 1 == n_samples:
+        if ndx % 50 == 0 or ndx + 1 == n_samples or ndx == -1:
 
             Q_map_true = sampler.model_data['Q_map']
             grids = sampler.grids

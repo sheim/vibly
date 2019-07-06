@@ -79,7 +79,7 @@ class MeasureLearner:
         X_seed = seed_data['X']
         y_seed = seed_data['y']
 
-        estimation.init_estimator(X_seed, y_seed, load='./model/prior.npy')
+        estimation.init_estimator(X_seed, y_seed, load=prior_model_path)
         estimation.set_data_empty()
 
         self.current_estimation = estimation
