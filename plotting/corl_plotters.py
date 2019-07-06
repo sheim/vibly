@@ -108,7 +108,7 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
     ax_S.plot(S_M_0, grids['states'][0],
               color=c)
 
-    ax_S.fill_betweenx(grids['states'][0], 0, S_M_0, facecolor="none", hatch="\\", edgecolor='k')
+    ax_S.fill_betweenx(grids['states'][0], 0, S_M_0, facecolor="none", hatch="\\\\", edgecolor='k')
 
 
     # if S_labels:
@@ -132,11 +132,11 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
     # Build image from sets
 
     ax_Q.contourf(X, Y, Q_V_safe, [.5,2],
-                  hatches=['\\',None], colors=[tuple((c)/256 for c in optimistic_color), (0,0,0,0)],
+                  hatches=['\\\\',None], colors=[tuple((c)/256 for c in optimistic_color), (0,0,0,0)],
                   alpha=0.7)
 
     ax_Q.contourf(X, Y, Q_V_explore, [.5,2],
-                  hatches=['//',None], colors=[tuple((c)/256 for c in explore_color), (0,0,0,0)],
+                  hatches=['////',None], colors=[tuple((c)/256 for c in explore_color), (0,0,0,0)],
                   alpha=0.7)
 
     img = np.zeros(Q_V_true.shape)
