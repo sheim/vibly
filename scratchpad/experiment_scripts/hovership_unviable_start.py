@@ -22,7 +22,7 @@ true_model.map2s = true_model.xp2s
 
 # This comes from knowledge of the system
 X_seed = np.atleast_2d(np.array([.4, 1.5]))
-y_seed = np.array([[.5]])
+y_seed = np.array([[.75]])
 
 seed_data = {'X': X_seed, 'y': y_seed}
 
@@ -35,7 +35,7 @@ sampler.seed = 69
 
 sampler.exploration_confidence_s = 0.94
 sampler.exploration_confidence_e = 0.999
-sampler.measure_confidence_s = 0.55
+sampler.measure_confidence_s = 0.80
 sampler.measure_confidence_e = 0.999
 sampler.safety_threshold_s = 0.0
 sampler.safety_threshold_e = 0.15
