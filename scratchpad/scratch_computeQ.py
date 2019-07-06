@@ -14,12 +14,12 @@ poincare_map.x = x0
 poincare_map.sa2xp = mapSA2xp_height_angle
 poincare_map.xp2s = map2s
 
-s_grid = np.linspace(0.1, 1, 150)
+s_grid = np.linspace(0.1, 1, 91)
 s_grid = s_grid[:-1]
-a_grid = np.linspace(-10/180*np.pi, 90/180*np.pi, 101)
+a_grid = np.linspace(-10/180*np.pi, 70/180*np.pi, 81)
 grids = {'states': (s_grid,), 'actions': (a_grid,)}
 Q_map, Q_F, Q_on_grid = vibly.compute_Q_map(grids, poincare_map,
-                                            check_grid=True)
+                                            check_grid=True, verbose=3)
 Q_V, S_V = vibly.compute_QV(Q_map, grids, Q_on_grid=Q_on_grid)
 S_M = vibly.project_Q2S(Q_V, grids, proj_opt=np.mean)
 Q_M = vibly.map_S2Q(Q_map, S_M, Q_V=Q_V)
@@ -28,7 +28,7 @@ Q_M = vibly.map_S2Q(Q_map, S_M, Q_V=Q_V)
 ################################################################################
 import pickle
 
-filename = 'slip_map' + '.pickle'
+filename = '../data/slip_map' + '.pickle'
 data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V, "Q_M": Q_M,
              "S_M": S_M, "p": p, "x0": x0, "P_map": poincare_map}
 outfile = open(filename, 'wb')
