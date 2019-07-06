@@ -12,7 +12,7 @@ import scratchpad.active_sampling as sampling
 ################################################################################
 # Load model data
 ################################################################################
-infile = open('../data/hover_map.pickle', 'rb')
+infile = open('../../data/hover_map.pickle', 'rb')
 data = pickle.load(infile)
 infile.close()
 

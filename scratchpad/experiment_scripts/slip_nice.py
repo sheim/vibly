@@ -17,7 +17,7 @@ true_model.p_map = true_model.poincare_map
 ################################################################################
 # Load model data
 ################################################################################
-infile = open('../data/slip_map.pickle', 'rb')
+infile = open('../../data/slip_map.pickle', 'rb')
 data = pickle.load(infile)
 infile.close()
 
