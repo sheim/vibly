@@ -88,7 +88,7 @@ class MeasureLearner:
         # self.X = X_seed
         # self.Y = y_seed
 
-    def sample(self, s0, measure_confidence, exploration_confidence, ndx):
+    def sample(self, s0, measure_confidence, exploration_confidence, ndx, safety_threshold=0):
 
         estimation = self.current_estimation
 
@@ -109,8 +109,7 @@ class MeasureLearner:
         S_M_0 = estimation.project_Q2S(Q_V)
 
         Q_M, Q_M_s2 = estimation.Q_M()
-
-        Q_V_explore = estimation.safe_level_set(safety_threshold=0,
+        Q_V_explore = estimation.safe_level_set(safety_threshold=safety_threshold,
                                                 confidence_threshold=exploration_confidence)
 
         # slice actions available for those states
@@ -175,7 +174,7 @@ class MeasureLearner:
 
         return s_next, s_next_idx
 
-    def run(self, n_samples, s0, callback = None):
+    def run(self, n_samples, s0, callback=None):
 
         # Callback for e.g. plotting
         if callable(callback):
@@ -184,7 +183,7 @@ class MeasureLearner:
                 'measure_confidence': self.measure_confidence_s,
                 'safety_threshold': self.safety_threshold_s
             }
-            callback(self, 0, thresholds)
+            callback(self, -1, thresholds)
 
         for ndx in range(n_samples):
 
@@ -197,6 +196,7 @@ class MeasureLearner:
             s0, s0_idx = self.sample(s0,
                                      measure_confidence=measure_confidence,
                                      exploration_confidence=exploration_confidence,
+                                     safety_threshold=safety_threshold,
                                      ndx=ndx)
 
             # Callback for e.g. plotting
@@ -226,27 +226,12 @@ if __name__ == "__main__":
     data = pickle.load(infile)
     infile.close()
 
-    ## Start from bad prior
+    # Start from bad prior
 
     # This comes from knowledge of the system
-
+    # TODO clean this up
     X_seed = np.atleast_2d(np.array([38 / (180) * np.pi, .45]))
     y_seed = np.array([[.2]])
-
-    ## TODO: Start from good prior
-
-    # idx_safe = np.argwhere(Q_V_proxy.ravel()).ravel()
-    # idx_unsafe = np.argwhere(~Q_V_proxy.ravel()).ravel()
-    #
-    # idx_sample_safe = np.random.choice(idx_safe, size=np.min([200, len(idx_safe)]), replace=False)
-    # idx_sample_unsafe = np.random.choice(idx_unsafe, size=np.min([100, len(idx_unsafe)]), replace=False)
-    #
-    # idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
-    #
-    # X_prior = X_grid[idx, :]
-    # y_prior = Q_M_proxy.ravel()
-    # y_prior = y_prior[idx].reshape(-1, 1)
-
     seed_data = {'X': X_seed, 'y': y_seed}
 
     sampler = MeasureLearner(model=true_model, model_data=data)
@@ -255,61 +240,3 @@ if __name__ == "__main__":
     s0 = .45
 
     sampler.run(n_samples=100, s0=s0)
-
-
-
-
-
-
-# TODO : remimplement tests
-
-# Q_V = estimator.safe_level_set(safety_threshold=0.05, confidence_threshold=exploration_confidence)
-# Q_M, Q_M_s2 = estimator.Q_M()
-# S_M_0 = estimator.project_Q2S(Q_V)
-# s0 = 0.45
-# failures = 0
-# for ndx in range(100): # in case you want to do small increments
-#
-#     s0_idx = vibly.digitize_s(s0, grids['states'],
-#                             s_grid_shape, to_bin=False)
-#
-#
-#     A_slice = np.copy(Q_V[s0_idx, slice(None)])
-#
-#     thresh_idx = np.array(A_slice, dtype=bool)
-#
-#     if not thresh_idx.any(): # empty, pick the safest
-#         if verbose > 1:
-#             print('WARNING: LEFT SET!')
-#         a_idx = np.argmax(A_slice)
-#     else: # not empty, pick one of these
-#         A_slice[~thresh_idx] = np.nan
-#         # A_slice_s2[~thresh_idx] = np.nan
-#         a_idx = np.random.choice(np.where(thresh_idx)[0])
-#
-#
-#     a = grids['actions'][0][a_idx] #+ (np.random.rand()-0.5)*np.pi/36
-#     # apply action, get to the next state
-#     x0, p_true = true_model.mapSA2xp((s0, a), p_true)
-#     x_next, failed = true_model.poincare_map(x0, p_true)
-#     if failed:
-#         failures += 1
-#         if verbose:
-#             print("FAILED!")
-#             print((s0, a))
-#         # TODO: restart from expected good results
-#         # Currently, just restart from some magic numbers
-#         s_next_idx = np.random.choice(np.where(S_M_0 > 0)[0])
-#         s_next = grids['states'][0][s_next_idx]
-#         s_next_idx = vibly.digitize_s(s_next, grids['states'],
-#                                 s_grid_shape, to_bin = False)
-#     else:
-#         s_next = true_model.map2s(x_next, p_true)
-#         s_next_idx = vibly.digitize_s(s_next, grids['states'],
-#                                         s_grid_shape, to_bin=False)
-#
-#     # take another step
-#     s0 = s_next
-#     s0_idx = s_next_idx
-#
-# print(str(failures))
