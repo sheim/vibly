@@ -207,11 +207,11 @@ def create_plot_callback(n_samples, experiment_name, random_string):
             S_M_true = sampler.model_data['S_M']
             Q_F = sampler.model_data['Q_F']
 
-            Q_V = sampler.current_estimation.safe_level_set(safety_threshold=thresholds['safety_threshold'],
+            Q_V = sampler.current_estimation.safe_level_set(safety_threshold=0,
                                                             confidence_threshold=thresholds['measure_confidence'])
             S_M_0 = sampler.current_estimation.project_Q2S(Q_V)
 
-            Q_V_exp = sampler.current_estimation.safe_level_set(safety_threshold=0,
+            Q_V_exp = sampler.current_estimation.safe_level_set(safety_threshold=thresholds['safety_threshold'],
                                                                 confidence_threshold=thresholds[
                                                                     'exploration_confidence'])
 
