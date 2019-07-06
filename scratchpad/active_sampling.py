@@ -146,8 +146,14 @@ class MeasureLearner:
             S_M_safe = estimation.project_Q2S(Q_V_explore)
 
             # TODO make dimensions work
-            s_next_idx = np.random.choice(np.where(S_M_safe > 0)[0])
-            s_next = self.grids['states'][0][s_next_idx]
+            if S_M_safe.any():
+                s_next_idx = np.random.choice(np.where(S_M_safe > 0)[0])
+                s_next = self.grids['states'][0][s_next_idx]
+            else:
+                # if the measure is 0, you should crash anyway.
+                S_M_safe = estimation.project_Q2S(Q_V)
+                s_next_idx = np.random.choice(np.where(S_M_safe > 0)[0])
+                s_next = self.grids['states'][0][s_next_idx]
 
             measure = self.current_estimation.failure_value
         else:
