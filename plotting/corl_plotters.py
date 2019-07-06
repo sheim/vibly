@@ -1,16 +1,17 @@
 import numpy as np
+import pickle
+import datetime
+from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.colors import ListedColormap, BoundaryNorm
-
-import pickle
-import datetime
-from pathlib import Path
-
+from matplotlib import rc
+rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
+rc('text', usetex=True)
 matplotlib.rcParams['figure.figsize'] = 5.5, 7
 
-font = {'size'   : 8}
+font = {'size': 8}
 
 matplotlib.rc('font', **font)
 
@@ -27,15 +28,15 @@ matplotlib.rc('font', **font)
 # red = [230, 25, 75]
 
 # brewer2
-dark_blue = [31,120,180]
-light_blue = [166,206,227]
-green = [178,223,138]
+dark_blue = [31, 120, 180]
+light_blue = [166, 206, 227]
+green = [178, 223, 138]
 
-light_orange = [253,205,172]
-light_purple = [203,213,232]
+light_orange = [253, 205, 172]
+light_purple = [203, 213, 232]
 
-orange = [253,174,97]
-yellow= [255,255,191]
+orange = [253, 174, 97]
+yellow = [255, 255, 191]
 
 optimistic_color = light_blue
 explore_color = dark_blue
@@ -43,6 +44,7 @@ truth_color = green
 
 failure_color = orange
 unviable_color = yellow
+
 
 def create_set_colormap():
 
@@ -52,7 +54,7 @@ def create_set_colormap():
         truth_color,  # Q_V_true      1 - 2
         optimistic_color,  # Q_V_safe       1 - 3
         explore_color   # Q_V_explore      1 - 4
-    ])/256
+    ])/256.0
     return ListedColormap(colors)
 
 
@@ -147,13 +149,13 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
     if Q_F is not None:
         img[Q_F] = 1.5
     img[Q_V_true == 1] = 2.5
-    #img[Q_V_safe == 1] = 3.5
-    #img[Q_V_explore == 1] = 4.5
+    # img[Q_V_safe == 1] = 3.5
+    # img[Q_V_explore == 1] = 4.5
 
     # img = frame_image(img, 10)
 
     cmap = create_set_colormap()
-    bounds = [0, 1, 2, 3, 4,5]
+    bounds = [0, 1, 2, 3, 4, 5]
     norm = BoundaryNorm(bounds, cmap.N)
 
     # this needs to happen after the scatter plot
@@ -247,8 +249,8 @@ def create_plot_callback(n_samples, experiment_name, random_string):
             outfile.close()
 
             fig = plot_Q_S(Q_V_true, Q_V_exp, Q_V, S_M_0, S_M_true, grids,
-                                 samples=(sampler.X, sampler.y),
-                                 failed_samples=sampler.failed_samples, Q_F=Q_F)
+                           samples=(sampler.X, sampler.y),
+                           failed_samples=sampler.failed_samples, Q_F=Q_F)
 
             plt.savefig(path + filename + '_fig', format='pdf')
             plt.tight_layout()
