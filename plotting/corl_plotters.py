@@ -198,7 +198,7 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
     return fig
 
 
-def create_plot_callback(n_samples, experiment_name, random_string, every=50, show_flag=True):
+def create_plot_callback(n_samples, experiment_name, random_string, every=50, show_flag=True, save_path='./results/'):
 
     def plot_callback(sampler, ndx, thresholds):
         # Plot every n-th iteration
@@ -220,15 +220,6 @@ def create_plot_callback(n_samples, experiment_name, random_string, every=50, sh
                                                                 confidence_threshold=thresholds[
                                                                     'exploration_confidence'])
 
-            today = [datetime.date.today()]
-            time = datetime.datetime.now()
-            time_string = time.strftime('%H:%M:%S')
-            folder_name = experiment_name + '_' + str(today[0]) + '_random' + random_string
-            filename = experiment_name + '_' + str(today[0]) + '_' + time_string + '_' + 'ndx' + str(
-                ndx) + '_data'
-
-            path = './data/experiments/' + folder_name + '/'
-
             data2save = {
                 'Q_V_true': Q_V_true,
                 'Q_V_exp': Q_V_exp,
@@ -241,23 +232,33 @@ def create_plot_callback(n_samples, experiment_name, random_string, every=50, sh
                 'threshold': thresholds
             }
 
-            file = Path(path)
-            file.mkdir(parents=True, exist_ok=True)
-
-            outfile = open(path + filename, 'wb')
-            pickle.dump(data2save, outfile)
-            outfile.close()
-
             fig = plot_Q_S(Q_V_true, Q_V_exp, Q_V, S_M_0, S_M_true, grids,
                            samples=(sampler.X, sampler.y),
                            failed_samples=sampler.failed_samples, Q_F=Q_F)
 
-            plt.savefig(path + filename + '_fig', format='pdf')
+            if save_path is not None:
+
+                today = [datetime.date.today()]
+                folder_name = str(today[0]) + '_experiment_name_' + experiment_name + '_random_' + random_string
+
+                filename = str(ndx).zfill(4) + '_samples_' + experiment_name
+
+                path = save_path + folder_name + '/'
+
+                file = Path(path)
+                file.mkdir(parents=True, exist_ok=True)
+
+                outfile = open(path + filename + '.pickle', 'wb')
+                pickle.dump(data2save, outfile)
+                outfile.close()
+
+                plt.savefig(path + filename + '_fig.pdf', format='pdf')
+
             plt.tight_layout()
             if show_flag:
                 plt.show()
+
             plt.close('all')
-            # plt.show()
 
             if sampler.y is not None:
                 print(str(ndx) + " ACCUMULATED ERROR: "

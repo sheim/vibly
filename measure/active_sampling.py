@@ -3,7 +3,7 @@ import pickle
 
 import slippy.viability as vibly
 
-import slippy.estimate_measure as estimate_measure
+import measure.estimate_measure as estimate_measure
 
 
 def linear_interpolation(a, b, n):
