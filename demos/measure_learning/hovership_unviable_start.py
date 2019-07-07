@@ -19,7 +19,6 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path = './data/g
     data = pickle.load(infile)
     infile.close()
 
-    # TODO Make model fit API (S)
     true_model.mapSA2xp = true_model.sa2xp
     true_model.map2s = true_model.xp2s
 
@@ -35,9 +34,10 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path = './data/g
                             prior_model_path=gp_model_file,
                             learn_hyperparameters=False)
 
-    sampler.exploration_confidence_s = 0.94
+    # NOTE @ Anonymous: DO NOT CHANGE!
+    sampler.exploration_confidence_s = 0.75
     sampler.exploration_confidence_e = 0.999
-    sampler.measure_confidence_s = 0.80
+    sampler.measure_confidence_s = 0.70
     sampler.measure_confidence_e = 0.999
     sampler.safety_threshold_s = 0.0
     sampler.safety_threshold_e = 0.0

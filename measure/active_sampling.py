@@ -168,8 +168,8 @@ class MeasureLearner:
                 # if the measure is 0, you should crash anyway.
                 S_M_safe = estimation.project_Q2S(Q_V)
 
-                safe_idx = np.where(S_M_safe > 0)
-                s_next_idx = [np.random.choice(safe_idx[i]) for i in range(0, len(safe_idx))]
+                s_next_idx = np.argmax(S_M_safe)
+                s_next_idx = np.unravel_index(s_next_idx, S_M_safe.shape)
                 s_next = [self.grids['states'][i][s_next_idx[i]] for i in range(0,len(s_next_idx))]
                 s_next_idx = np.array(s_next_idx)
                 s_next = np.array(s_next)
