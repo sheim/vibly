@@ -31,9 +31,9 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path='./data/gp_
     sampler = sampling.MeasureLearner(model=true_model, model_data=data)
     sampler.init_estimation(seed_data=seed_data, prior_model_path=gp_model_file, learn_hyperparameters=False)
 
-    sampler.exploration_confidence_s = 0.999
+    sampler.exploration_confidence_s = 0.90
     sampler.exploration_confidence_e = 0.999
-    sampler.measure_confidence_s = 0.80
+    sampler.measure_confidence_s = 0.50
     sampler.measure_confidence_e = 0.999
     sampler.safety_threshold_s = 0.1
     sampler.safety_threshold_e = 0.0

@@ -45,7 +45,7 @@ class MeasureEstimation:
         # Initialize GP with a general kernel and constrain hyperparameter
         # TODO Hyperpriors and kernel choice
 
-        kernel_1 = GPy.kern.Matern32(input_dim=self.input_dim, variance=1., lengthscale=.5,
+        kernel_1 = GPy.kern.Matern52(input_dim=self.input_dim, variance=1., lengthscale=.5,
                                       ARD=True, name='kern1')
 
         kernel_1.variance.constrain_bounded(1e-3, 1e4)
@@ -76,13 +76,14 @@ class MeasureEstimation:
         idx_safe = np.argwhere(Q_V.ravel()).ravel()
         idx_unsafe = np.argwhere(~Q_V.ravel()).ravel()
 
-        if len(idx_safe) > 750 or len(idx_unsafe) > 250:
+        if len(idx_safe) > 1000: # or len(idx_unsafe) > 250:
             print('Warning: Dataset to big to learn hyperparameter fast. Using a subset to speed things up.')
 
-        idx_sample_safe = np.random.choice(idx_safe, size=np.min([750, len(idx_safe)]), replace=False)
+        idx_sample_safe = np.random.choice(idx_safe, size=np.min([1000, len(idx_safe)]), replace=False)
         idx_sample_unsafe = np.random.choice(idx_unsafe, size=np.min([250, len(idx_unsafe)]), replace=False)
 
-        idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
+        #idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
+        idx = idx_sample_safe
 
         X_train = AS[idx, :]
         y_train = Q[idx].reshape(-1, 1)
