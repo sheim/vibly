@@ -20,8 +20,8 @@ class MeasureEstimation:
         self.kernel = None
 
         np.random.seed(seed)
-        self.state_dim = action_dim
-        self.action_dim = state_dim
+        self.state_dim = state_dim
+        self.action_dim = action_dim
 
         self.X_grid = None
         self.Q_shape = None
@@ -154,7 +154,9 @@ class MeasureEstimation:
     # Utility function to empty out data set
     def set_data_empty(self):
         # GPy fails with empty dataset. So put in a data point far removed from everything
-        self.set_data(X=np.array([[-1000, -1000]]), Y=np.array([[0]]))
+        X = np.ones((1,self.input_dim))*-1000
+        y = np.zeros((1,1))
+        self.set_data(X=X, Y=y)
 
     def project_Q2S(self, Q):
         a_axes = tuple(range(Q.ndim - self.action_dim, Q.ndim))

@@ -1,4 +1,4 @@
-import slippy.slip as true_model
+import slippy.spaceship4 as true_model
 import numpy as np
 import pickle
 
@@ -11,17 +11,17 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path='./data/gp_
     # Load model data
     ################################################################################
 
-    dynamics_file = dynamics_model_path + 'slip_map.pickle'
+    dynamics_file = dynamics_model_path + 'spaceship4_lowres.pickle'
     # use 'slip_prior_proxy.npy' for incorrect prior
     # use 'slip_prior_true.npy' for prior regressed over ground truth
-    gp_model_file = gp_model_path + 'slip_prior_proxy.npy'
+    gp_model_file = gp_model_path + 'spaceship4_lowres.npy'
 
     infile = open(dynamics_file, 'rb')
     data = pickle.load(infile)
     infile.close()
 
     # A prior state action pair that is considered safe (from system knowledge)
-    X_seed = np.atleast_2d(np.array([38 / (180) * np.pi, .45]))
+    X_seed = np.atleast_2d(np.array([.3, 1, 0, 0, 0]))
     y_seed = np.array([[.2]])
 
     seed_data = {'X': X_seed, 'y': y_seed}
@@ -31,7 +31,7 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path='./data/gp_
 
     sampler.exploration_confidence_s = 0.90
     sampler.exploration_confidence_e = 0.999
-    sampler.measure_confidence_s = 0.50
+    sampler.measure_confidence_s = 0.70
     sampler.measure_confidence_e = 0.999
     sampler.safety_threshold_s = 0.1
     sampler.safety_threshold_e = 0.0
@@ -42,16 +42,9 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path='./data/gp_
 
     n_samples = 500
 
-    random_string = str(np.random.randint(1, 10000))
+    s0 = np.array([1, 0, 0, 0])
 
-    plot_callback = cplot.create_plot_callback(n_samples,
-                                               experiment_name='slip',
-                                               random_string=random_string,
-                                               save_path=results_path)
-
-    s0 = .45
-
-    sampler.run(n_samples=n_samples, s0=s0, callback=plot_callback)
+    sampler.run(n_samples=n_samples, s0=s0, callback=None)
 
 
 

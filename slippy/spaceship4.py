@@ -66,7 +66,7 @@ def check_failure(x, p):
 
 
 # Viability functions
-def sa2xp(state_action, x, p):
+def sa2xp(state_action, p):
     x = np.atleast_1d(state_action[:p['n_states']])
     p['thrust'] = np.atleast_1d(state_action[p['n_states']:])
     return x, p

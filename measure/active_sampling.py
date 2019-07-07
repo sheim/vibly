@@ -1,5 +1,5 @@
 import numpy as np
-import pickle
+import random
 
 import slippy.viability as vibly
 
@@ -65,7 +65,7 @@ class MeasureLearner:
         estimation = estimate_measure.MeasureEstimation(state_dim=state_dim,
                                                         action_dim=action_dim,seed=self.seed)
 
-        AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
+        AS_grid = np.meshgrid(*(grids['actions']), *(grids['states']))
 
         if learn_hyperparameters:
 
@@ -95,6 +95,8 @@ class MeasureLearner:
     def sample(self, s0, measure_confidence, exploration_confidence, ndx,
                safety_threshold=0):
 
+        s0 = np.atleast_1d(s0)
+
         estimation = self.current_estimation
 
         # Init empty Dataset
@@ -105,7 +107,7 @@ class MeasureLearner:
         # TODO Anynomous: dont grid states, dont evalutate the whole sets
         s_grid_shape = list(map(np.size, self.grids['states']))
         s0_idx = vibly.digitize_s(s0, self.grids['states'],
-                                  s_grid_shape, to_bin=False)
+                                  shape=None, to_bin=False)
 
 
         Q_V = estimation.safe_level_set(safety_threshold=0,
@@ -118,9 +120,9 @@ class MeasureLearner:
                                                 confidence_threshold=exploration_confidence)
 
         # slice actions available for those states
-        A_slice = np.copy(Q_V_explore[s0_idx, slice(None)])
+        A_slice = np.copy(Q_V_explore[tuple(s0_idx) + (slice(None),)])
 
-        A_slice_s2 = np.copy(Q_M_s2[s0_idx, slice(None)])
+        A_slice_s2 = np.copy(Q_M_s2[tuple(s0_idx)  + (slice(None),)])
 
         thresh_idx = np.array(A_slice, dtype=bool)
 
@@ -130,7 +132,7 @@ class MeasureLearner:
 
             Q_V_prop = estimation.safe_level_set(safety_threshold=0,
                                                  confidence_threshold=None)
-            Q_prop_slice = np.copy(Q_V_prop[s0_idx, slice(None)])
+            Q_prop_slice = np.copy(Q_V_prop[tuple(s0_idx) + (slice(None),)])
             a_idx = np.argmax(Q_prop_slice
                               + np.random.randn(A_slice.shape[0])*0.01)
 
@@ -140,9 +142,11 @@ class MeasureLearner:
             A_slice_s2[~thresh_idx] = np.nan
             a_idx = np.nanargmax(A_slice_s2)
 
+        # TODO only 1d actions?
         a = self.grids['actions'][0][a_idx]
+        a = np.atleast_1d(a)
         # apply action, get to the next state
-        x0, p_true = self.model.sa2xp((s0, a), self.p)
+        x0, p_true = self.model.sa2xp(tuple(s0) + tuple(a), self.p)
         x_next, failed = self.model.p_map(x0, p_true)
 
         if failed:
@@ -154,13 +158,21 @@ class MeasureLearner:
 
             # TODO make dimensions work
             if S_M_safe.any():
-                s_next_idx = np.random.choice(np.where(S_M_safe > 0)[0])
-                s_next = self.grids['states'][0][s_next_idx]
+                safe_idx = np.where(S_M_safe > 0)
+                s_next_idx = [np.random.choice(safe_idx[i]) for i in range(0, len(safe_idx))]
+                s_next = [self.grids['states'][i][s_next_idx[i]] for i in range(0,len(s_next_idx))]
+                s_next_idx = np.array(s_next_idx)
+                s_next = np.array(s_next)
+
             else:
                 # if the measure is 0, you should crash anyway.
                 S_M_safe = estimation.project_Q2S(Q_V)
-                s_next_idx = np.random.choice(np.where(S_M_safe > 0)[0])
-                s_next = self.grids['states'][0][s_next_idx]
+
+                safe_idx = np.where(S_M_safe > 0)
+                s_next_idx = [np.random.choice(safe_idx[i]) for i in range(0, len(safe_idx))]
+                s_next = [self.grids['states'][i][s_next_idx[i]] for i in range(0,len(s_next_idx))]
+                s_next_idx = np.array(s_next_idx)
+                s_next = np.array(s_next)
 
             measure = self.current_estimation.failure_value
         else:
@@ -168,12 +180,12 @@ class MeasureLearner:
 
             s_next = self.model.xp2s(x_next, p_true)
             s_next_idx = vibly.digitize_s(s_next, self.grids['states'],
-                                          s_grid_shape, to_bin=False)
+                                          None, to_bin=False)
 
-            measure = S_M_0[s_next_idx]
+            measure = S_M_0[tuple(s_next_idx)]
 
         # Add action state pair to dataset
-        q_new = np.array([[a, s0]])
+        q_new = np.concatenate((np.atleast_1d(a), s0)).reshape(1,-1)
         self.X = np.concatenate((self.X, q_new), axis=0)
 
         y_new = np.array(measure).reshape(-1, 1)
