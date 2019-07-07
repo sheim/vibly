@@ -48,8 +48,8 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path = './data/g
     plot_callback = cplot.create_plot_callback(n_samples,
                                                experiment_name='hovership',
                                                random_string=random_string,
+                                               every=50,
                                                save_path=results_path)
 
     s0 = 2
-
     sampler.run(n_samples=n_samples, s0=s0, callback=plot_callback)
