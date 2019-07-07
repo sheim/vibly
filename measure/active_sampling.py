@@ -55,13 +55,15 @@ class MeasureLearner:
 
         self.verbose = 2
 
-    def init_estimation(self, seed_data, prior_model_path = './model/prior.npy', learn_hyperparameters=False):
+    def init_estimation(self, seed_data, prior_model_path='./model/prior.npy',
+                        learn_hyperparameters=False):
 
         grids = self.grids
         state_dim = len(grids['states'])
         action_dim = len(grids['actions'])
 
-        estimation = estimate_measure.MeasureEstimation(state_dim=state_dim, action_dim=action_dim, seed=self.seed)
+        estimation = estimate_measure.MeasureEstimation(state_dim=state_dim,
+                                                        action_dim=action_dim,seed=self.seed)
 
         AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
 
@@ -70,7 +72,9 @@ class MeasureLearner:
             Q_M_proxy = self.model_data['Q_M']
             Q_V_proxy = self.model_data['Q_V']
 
-            estimation.learn_hyperparameter(AS_grid=AS_grid, Q_M=Q_M_proxy, Q_V=Q_V_proxy, save=prior_model_path)
+            estimation.learn_hyperparameter(AS_grid=AS_grid, Q_M=Q_M_proxy,
+                                            Q_V=Q_V_proxy,
+                                            save=prior_model_path)
 
         X_grid_points = np.vstack(map(np.ravel, AS_grid)).T
         estimation.set_grid_shape(X_grid_points, self.grid_shape)
@@ -138,7 +142,7 @@ class MeasureLearner:
 
         a = self.grids['actions'][0][a_idx]
         # apply action, get to the next state
-        x0, p_true = self.model.mapSA2xp((s0, a), self.p)
+        x0, p_true = self.model.sa2xp((s0, a), self.p)
         x_next, failed = self.model.p_map(x0, p_true)
 
         if failed:
@@ -162,12 +166,11 @@ class MeasureLearner:
         else:
             self.failed_samples.append(False)
 
-            s_next = self.model.map2s(x_next, p_true)
+            s_next = self.model.xp2s(x_next, p_true)
             s_next_idx = vibly.digitize_s(s_next, self.grids['states'],
                                           s_grid_shape, to_bin=False)
 
             measure = S_M_0[s_next_idx]
-
 
         # Add action state pair to dataset
         q_new = np.array([[a, s0]])

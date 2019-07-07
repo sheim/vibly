@@ -4,23 +4,6 @@ import itertools as it
 import numpy as np
 
 
-# def save(filename):
-#     '''
-
-#     Utility function to save all the default files generated
-#     '''
-#     save_list = ('Q_map', 'Q_F', 'Q_V', 'grids', 'S_V', 'P_map', 'p')
-#     data2save = {}
-#     for var in save_list:
-#         if var in locals(): # check if it is instantiated
-#             data2save[var] = eval(var)
-
-#     if len(data2save) > 0:
-#         np.savez(filename, **data2save)
-#     else:
-#         print('Warning: nothing to save')
-
-
 def compute_Q_2D(s_grid, a_grid, p_map):
     ''' Compute the transition map of a system with 1D state and 1D action
     NOTES

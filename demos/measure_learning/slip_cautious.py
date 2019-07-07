@@ -6,13 +6,8 @@ import plotting.corl_plotters as cplot
 
 import measure.active_sampling as sampling
 
-
-# TODO Do we need this experiment?
-def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path='./data/gp_model/', results_path='./results/'):
-
-    # TODO Make model fit API (S)
-    true_model.mapSA2xp = true_model.mapSA2xp_height_angle
-    true_model.p_map = true_model.poincare_map
+def run_demo(dynamics_model_path='./data/dynamics/',
+             gp_model_path='./data/gp_model/', results_path='./results/'):
 
     ################################################################################
     # Load model data
@@ -34,7 +29,9 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path='./data/gp_
     seed_data = {'X': X_seed, 'y': y_seed}
 
     sampler = sampling.MeasureLearner(model=true_model, model_data=data)
-    sampler.init_estimation(seed_data=seed_data, prior_model_path=gp_model_file, learn_hyperparameters=False)
+    sampler.init_estimation(seed_data=seed_data,
+                            prior_model_path=gp_model_file,
+                            learn_hyperparameters=False)
 
     sampler.exploration_confidence_s = 0.999
     sampler.exploration_confidence_e = 0.999

@@ -23,7 +23,7 @@ def feasible(x, p):
         return False
     return True
 
-def poincare_map(x, p):
+def p_map(x, p):
     '''
     Wrapper function for step function, returning only x_next, and -1 if failed
     Essentially, the Poincare map.
@@ -275,25 +275,26 @@ def map2s(x, p):
     kinetic_energy = p['mass']/2*x[2]**2
     return potential_energy/(potential_energy + kinetic_energy)
 
-# TODO: Anonymous cleans this
+
 def map2x(x, p, s):
     '''
     map a desired dimensionless height `s` to it's state-vector
     '''
     if 'total_energy' not in p:
         print('WARNING: you did not initialize your parameters with '
-        'total energy. You really should do this...')
+              'total energy. You really should do this...')
     # check that we are at apex
     assert np.isclose(x[3], 0), "state x: " + str(x) + " and e: " + str(s)
 
     x_new = x
     x_new[1] = p['total_energy']*s/p['mass']/p['gravity']
     x_new[2] = np.sqrt(p['total_energy']*(1-s)/p['mass']*2)
-    x_new[3] = 0.0 # shouldn't be necessary, but avoids errors accumulating
+    x_new[3] = 0.0  # shouldn't be necessary, but avoids errors accumulating
     x = reset_leg(x, p)
     return x_new
 
-def mapSA2xp_height_angle(state_action, p):
+
+def sa2xp(state_action, p):
     '''
     Specifically map state_actions to x and p
     '''

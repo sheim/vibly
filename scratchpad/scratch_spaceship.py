@@ -21,10 +21,6 @@ p = {'n_states': 2,
      }
 x0 = np.array([0.5, 0])
 
-# poincare_map.p = p
-# poincare_map.x = x0
-# poincare_map.sa2xp = mapSA2xp_height_angle
-# poincare_map.xp2s = map2s
 p_map.p = p
 p_map.x = x0  # do we still need these? I don't think so...
 p_map.sa2xp = sys.sa2xp

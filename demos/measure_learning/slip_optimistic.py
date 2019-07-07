@@ -9,13 +9,9 @@ import measure.active_sampling as sampling
 
 def run_demo(dynamics_model_path='./data/dynamics/', gp_model_path='./data/gp_model/', results_path='./results/'):
 
-    # TODO Make model fit API (S)
-    true_model.mapSA2xp = true_model.mapSA2xp_height_angle
-    true_model.p_map = true_model.poincare_map
-
-    ################################################################################
+    ###########################################################################
     # Load model data
-    ################################################################################
+    ###########################################################################
 
     dynamics_file = dynamics_model_path + 'slip_map.pickle'
     # use 'slip_prior_proxy.npy' for incorrect prior
@@ -33,7 +29,9 @@ def run_demo(dynamics_model_path='./data/dynamics/', gp_model_path='./data/gp_mo
     seed_data = {'X': X_seed, 'y': y_seed}
 
     sampler = sampling.MeasureLearner(model=true_model, model_data=data)
-    sampler.init_estimation(seed_data=seed_data, prior_model_path=gp_model_file, learn_hyperparameters=False)
+    sampler.init_estimation(seed_data=seed_data,
+                            prior_model_path=gp_model_file,
+                            learn_hyperparameters=False)
 
     sampler.exploration_confidence_s = 0.9
     sampler.exploration_confidence_e = 0.99
