@@ -1,47 +1,63 @@
 import numpy as np
 import scipy.integrate as integrate
 '''
-space attempting to reconnoitre the surface of a planet.
-Must ensure not to go to the dark side of the planet.
-x_{k+1} = map(x_k, p)
-x: (x1, x2)
-x1: altitude
-p: dict of parameters. For convenience, actions are also stored here.
+A spaceship attempting to reconnoitre the surface of a planet.
+However, the planet has an unusual gravitational field... getting too close to
+the surface may result in getting sucked in, with no escape!
 '''
 
-# map: x_k+1, failed = map
-
-
+# * Transition Map. This is your oracle.
 def p_map(x, p):
     '''
-    Dynamics function of your system
-    Note that the control input is included in the parameter,
-    and needs to be unpacked.
+    The transition map of your system.
+    inputs:
+    x: ndarray of the current state
+    p: dict containing all parameters and action (control input)
+    outputs:
+    x: ndarray state at next iteration
+    failed: boolean indicating if the system has failed
     '''
+
+    # * we first check if the state is already in the failure state
+    # * this can happen if the initial state of a new sequence is chosen poorly
+    # * this can also happen if the failure state depends on the action
     if check_failure(x, p):
         return x, True
 
-    # unpack
+    # unpack the parameter dict
     THRUST = np.min([p['max_thrust'], p['thrust']])
     BASE_GRAVITY = p['base_gravity']
     GRAVITY = p['gravity']
     MAX_TIME = 1.0/p['control_frequency']
     CEILING = p['ceiling']
 
+    # * for convenience, we define the continuous-time dynamics, and use
+    # * scipy.integrate to solve this over one control time-step (MAX_TIME)
+    # * what you put in here can be as complicated as you like.
     def continuous_dynamics(t, x):
-        x[0] -= BASE_GRAVITY + np.max([0, np.tanh(0.75*(CEILING - x[0]))])*GRAVITY - THRUST
+        grav_field = np.max([0, np.tanh(0.75*(CEILING - x[0]))])*GRAVITY
+        x[0] -= BASE_GRAVITY + grav_field - THRUST
         x[0] = np.min([CEILING, x[0]])  # saturate at ceiling (x=0)
         return x
 
     sol = integrate.solve_ivp(continuous_dynamics, t_span=[0, MAX_TIME], y0=x)
 
+    # * we return the final
     return sol.y[:, -1], check_failure(sol.y[:, -1], p)
 
 
 def check_failure(x, p):
     '''
-    Check if a state is in the failure set.
+    Check if a state-action pair is in the failure set.
+    inputs:
+    x: ndarray of the state
+    p: dict of parameters and actions
+    outputs:
+    failed: bool indicating true if the system failed, false otehrwise
+
     '''
+
+    # * For this example, the system has failed if it ever hits the ground
     if x[0] < 0:
         return True
     else:
@@ -49,11 +65,34 @@ def check_failure(x, p):
 
 
 # Viability functions
+
+# * since the simulation may live in a higher-dimensional state-action space,
+# * (this is the case when using a hierarchical control structure),
+# * we need to map a state-action pair to the x (state) and p (parameters)
+# * we also properly assign the action in the parameter dict
 def sa2xp(state_action, p):
+    '''
+    maps a state-action pair to continuous-time state x and parameter dict p
+    inputs:
+    state_action: ndarray of state-action pair (s, a)
+    p: dict of parameters (and actions)
+    outputs:
+    x: ndarray of states for simulation
+    p: dict of parameters updated with new action
+    '''
     x = np.atleast_1d(state_action[:p['n_states']])
     p['thrust'] = np.atleast_1d(state_action[p['n_states']:])
     return x.flatten(), p
 
-
+# * we also need to provide a function to go back from the continuous-time
+# * state x to the high-level state s
 def xp2s(x, p):
+    '''
+    maps a state x to the high-level state s
+    inputs:
+    x: ndarray of state
+    p: dict of parameters and actions
+    outputs:
+    s: high-level state used in the viability algorithms
+    '''
     return x
