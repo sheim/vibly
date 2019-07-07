@@ -158,10 +158,6 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
     bounds = [0, 1, 2, 3, 4, 5]
     norm = BoundaryNorm(bounds, cmap.N)
 
-    # this needs to happen after the scatter plot
-    ax_Q.imshow(img, origin='lower', extent=extent, aspect=aspect_ratio_Q,
-                interpolation='none', cmap=cmap, norm=norm)
-
     if samples is not None and samples[0] is not None:
         action = samples[0][:, 0]
         state = samples[0][:, 1]
@@ -177,6 +173,10 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
             ax_Q.scatter(action, state,
                          facecolors=[[0.9, 0.3, 0.3]], s=30,
                          marker='.', edgecolors='none')
+
+    # this needs to happen after the scatter plot
+    ax_Q.imshow(img, origin='lower', extent=extent, aspect=aspect_ratio_Q,
+                interpolation='none', cmap=cmap, norm=norm)
 
     ax_Q.set_xlabel('action space $A$')
     ax_Q.set_ylabel('state space $S$')
