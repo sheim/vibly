@@ -19,12 +19,9 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path = './data/g
     data = pickle.load(infile)
     infile.close()
 
-    true_model.mapSA2xp = true_model.sa2xp
-    true_model.map2s = true_model.xp2s
-
     # A prior state action pair that is considered safe (from system knowledge)
     # Here it is chosen to be outside the viable set to demonstrate that the learner can deal with this case
-    X_seed = np.atleast_2d(np.array([.4, 1.5]))
+    X_seed = np.atleast_2d(np.array([.5, 1.5]))
     y_seed = np.array([[.75]])
 
     seed_data = {'X': X_seed, 'y': y_seed}
@@ -34,13 +31,12 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path = './data/g
                             prior_model_path=gp_model_file,
                             learn_hyperparameters=False)
 
-    # NOTE @ Anonymous: DO NOT CHANGE!
-    sampler.exploration_confidence_s = 0.75
+    sampler.exploration_confidence_s = 0.95
     sampler.exploration_confidence_e = 0.999
-    sampler.measure_confidence_s = 0.70
+    sampler.measure_confidence_s = 0.55
     sampler.measure_confidence_e = 0.999
     sampler.safety_threshold_s = 0.0
-    sampler.safety_threshold_e = 0.0
+    sampler.safety_threshold_e = 0.1
 
     n_samples = 250
 
@@ -50,7 +46,8 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path = './data/g
     plot_callback = cplot.create_plot_callback(n_samples,
                                                experiment_name='hovership_unviable_start',
                                                random_string=random_string,
-                                               save_path=results_path)
+                                               save_path=results_path,
+                                               show_flag=True)
 
     s0 = 1.5
     sampler.run(n_samples=n_samples, s0=s0, callback=plot_callback)
