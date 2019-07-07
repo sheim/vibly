@@ -7,7 +7,7 @@ import plotting.corl_plotters as cplot
 import measure.active_sampling as sampling
 
 
-def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path='./data/gp_model/', results_path='./results/'):
+def run_demo(dynamics_model_path='./data/dynamics/', gp_model_path='./data/gp_model/', results_path='./results/'):
 
     # TODO Make model fit API (S)
     true_model.mapSA2xp = true_model.mapSA2xp_height_angle

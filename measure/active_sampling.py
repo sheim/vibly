@@ -88,7 +88,8 @@ class MeasureLearner:
         # self.X = X_seed
         # self.Y = y_seed
 
-    def sample(self, s0, measure_confidence, exploration_confidence, ndx, safety_threshold=0):
+    def sample(self, s0, measure_confidence, exploration_confidence, ndx,
+               safety_threshold=0):
 
         estimation = self.current_estimation
 
@@ -97,7 +98,7 @@ class MeasureLearner:
             self.X = np.empty((0, estimation.input_dim))
             self.y = np.empty((0, 1))
 
-        # TODO Alex: dont grid states, dont evalutate the whole sets
+        # TODO Anynomous: dont grid states, dont evalutate the whole sets
         s_grid_shape = list(map(np.size, self.grids['states']))
         s0_idx = vibly.digitize_s(s0, self.grids['states'],
                                   s_grid_shape, to_bin=False)
@@ -123,9 +124,11 @@ class MeasureLearner:
             if self.verbose > 1:
                 print('taking safest on iteration ' + str(ndx + 1))
 
-            Q_V_prop = estimation.safe_level_set(safety_threshold=0, confidence_threshold=None)
+            Q_V_prop = estimation.safe_level_set(safety_threshold=0,
+                                                 confidence_threshold=None)
             Q_prop_slice = np.copy(Q_V_prop[s0_idx, slice(None)])
-            a_idx = np.argmax(Q_prop_slice + np.random.randn(A_slice.shape[0]) * 0.01)
+            a_idx = np.argmax(Q_prop_slice
+                              + np.random.randn(A_slice.shape[0])*0.01)
 
         else:  # not empty, pick one of these
 
@@ -133,7 +136,7 @@ class MeasureLearner:
             A_slice_s2[~thresh_idx] = np.nan
             a_idx = np.nanargmax(A_slice_s2)
 
-        a = self.grids['actions'][0][a_idx]  # + (np.random.rand()-0.5)*np.pi/36
+        a = self.grids['actions'][0][a_idx]
         # apply action, get to the next state
         x0, p_true = self.model.mapSA2xp((s0, a), self.p)
         x_next, failed = self.model.p_map(x0, p_true)
@@ -211,36 +214,3 @@ class MeasureLearner:
                     'safety_threshold': safety_threshold
                 }
                 callback(self, ndx, thresholds)
-
-
-
-
-if __name__ == "__main__":
-
-    import slippy.slip as true_model
-
-    #TODO Steve
-    true_model.mapSA2xp = true_model.mapSA2xp_height_angle
-    true_model.p_map = true_model.poincare_map
-
-    ################################################################################
-    # Load model data
-    ################################################################################
-    infile = open('../data/slip_map.pickle', 'rb')
-    data = pickle.load(infile)
-    infile.close()
-
-    # Start from bad prior
-
-    # This comes from knowledge of the system
-    # TODO clean this up
-    X_seed = np.atleast_2d(np.array([38 / (180) * np.pi, .45]))
-    y_seed = np.array([[.2]])
-    seed_data = {'X': X_seed, 'y': y_seed}
-
-    sampler = MeasureLearner(model=true_model, model_data=data)
-    sampler.init_estimation(seed_data=seed_data, prior_model_path='./model/prior.npy')
-
-    s0 = .45
-
-    sampler.run(n_samples=100, s0=s0)
