@@ -156,7 +156,6 @@ class MeasureLearner:
 
             S_M_safe = estimation.project_Q2S(Q_V_explore)
 
-            # TODO make dimensions work
             if S_M_safe.any():
                 safe_idx = np.where(S_M_safe > 0)
                 s_next_idx = [np.random.choice(safe_idx[i]) for i in range(0, len(safe_idx))]

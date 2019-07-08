@@ -33,18 +33,18 @@ def run_demo(dynamics_model_path='./data/dynamics/',
                             prior_model_path=gp_model_file,
                             learn_hyperparameters=False)
 
-    sampler.exploration_confidence_s = 0.999
-    sampler.exploration_confidence_e = 0.999
-    sampler.measure_confidence_s = 0.85
-    sampler.measure_confidence_e = 0.85
-    sampler.safety_threshold_s = 0.1
-    sampler.safety_threshold_e = 0.0
+    sampler.exploration_confidence_s = 0.70
+    sampler.exploration_confidence_e = 0.90
+    sampler.measure_confidence_s = 0.65
+    sampler.measure_confidence_e = 0.90
+    sampler.safety_threshold_s = 0.025
+    sampler.safety_threshold_e = 0.025
 
     # randomize, but keep track of it in case you want to reproduce
     sampler.seed = np.random.randint(1, 100)
     print('Seed: ' + str(sampler.seed))
 
-    n_samples = 200
+    n_samples = 500
 
     random_string = str(np.random.randint(1, 10000))
 

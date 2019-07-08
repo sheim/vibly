@@ -30,13 +30,13 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path = './data/g
     sampler.init_estimation(seed_data=seed_data,
                             prior_model_path=gp_model_file,
                             learn_hyperparameters=False)
+    # No adjustment, just learning
+    sampler.exploration_confidence_s = 0.8
+    sampler.exploration_confidence_e = 0.8
+    sampler.measure_confidence_s = 0.8
+    sampler.measure_confidence_e = 0.8
 
-    sampler.exploration_confidence_s = 0.98
-    sampler.exploration_confidence_e = 0.9
-    sampler.measure_confidence_s = 0.7
-    sampler.measure_confidence_e = 0.9
-
-    n_samples = 500
+    n_samples = 250
 
     # To avoid accidental overwriting of data
     random_string = str(np.random.randint(1, 10000))
