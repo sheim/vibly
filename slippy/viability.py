@@ -4,29 +4,12 @@ import itertools as it
 import numpy as np
 
 
-# def save(filename):
-#     '''
-
-#     Utility function to save all the default files generated
-#     '''
-#     save_list = ('Q_map', 'Q_F', 'Q_V', 'grids', 'S_V', 'P_map', 'p')
-#     data2save = {}
-#     for var in save_list:
-#         if var in locals(): # check if it is instantiated
-#             data2save[var] = eval(var)
-
-#     if len(data2save) > 0:
-#         np.savez(filename, **data2save)
-#     else:
-#         print('Warning: nothing to save')
-
-
-def compute_Q_2D(s_grid, a_grid, poincare_map):
+def compute_Q_2D(s_grid, a_grid, p_map):
     ''' Compute the transition map of a system with 1D state and 1D action
     NOTES
     - s_grid and a_grid have to be iterable lists of lists
     e.g. if they have only 1 dimension, they should be `s_grid = ([1, 2], )`
-    - use poincare_map to carry parameters
+    - use p_map to carry parameters
     '''
 
     # create iterators s_grid, a_grid
@@ -37,18 +20,17 @@ def compute_Q_2D(s_grid, a_grid, poincare_map):
     Q_map = np.zeros((s_grid.size*a_grid.size, 1))
     Q_F = np.zeros((s_grid.size*a_grid.size, 1))
 
-    # TODO: also compute transitions diff maps etc.
     # QTransition = Q_map
     n = len(s_grid)*len(a_grid)
     for idx, state_action in enumerate(it.product(s_grid, a_grid)):
         if idx % (n/10) == 0:
             print('.', end=' ')
-        x, p = poincare_map.sa2xp(state_action, poincare_map.p)
+        x, p = p_map.sa2xp(state_action, p_map.p)
 
-        x_next, failed = poincare_map(x, p)
+        x_next, failed = p_map(x, p)
 
         if not failed:
-            s_next = poincare_map.xp2s(x_next, p)
+            s_next = p_map.xp2s(x_next, p)
             # note: Q_map is implicitly already excluding transitions that
             # move straight to a failure. While this is not equivalent to the
             # algorithm in the paper, for our systems it is a bit faster
@@ -114,7 +96,6 @@ def get_state_from_ravel(bin_idx, s_grid):
     Get state from bin id. Ideally, interpolate
     For now, just returning a grid point
     '''
-    # print("TO DO: interpolate properly")  # TODO
     bin_idx = np.atleast_1d(bin_idx)
     grid_idx = np.zeros(len(s_grid), dtype='int')
     s = np.zeros(len(s_grid))
@@ -163,23 +144,12 @@ def digitize_s(s, s_grid, shape=None, to_bin=True):
         return np.ravel_multi_index(s_idx, shape)
 
 
-# def get_s(sdx, s_grid):
-#     # TODO: make this pythonic, it is ugly AF now...
-#     s_grid_shape = list(map(np.size, s_grid))
-#     grid_idx = np.unravel_index(sdx, s_grid_shape)
-#     s = np.zeros(len(s_grid))
-#     for dim in range(len(s_grid)):
-#         s[dim] = s_grid[dim][grid_idx[dim]]
-
-#     return s
-
-
-def compute_Q_map(grids, poincare_map, verbose=0, check_grid=False):
+def compute_Q_map(grids, p_map, verbose=0, check_grid=False):
     ''' Compute the transition map of a system with 1D state and 1D action
     NOTES
     - s_grid and a_grid have to be iterable lists of lists
     e.g. if they have only 1 dimension, they should be `s_grid = ([1, 2], )`
-    - use poincare_map to carry parameters
+    - use p_map to carry parameters
     '''
     # TODO get rid of check_grid, solve the problem permanently
 
@@ -208,11 +178,11 @@ def compute_Q_map(grids, poincare_map, verbose=0, check_grid=False):
             if idx % (total_bins/10) == 0:
                 print('.', end=' ')
 
-        x, p = poincare_map.sa2xp(state_action, poincare_map.p)
-        x_next, failed = poincare_map(x, p)
+        x, p = p_map.sa2xp(state_action, p_map.p)
+        x_next, failed = p_map(x, p)
 
         if not failed:
-            s_next = poincare_map.xp2s(x_next, p)
+            s_next = p_map.xp2s(x_next, p)
             # note: Q_map is implicitly already excluding transitions that
             # move straight to a failure. While this is not equivalent to the
             # algorithm in the paper, for our systems it is a bit more faster
@@ -262,7 +232,7 @@ def compute_QV(Q_map, grids, Q_V=None, Q_on_grid=None):
 
     # initialize estimate of Q_V
     if Q_V is None:
-        Q_V = np.copy(Q_map)  # TODO: is this okay in general?
+        Q_V = np.copy(Q_map)
         Q_V = Q_V.astype(bool)
     # if you have no info, treat everything as if in a bin
     if Q_on_grid is None:
@@ -295,7 +265,7 @@ def is_outside(s, s_grid, S_V, already_binned=True, on_grid=False):
     '''
 
     # only checking 1 state vector
-    if not already_binned:  # TODO Check this
+    if not already_binned:
         bin_idx = digitize_s(s, s_grid)  # get unraveled indices
     else:
         bin_idx = np.unravel_index(s, tuple(x+1 for x in map(np.size, s_grid)))
@@ -312,7 +282,7 @@ def is_outside(s, s_grid, S_V, already_binned=True, on_grid=False):
         # if outside the left-most or right-most side of grid, mark as outside
         # * NOTE: this can result in disastrous underestimations if the grid is
         # * not larger than the viable set!
-        # TODO: this can lead to understimation if s is right on the grid-point
+        # TODO: this can lead to understimation if s is right on the gridline
         # because it will still check its neighbors. need to first check.
         if bin_idx[dim_idx] == 0:
             return True

@@ -20,8 +20,8 @@ class MeasureEstimation:
         self.kernel = None
 
         np.random.seed(seed)
-        self.state_dim = action_dim
-        self.action_dim = state_dim
+        self.state_dim = state_dim
+        self.action_dim = action_dim
 
         self.X_grid = None
         self.Q_shape = None
@@ -45,7 +45,7 @@ class MeasureEstimation:
         # Initialize GP with a general kernel and constrain hyperparameter
         # TODO Hyperpriors and kernel choice
 
-        kernel_1 = GPy.kern.Matern32(input_dim=self.input_dim, variance=1., lengthscale=.5,
+        kernel_1 = GPy.kern.Matern52(input_dim=self.input_dim, variance=1., lengthscale=.5,
                                       ARD=True, name='kern1')
 
         kernel_1.variance.constrain_bounded(1e-3, 1e4)
@@ -76,13 +76,14 @@ class MeasureEstimation:
         idx_safe = np.argwhere(Q_V.ravel()).ravel()
         idx_unsafe = np.argwhere(~Q_V.ravel()).ravel()
 
-        if len(idx_safe) > 750 or len(idx_unsafe) > 250:
+        if len(idx_safe) > 1000: # or len(idx_unsafe) > 250:
             print('Warning: Dataset to big to learn hyperparameter fast. Using a subset to speed things up.')
 
-        idx_sample_safe = np.random.choice(idx_safe, size=np.min([750, len(idx_safe)]), replace=False)
+        idx_sample_safe = np.random.choice(idx_safe, size=np.min([1000, len(idx_safe)]), replace=False)
         idx_sample_unsafe = np.random.choice(idx_unsafe, size=np.min([250, len(idx_unsafe)]), replace=False)
 
-        idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
+        #idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
+        idx = idx_sample_safe
 
         X_train = AS[idx, :]
         y_train = Q[idx].reshape(-1, 1)
@@ -153,7 +154,9 @@ class MeasureEstimation:
     # Utility function to empty out data set
     def set_data_empty(self):
         # GPy fails with empty dataset. So put in a data point far removed from everything
-        self.set_data(X=np.array([[-1000, -1000]]), Y=np.array([[0]]))
+        X = np.ones((1,self.input_dim))*-1000
+        y = np.zeros((1,1))
+        self.set_data(X=X, Y=y)
 
     def project_Q2S(self, Q):
         a_axes = tuple(range(Q.ndim - self.action_dim, Q.ndim))

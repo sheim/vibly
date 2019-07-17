@@ -1,9 +1,9 @@
 import numpy as np
-import pickle
+import random
 
 import slippy.viability as vibly
 
-import slippy.estimate_measure as estimate_measure
+import measure.estimate_measure as estimate_measure
 
 
 def linear_interpolation(a, b, n):
@@ -55,22 +55,26 @@ class MeasureLearner:
 
         self.verbose = 2
 
-    def init_estimation(self, seed_data, prior_model_path = './model/prior.npy', learn_hyperparameters=False):
+    def init_estimation(self, seed_data, prior_model_path='./model/prior.npy',
+                        learn_hyperparameters=False):
 
         grids = self.grids
         state_dim = len(grids['states'])
         action_dim = len(grids['actions'])
 
-        estimation = estimate_measure.MeasureEstimation(state_dim=state_dim, action_dim=action_dim, seed=self.seed)
+        estimation = estimate_measure.MeasureEstimation(state_dim=state_dim,
+                                                        action_dim=action_dim,seed=self.seed)
 
-        AS_grid = np.meshgrid(grids['actions'][0], grids['states'][0])
+        AS_grid = np.meshgrid(*(grids['actions']), *(grids['states']))
 
         if learn_hyperparameters:
 
             Q_M_proxy = self.model_data['Q_M']
             Q_V_proxy = self.model_data['Q_V']
 
-            estimation.learn_hyperparameter(AS_grid=AS_grid, Q_M=Q_M_proxy, Q_V=Q_V_proxy, save=prior_model_path)
+            estimation.learn_hyperparameter(AS_grid=AS_grid, Q_M=Q_M_proxy,
+                                            Q_V=Q_V_proxy,
+                                            save=prior_model_path)
 
         X_grid_points = np.vstack(map(np.ravel, AS_grid)).T
         estimation.set_grid_shape(X_grid_points, self.grid_shape)
@@ -88,7 +92,10 @@ class MeasureLearner:
         # self.X = X_seed
         # self.Y = y_seed
 
-    def sample(self, s0, measure_confidence, exploration_confidence, ndx, safety_threshold=0):
+    def sample(self, s0, measure_confidence, exploration_confidence, ndx,
+               safety_threshold=0):
+
+        s0 = np.atleast_1d(s0)
 
         estimation = self.current_estimation
 
@@ -97,10 +104,10 @@ class MeasureLearner:
             self.X = np.empty((0, estimation.input_dim))
             self.y = np.empty((0, 1))
 
-        # TODO Alex: dont grid states, dont evalutate the whole sets
+        # TODO Anynomous: dont grid states, dont evalutate the whole sets
         s_grid_shape = list(map(np.size, self.grids['states']))
         s0_idx = vibly.digitize_s(s0, self.grids['states'],
-                                  s_grid_shape, to_bin=False)
+                                  shape=None, to_bin=False)
 
 
         Q_V = estimation.safe_level_set(safety_threshold=0,
@@ -113,9 +120,9 @@ class MeasureLearner:
                                                 confidence_threshold=exploration_confidence)
 
         # slice actions available for those states
-        A_slice = np.copy(Q_V_explore[s0_idx, slice(None)])
+        A_slice = np.copy(Q_V_explore[tuple(s0_idx) + (slice(None),)])
 
-        A_slice_s2 = np.copy(Q_M_s2[s0_idx, slice(None)])
+        A_slice_s2 = np.copy(Q_M_s2[tuple(s0_idx)  + (slice(None),)])
 
         thresh_idx = np.array(A_slice, dtype=bool)
 
@@ -123,9 +130,11 @@ class MeasureLearner:
             if self.verbose > 1:
                 print('taking safest on iteration ' + str(ndx + 1))
 
-            Q_V_prop = estimation.safe_level_set(safety_threshold=0, confidence_threshold=None)
-            Q_prop_slice = np.copy(Q_V_prop[s0_idx, slice(None)])
-            a_idx = np.argmax(Q_prop_slice + np.random.randn(A_slice.shape[0]) * 0.01)
+            Q_V_prop = estimation.safe_level_set(safety_threshold=0,
+                                                 confidence_threshold=None)
+            Q_prop_slice = np.copy(Q_V_prop[tuple(s0_idx) + (slice(None),)])
+            a_idx = np.argmax(Q_prop_slice
+                              + np.random.randn(A_slice.shape[0])*0.01)
 
         else:  # not empty, pick one of these
 
@@ -133,9 +142,11 @@ class MeasureLearner:
             A_slice_s2[~thresh_idx] = np.nan
             a_idx = np.nanargmax(A_slice_s2)
 
-        a = self.grids['actions'][0][a_idx]  # + (np.random.rand()-0.5)*np.pi/36
+        # TODO only 1d actions?
+        a = self.grids['actions'][0][a_idx]
+        a = np.atleast_1d(a)
         # apply action, get to the next state
-        x0, p_true = self.model.mapSA2xp((s0, a), self.p)
+        x0, p_true = self.model.sa2xp(tuple(s0) + tuple(a), self.p)
         x_next, failed = self.model.p_map(x0, p_true)
 
         if failed:
@@ -145,29 +156,35 @@ class MeasureLearner:
 
             S_M_safe = estimation.project_Q2S(Q_V_explore)
 
-            # TODO make dimensions work
             if S_M_safe.any():
-                s_next_idx = np.random.choice(np.where(S_M_safe > 0)[0])
-                s_next = self.grids['states'][0][s_next_idx]
+                safe_idx = np.where(S_M_safe > 0)
+                s_next_idx = [np.random.choice(safe_idx[i]) for i in range(0, len(safe_idx))]
+                s_next = [self.grids['states'][i][s_next_idx[i]] for i in range(0,len(s_next_idx))]
+                s_next_idx = np.array(s_next_idx)
+                s_next = np.array(s_next)
+
             else:
                 # if the measure is 0, you should crash anyway.
                 S_M_safe = estimation.project_Q2S(Q_V)
-                s_next_idx = np.random.choice(np.where(S_M_safe > 0)[0])
-                s_next = self.grids['states'][0][s_next_idx]
+
+                s_next_idx = np.argmax(S_M_safe)
+                s_next_idx = np.unravel_index(s_next_idx, S_M_safe.shape)
+                s_next = [self.grids['states'][i][s_next_idx[i]] for i in range(0,len(s_next_idx))]
+                s_next_idx = np.array(s_next_idx)
+                s_next = np.array(s_next)
 
             measure = self.current_estimation.failure_value
         else:
             self.failed_samples.append(False)
 
-            s_next = self.model.map2s(x_next, p_true)
+            s_next = self.model.xp2s(x_next, p_true)
             s_next_idx = vibly.digitize_s(s_next, self.grids['states'],
-                                          s_grid_shape, to_bin=False)
+                                          None, to_bin=False)
 
-            measure = S_M_0[s_next_idx]
-
+            measure = S_M_0[tuple(s_next_idx)]
 
         # Add action state pair to dataset
-        q_new = np.array([[a, s0]])
+        q_new = np.concatenate((np.atleast_1d(a), s0)).reshape(1,-1)
         self.X = np.concatenate((self.X, q_new), axis=0)
 
         y_new = np.array(measure).reshape(-1, 1)
@@ -211,36 +228,3 @@ class MeasureLearner:
                     'safety_threshold': safety_threshold
                 }
                 callback(self, ndx, thresholds)
-
-
-
-
-if __name__ == "__main__":
-
-    import slippy.slip as true_model
-
-    #TODO Steve
-    true_model.mapSA2xp = true_model.mapSA2xp_height_angle
-    true_model.p_map = true_model.poincare_map
-
-    ################################################################################
-    # Load model data
-    ################################################################################
-    infile = open('../data/slip_map.pickle', 'rb')
-    data = pickle.load(infile)
-    infile.close()
-
-    # Start from bad prior
-
-    # This comes from knowledge of the system
-    # TODO clean this up
-    X_seed = np.atleast_2d(np.array([38 / (180) * np.pi, .45]))
-    y_seed = np.array([[.2]])
-    seed_data = {'X': X_seed, 'y': y_seed}
-
-    sampler = MeasureLearner(model=true_model, model_data=data)
-    sampler.init_estimation(seed_data=seed_data, prior_model_path='./model/prior.npy')
-
-    s0 = .45
-
-    sampler.run(n_samples=100, s0=s0)

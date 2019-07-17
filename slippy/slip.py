@@ -2,6 +2,7 @@ import numpy as np
 import scipy.integrate as integrate
 # from numba import jit
 
+
 def feasible(x, p):
     '''
     check if state is at all feasible (body/foot underground)
@@ -11,7 +12,8 @@ def feasible(x, p):
         return False
     return True
 
-def poincare_map(x, p):
+
+def p_map(x, p):
     '''
     Wrapper function for step function, returning only x_next, and -1 if failed
     Essentially, the Poincare map.
@@ -52,13 +54,10 @@ def step(x0, p, prev_sol = None):
     # * nested functions - scroll down to step code * #
 
     # unpacking constants for faster lookup
-    AOA = p['angle_of_attack']
     GRAVITY = p['gravity']
     MASS = p['mass']
     RESTING_LENGTH = p['resting_length']
     STIFFNESS = p['stiffness']
-    TOTAL_ENERGY = p['total_energy']
-    SPECIFIC_STIFFNESS = p['stiffness'] / p['mass']
     MAX_TIME = 5
 
     # @jit(nopython=True)
@@ -71,10 +70,9 @@ def step(x0, p, prev_sol = None):
         # stance dynamics
         alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
         leg_length = np.hypot(x[0]-x[4], x[1]-x[5])
-        xdotdot = -STIFFNESS/MASS*(RESTING_LENGTH -
-                    leg_length)*np.sin(alpha)
-        ydotdot =  STIFFNESS/MASS*(RESTING_LENGTH -
-                    leg_length)*np.cos(alpha) - GRAVITY
+        leg_force = STIFFNESS/MASS*(RESTING_LENGTH - leg_length)
+        xdotdot = -leg_force*np.sin(alpha)
+        ydotdot = leg_force*np.cos(alpha) - GRAVITY
         return np.array([x[2], x[3], xdotdot, ydotdot, 0, 0, 0])
 
     # @jit(nopython=True)
@@ -94,7 +92,7 @@ def step(x0, p, prev_sol = None):
             # x[1]- np.cos(p['angle_of_attack'])*RESTING_LENGTH
             # (which is = x[5])
         return x[5]
-    touchdown_event.terminal = True # no longer actually necessary...
+    touchdown_event.terminal = True  # no longer actually necessary...
     touchdown_event.direction = -1
 
     # @jit(nopython=True)
@@ -120,7 +118,7 @@ def step(x0, p, prev_sol = None):
         '''
         Event function for direction reversal
         '''
-        return x[2] + 1e-5 # for numerics, allow for "straight up"
+        return x[2] + 1e-5  # for numerics, allow for "straight up"
     reversal_event.terminal = True
     reversal_event.direction = -1
 
@@ -131,17 +129,17 @@ def step(x0, p, prev_sol = None):
     if prev_sol is not None:
         t0 = prev_sol.t[-1]
     else:
-        t0 = 0 # starting time
+        t0 = 0  # starting time
 
     # * FLIGHT: simulate till touchdown
     events = [fall_event, touchdown_event]
     sol = integrate.solve_ivp(flight_dynamics,
-        t_span = [t0, t0 + MAX_TIME], y0 = x0, events = events, max_step = 0.01)
+        t_span = [t0, t0 + MAX_TIME], y0=x0, events=events, max_step=0.01)
 
     # TODO Put each part of the step into a list, so you can concat them
     # TODO programmatically, and reduce code length.
         # if you fell, stop now
-    if sol.t_events[0].size != 0: # if empty
+    if sol.t_events[0].size != 0:  # if empty
         if prev_sol is not None:
             sol.t = np.concatenate((prev_sol.t, sol.t))
             sol.y = np.concatenate((prev_sol.y, sol.y), axis =1)
@@ -152,16 +150,16 @@ def step(x0, p, prev_sol = None):
     events = [fall_event, liftoff_event, reversal_event]
     x0 = sol.y[:, -1]
     sol2 = integrate.solve_ivp(stance_dynamics,
-        t_span = [sol.t[-1], sol.t[-1] + MAX_TIME], y0 = x0,
+        t_span = [sol.t[-1], sol.t[-1] + MAX_TIME], y0=x0,
         events=events, max_step=0.001)
 
     # if you fell, stop now
     if sol2.t_events[0].size != 0 or sol2.t_events[2].size != 0: # if empty
         # concatenate all solutions
         sol.t = np.concatenate((sol.t, sol2.t))
-        sol.y = np.concatenate((sol.y, sol2.y), axis = 1)
+        sol.y = np.concatenate((sol.y, sol2.y), axis=1)
         sol.t_events += sol2.t_events
-        if prev_sol is not None: # concatenate to previous solution
+        if prev_sol is not None:  # concatenate to previous solution
             sol.t = np.concatenate((prev_sol.t, sol.t))
             sol.y = np.concatenate((prev_sol.y, sol.y), axis =1)
             sol.t_events = prev_sol.t_events + sol.t_events
@@ -172,12 +170,12 @@ def step(x0, p, prev_sol = None):
 
     x0 = reset_leg(sol2.y[:, -1], p)
     sol3 = integrate.solve_ivp(flight_dynamics,
-            t_span = [sol2.t[-1], sol2.t[-1] + MAX_TIME], y0 = x0,
+            t_span = [sol2.t[-1], sol2.t[-1] + MAX_TIME], y0=x0,
             events=events, max_step=0.01)
 
     # concatenate all solutions
     sol.t = np.concatenate((sol.t, sol2.t, sol3.t))
-    sol.y = np.concatenate((sol.y, sol2.y, sol3.y), axis = 1)
+    sol.y = np.concatenate((sol.y, sol2.y, sol3.y), axis=1)
     sol.t_events += sol2.t_events + sol3.t_events
 
     if prev_sol is not None:
@@ -187,9 +185,10 @@ def step(x0, p, prev_sol = None):
 
     return sol
 
-def check_failure(x, fail_idx = (0, 1, 2)):
+
+def check_failure(x, fail_idx=(0, 1, 2)):
     '''
-    Check if a state is in the failure set. Pass in a tuple of indices for which
+    Check if a state is in the failure set. Pass in a tuple of indices, which
     failure conditions to check. Currently: 0 for falling, 1 for direction rev.
     '''
     for idx in fail_idx:
@@ -204,13 +203,15 @@ def check_failure(x, fail_idx = (0, 1, 2)):
         #         return True
         # else:
         #     print("WARNING: checking for a non-existing failure id.")
-    else: # loop completes, no fail conditions triggered
+    else:  # loop completes, no fail conditions triggered
         return False
+
 
 def reset_leg(x, p):
     x[4] = x[0] + np.sin(p['angle_of_attack'])*p['resting_length']
     x[5] = x[1] - np.cos(p['angle_of_attack'])*p['resting_length']
     return x
+
 
 def compute_total_energy(x, p):
     # TODO: make this accept a trajectory, and output parts as well
@@ -219,8 +220,11 @@ def compute_total_energy(x, p):
     p['stiffness']/2*
     (p['resting_length']-np.sqrt((x[0]-x[4])**2 + (x[1]-x[5])**2))**2)
 
+
 ### Functions for Viability
-def map2s(x, p):
+
+
+def xp2s(x, p):
     '''
     map an apex state to its dimensionless normalized height
     TODO: make this accept trajectories
@@ -230,7 +234,8 @@ def map2s(x, p):
     kinetic_energy = p['mass']/2*x[2]**2
     return potential_energy/(potential_energy + kinetic_energy)
 
-def map2x(x, p, s):
+
+def s2x(x, p, s):
     '''
     map a desired dimensionless height `s` to it's state-vector
     '''
@@ -247,10 +252,11 @@ def map2x(x, p, s):
     x = reset_leg(x, p)
     return x_new
 
-def mapSA2xp_height_angle(state_action, p):
+
+def sa2xp(state_action, p):
     '''
     Specifically map state_actions to x and p
     '''
     p['angle_of_attack'] = state_action[1]
-    x = map2x(p['x0'], p, state_action[0])
+    x = s2x(p['x0'], p, state_action[0])
     return x, p
