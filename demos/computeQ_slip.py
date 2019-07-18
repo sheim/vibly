@@ -1,18 +1,19 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from slippy.slip import *
-import slippy.viability as vibly
+from models import slip
+import viability as vibly
 
 p = {'mass': 80.0, 'stiffness': 8200.0, 'resting_length': 1.0, 'gravity': 9.81,
      'angle_of_attack': 1/5*np.pi}
 x0 = np.array([0, 0.85, 5.5, 0, 0, 0, 0])
-x0 = reset_leg(x0, p)
+x0 = slip.reset_leg(x0, p)
 p['x0'] = x0
-p['total_energy'] = compute_total_energy(x0, p)
+p['total_energy'] = slip.compute_total_energy(x0, p)
+p_map = slip.p_map
 p_map.p = p
 p_map.x = x0
-p_map.sa2xp = sa2xp
-p_map.xp2s = xp2s
+p_map.sa2xp = slip.sa2xp
+p_map.xp2s = slip.xp2s
 
 s_grid = np.linspace(0.1, 1, 91)
 s_grid = s_grid[:-1]
@@ -26,14 +27,14 @@ Q_M = vibly.map_S2Q(Q_map, S_M, Q_V=Q_V)
 ################################################################################
 # save data as pickle
 ################################################################################
-import pickle
+# import pickle
 
-filename = '../data/dynamics/slip_map' + '.pickle'
-data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
-             "Q_M": Q_M, "S_M": S_M, "p": p, "x0": x0}
-outfile = open(filename, 'wb')
-pickle.dump(data2save, outfile)
-outfile.close()
+# filename = '../data/dynamics/slip_map' + '.pickle'
+# data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
+#              "Q_M": Q_M, "S_M": S_M, "p": p, "x0": x0}
+# outfile = open(filename, 'wb')
+# pickle.dump(data2save, outfile)
+# outfile.close()
 # to load this data, do:
 # infile = open(filename, 'rb')
 # data = pickle.load(infile)
@@ -43,5 +44,5 @@ outfile.close()
 # basic visualization
 ################################################################################
 
-# plt.imshow(Q_map, origin='lower')
-# plt.show()
+plt.imshow(Q_map, origin='lower')
+plt.show()

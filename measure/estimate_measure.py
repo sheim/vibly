@@ -4,9 +4,11 @@ from pathlib import Path
 
 import GPy
 
-from slippy.slip import *
-import slippy.viability as vibly
+import numpy as np
+# from slippy.slip import *
+import viability as vibly # TODO: get rid of this dependency
 from scipy.stats import norm
+
 
 class MeasureEstimation:
 
@@ -54,8 +56,6 @@ class MeasureEstimation:
             ARD=True, name='kern2')
 
         kernel_2.variance.constrain_bounded(1e-3, 1e4)
-
-
 
         return kernel_1 # + kernel_2
 

@@ -1,4 +1,4 @@
-import slippy.slip as true_model
+import models.slip as true_model
 import numpy as np
 import pickle
 

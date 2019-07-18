@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import slippy.hovership as sys
-from slippy.hovership import p_map
-import slippy.viability as vibly  # algorithms for brute-force viability
+import models.hovership as sys
+from models.hovership import p_map
+import viability as vibly  # algorithms for brute-force viability
 
 # * here we choose the parameters to use
 # * we also put in a place-holder action (thrust)

@@ -1,4 +1,4 @@
-import slippy.hovership as true_model
+import models.hovership as true_model
 import numpy as np
 import pickle
 
@@ -7,7 +7,7 @@ import plotting.corl_plotters as cplot
 import measure.active_sampling as sampling
 
 
-def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path = './data/gp_model/', results_path='./results/'):
+def run_demo(dynamics_model_path='./data/dynamics/', gp_model_path='./data/gp_model/', results_path='./results/'):
 
     ################################################################################
     # Load model data

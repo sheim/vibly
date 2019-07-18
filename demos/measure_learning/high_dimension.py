@@ -1,4 +1,4 @@
-import slippy.spaceship4 as true_model
+import models.spaceship4 as true_model
 import numpy as np
 import pickle
 

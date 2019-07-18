@@ -1,4 +1,4 @@
-import slippy.hovership as true_model
+import models.hovership as true_model
 import numpy as np
 import pickle
 

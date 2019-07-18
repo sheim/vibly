@@ -1,11 +1,11 @@
 from setuptools import setup
 
-setup(name='anonypy',
+setup(name='slippy',
       version='0.2',
-      description='corl submission',
+      description='SLIPpy',
       url='anonymous',
       author='anonymous',
       author_email='anonymous',
       license='MIT',
-      packages=['anonypy'],
+      packages=['models', 'measure', 'viability'],
       zip_safe=False)

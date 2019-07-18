@@ -1,7 +1,7 @@
 import numpy as np
 import random
 
-import slippy.viability as vibly
+import viability as vibly # TODO: get rid of this dependency...?
 
 import measure.estimate_measure as estimate_measure
 
