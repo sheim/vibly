@@ -7,24 +7,24 @@ from matplotlib import gridspec
 FLAG_SAVE_PLOTS = False
 height_perturbation = 0.1
 # Human readable state index labels and enums.
-state_labels = ['x_c',' y_c','\dot{x}_c','\dot{y}_c','x_f','y_f','l_a','w_a',
-                'w_d', 'y_g']
+state_labels = ['x_c', ' y_c', '\dot{x}_c', '\dot{y}_c', 'x_f', 'y_f', 'l_a',
+                'w_a', 'w_d', 'y_g']
 
-#slip & daslip: shared states
-x_c  = 0  # x_c  : horizontal coordinate of the center-of-mass (c) (+ right)
-y_c  = 1  # y_c  : vertical '...' (+ up)
+# slip & daslip: shared states
+x_c = 0  # x_c  : horizontal coordinate of the center-of-mass (c) (+ right)
+y_c = 1  # y_c  : vertical '...' (+ up)
 vx_c = 2  # vx_c : horizontal velocity of the center-of-mass (+ right)
 vy_c = 3  # vy_c : vertical velocity '...' (+ up)
-x_f  = 4 # x_f : horizontal coordinate from c to the foot (f)
-y_f  = 5 # y_f : vertical coordinate '...'
-#daslip: appended extra states
-la   = 6 # la    : length of the actuator
-wa   = 7 # wa    : work of the actuator
-wd   = 8 # wd
-y_g  = -1 # ground height
+x_f = 4  # x_f : horizontal coordinate from c to the foot (f)
+y_f = 5  # y_f : vertical coordinate '...'
+# daslip: appended extra states
+la = 6  # la    : length of the actuator
+wa = 7  # wa    : work of the actuator
+wd = 8  # wd
+y_g = -1  # ground height
 
-slip_model  = 0  # spring-loaded-inverted-pendulum
-daslip_model= 1  # damper-actuator-spring-loaded inverted pendulum
+slip_model = 0  # spring-loaded-inverted-pendulum
+daslip_model = 1  # damper-actuator-spring-loaded inverted pendulum
 
 # Model types
 #
@@ -49,8 +49,8 @@ daslip_model= 1  # damper-actuator-spring-loaded inverted pendulum
 #
 # 1. Damping that varies linearly with the force of the actuator. This specific
 #    damping model has been chosen because it emulates the intrinsic damping of
-#    active muscle Since we cannot allow the damping to go to zero for numerical
-#    reasons we use
+#    active muscle Since we cannot allow the damping to go to zero for
+#    numerical reasons we use
 #
 #    d = max( d_min, A*f )
 #
@@ -71,73 +71,73 @@ daslip_model= 1  # damper-actuator-spring-loaded inverted pendulum
 # 0. Constant angle of attack
 #
 # 1. Linearly varying angle of attack
-#       The leg of attack varies with time. So that this parameter does not
-#       have to be recomputed for each new forward velocity, compute the angular
-#       velocity of the leg, omega, assuming that it scales with the forward
-#       velocity vx of the body and a scaling factor W
-#       ('swing_foot_norm_velocity')
-#
-#       omega = -W(vx/lr)
-#
-#       thus for an W of -1 omega will be set so that when the leg is straight
-#       velocity of the foot exactly counters the forward velocity of the body.
-#       If W is set to -1.1 then the foot will be travelling backwards 10%
-#       faster than the foward velocity of the body.
-#
-#       At the apex angle of the leg is reset to the angle of attack with an
-#       offset (angle_of_attack_offset) so that during the nominal model.step the
-#       leg lands exactly with the desired angle of attack.
-#
-#       It would be ideal to set W so that it corresponded to a value that
-#       fits Monica's guinea fowl, or perhaps people. I don't have this data
-#       on hand so for now I'm just setting this to -1.1
-#
-#Model parameters for both slip/daslip. Parameters only used by daslip are *
-p = { 'model_type':slip_model,            #0 (slip), 1 (daslip)
-      'mass':80,                          #kg
-      'stiffness':8200.0,                 #K : N/m
-      'spring_resting_length':0.9,        #m
-      'gravity':9.81,                     #N/kg
-      'angle_of_attack':1/5*np.pi,        #rad
-      'actuator_resting_length':0.1,      # m
-      'actuator_force':[],                # * 2 x M matrix of time and force
-      'actuator_force_period':10,         # * s
-      'damping_type':0,                   # * 0 (constant), 1 (linear-with-force)
-      'constant_normalized_damping':0.75,          # *    s   : D/K : [N/m/s]/[N/m]
-      'linear_normalized_damping_coefficient':3.5, # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
-      'linear_minimum_normalized_damping':0.05,    # *   1/A*(kg*N/kg) :
-      'swing_type':0,                    # 0 (constant angle of attack), 1 (linearly varying angle of attack)
-      'swing_leg_norm_angular_velocity': 1.1,  # [1/s]/[m/s] (omega/(vx/lr))
-      'swing_leg_angular_velocity':0,   # rad/s (set by calculation)
-      'angle_of_attack_offset':0}        # rad   (set by calculation)
-#===============================================================================
-#Initialization: Slip & Daslip
-#===============================================================================
+# The leg of attack varies with time. So that this parameter does not
+# have to be recomputed for each new forward velocity, compute the angular
+# velocity of the leg, omega, assuming that it scales with the forward
+# velocity vx of the body and a scaling factor W
+# ('swing_foot_norm_velocity')
 
-x0_slip   = np.array([0, 0.85, 5.5, 0, 0, 0, 0])
+# omega = -W(vx/lr)
+
+# thus for an W of -1 omega will be set so that when the leg is straight
+# velocity of the foot exactly counters the forward velocity of the body.
+# If W is set to -1.1 then the foot will be travelling backwards 10%
+# faster than the foward velocity of the body.
+
+# At the apex angle of the leg is reset to the angle of attack with an
+# offset (angle_of_attack_offset) so that during the nominal model.step the
+# leg lands exactly with the desired angle of attack.
+
+# It would be ideal to set W so that it corresponded to a value that
+# fits Monica's guinea fowl, or perhaps people. I don't have this data
+# on hand so for now I'm just setting this to -1.1
+#
+# Model parameters for both slip/daslip. Parameters only used by daslip are *
+p = {'model_type': slip_model,            # 0 (slip), 1 (daslip)
+     'mass': 80,                          # kg
+     'stiffness': 8200.0,                 # K : N/m
+     'spring_resting_length': 0.9,        # m
+     'gravity': 9.81,                     # N/kg
+     'angle_of_attack': 1/5*np.pi,        # rad
+     'actuator_resting_length': 0.1,      # m
+     'actuator_force': [],                # * 2 x M matrix of time and force
+     'actuator_force_period': 10,         # * s
+     'damping_type': 0,                   # * 0 (constant), 1 (linear-with-force)
+     'constant_normalized_damping': 0.75,          # *    s   : D/K : [N/m/s]/[N/m]
+     'linear_normalized_damping_coefficient': 3.5,  # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
+     'linear_minimum_normalized_damping': 0.05,    # *   1/A*(kg*N/kg) :
+     'swing_type': 0,                    # 0 (constant angle of attack), 1 (linearly varying angle of attack)
+     'swing_leg_norm_angular_velocity':  1.1,  # [1/s]/[m/s] (omega/(vx/lr))
+     'swing_leg_angular_velocity': 0,   # rad/s (set by calculation)
+     'angle_of_attack_offset': 0}        # rad   (set by calculation)
+
+# * Initialization: Slip & Daslip
+
+x0_slip = np.array([0, 0.85, 5.5, 0, 0, 0, 0])
 x0_daslip = np.array([0, 0.85, 5.5, 0, 0, 0,
-        p['actuator_resting_length'], 0, 0, 0])
+                     p['actuator_resting_length'], 0, 0, 0])
 
 x0_slip = model.reset_leg(x0_slip, p)
 p['total_energy'] = model.compute_total_energy(x0_slip, p)
 
-#===============================================================================
-#Limit Cycle: nominal Slip
-#===============================================================================
+
+# * Limit Cycle: nominal Slip
+
 search_width = np.pi*0.25
 swing_type = p['swing_type']
 
-#To compute the limit cycle make sure the swing type is fixed to constant.
+# To compute the limit cycle make sure the swing type is fixed to constant.
 p['swing_type'] = 0
-p_lc, success = model.find_limit_cycle(x0_slip,p,'angle_of_attack',search_width)
+p_lc, success = model.find_limit_cycle(x0_slip, p, 'angle_of_attack',
+                                       search_width)
 
-#Get a high-resolution state trajectory of the limit cycle
+# Get a high-resolution state trajectory of the limit cycle
 x0_slip = model.reset_leg(x0_slip, p_lc)
 p_lc['total_energy'] = model.compute_total_energy(x0_slip, p_lc)
 sol_slip = model.step(x0_slip, p_lc)
 
-#If swing_type is in retraction mode, update the angle_of_attack_offset, and
-#the angular velocity of the swing leg
+# If swing_type is in retraction mode, update the angle_of_attack_offset, and
+# the angular velocity of the swing leg
 if swing_type == 1:
     t_contact = sol_slip.t_events[1][0]
     p_lc['swing_type']=swing_type
@@ -145,7 +145,7 @@ if swing_type == 1:
             -(p_lc['swing_leg_norm_angular_velocity']*x0_slip[vx_c])/
             (p_lc['spring_resting_length']+p_lc['actuator_resting_length']))
     p_lc['angle_of_attack_offset'] = -t_contact*p_lc['swing_leg_angular_velocity']
-    #Update the model.step solution
+    # Update the model.step solution
     x0_slip = model.reset_leg(x0_slip, p_lc)
     p_lc['total_energy'] = model.compute_total_energy(x0_slip, p_lc)
     sol_slip = model.step(x0_slip, p_lc)
@@ -217,8 +217,8 @@ p_daslip['model_type'] = daslip_model
 p_daslip['actuator_force'] = actuator_time_force
 p_daslip['actuator_force_period'] = np.max(actuator_time_force[0, :])
 
-#Solve for a nominal model.step of the daslip model. The output trajectory
-#should perfectly match the limit cycle model.step of the slip model
+# Solve for a nominal model.step of the daslip model. The output trajectory
+# should perfectly match the limit cycle model.step of the slip model
 x0_daslip[y_c] = x0_daslip[y_c] + height_perturbation
 x0_daslip = model.reset_leg(x0_daslip, p_daslip)
 p_daslip['total_energy'] = model.compute_total_energy(x0_daslip, p_daslip)
@@ -288,9 +288,9 @@ gsBasic= gridspec.GridSpec(2, 2, width_ratios=[2, 1])
 
 ax=plt.subplot(gsBasic[0])
 ax.plot(sol_slip.y[x_c], sol_slip.y[y_c],
-        color=color_slip, linewidth=linewidth_thick, label='SLIP')
+        color=color_slip, linewidth=linewidth_thick, label ='SLIP')
 ax.plot(sol_slip_pert.y[x_c], sol_slip_pert.y[y_c],
-        color=color_slip_pert, linewidth=linewidth_thick, label='SLIP perturbed')
+        color=color_slip_pert, linewidth=linewidth_thick, label ='SLIP perturbed')
 
 #Plot the leg when events are triggered
 contact_event = False
@@ -307,7 +307,7 @@ for i in range(0, len(sol_slip.t_events)):
         contact_event = True
 ax.plot(sol_daslip.y[x_c],sol_daslip.y[y_c],
         color=color_daslip, linewidth=linewidth_thin,
-        linestyle='--', label='DASLIP')
+        linestyle='--', label ='DASLIP')
 
 #Plot the leg when events are triggered
 contact_event = False
@@ -361,10 +361,10 @@ if(FLAG_SAVE_PLOTS==True):
 #Ground forces of the two models
 ax=plt.subplot(gsBasic[2])
 ax.plot(sol_slip.t, slip_leg_force[0],
-        color=color_slip, linewidth=linewidth_thick, label='SLIP')
+        color=color_slip, linewidth=linewidth_thick, label ='SLIP')
 ax.plot(sol_daslip.t, daslip_leg_force[0],
         color=color_daslip, linewidth=linewidth_thin,
-        linestyle='--', label='DASLIP-Total')
+        linestyle='--', label ='DASLIP-Total')
 
 
 plt.xlabel('Time (s)')
@@ -382,10 +382,10 @@ plt.tight_layout()
 ax=plt.subplot(gsBasic[3])
 ax.plot([np.min(sol_slip.t),np.max(sol_slip.t)],
         [p['actuator_resting_length'],p['actuator_resting_length']],
-        color=color_slip, linewidth=linewidth_thick, label='SLIP')
+        color=color_slip, linewidth=linewidth_thick, label ='SLIP')
 ax.plot(sol_daslip.t, sol_daslip.y[la],
         color=color_daslip, linewidth=linewidth_thin,
-        linestyle='--', label='DASLIP')
+        linestyle='--', label ='DASLIP')
 
 plt.xlabel('Time (s)')
 plt.ylabel('Force (m)')
@@ -412,7 +412,7 @@ gsDebug= gridspec.GridSpec(2, 3, width_ratios=[1, 1, 1])
 #Kinematic Error Between Slip-Daslip
 ax=plt.subplot(gsDebug[0])
 plt.plot(sol_daslip.t, sol_daslip_err,
-         color=color_daslip, linewidth=linewidth_thin,label='DASLIP')
+         color=color_daslip, linewidth=linewidth_thin,label ='DASLIP')
 
 plt.xlabel('Time (s)')
 plt.ylabel('Distance')
@@ -427,11 +427,11 @@ plt.tight_layout()
 #Energy Balance
 ax=plt.subplot(gsDebug[1])
 ax.plot(sol_slip.t, tvw_slip_error,
-        color=color_slip, linewidth=linewidth_thick, label='SLIP')
+        color=color_slip, linewidth=linewidth_thick, label ='SLIP')
 ax.plot(sol_slip_pert.t, tvw_slip_error_pert, color=color_slip_pert,
-        linewidth=linewidth_thick, label='SLIP perturbed')
+        linewidth=linewidth_thick, label ='SLIP perturbed')
 ax.plot(sol_daslip.t, tvw_daslip_error, color=color_daslip,
-        linewidth=linewidth_thin, linestyle='--', label='DASLIP')
+        linewidth=linewidth_thin, linestyle='--', label ='DASLIP')
 plt.xlabel('Time (s)')
 plt.ylabel('Energy (J)')
 plt.title('$T+V-W$')
@@ -443,14 +443,14 @@ ax.xaxis.set_ticks_position('bottom')
 
 plt.tight_layout()
 
-#Spring Lengths
+# Spring Lengths
 ax=plt.subplot(gsDebug[2])
 ax.plot(sol_slip.t, slip_spring_deflection[0],
-        color=color_slip, linewidth=linewidth_thick, label='SLIP')
+        color=color_slip, linewidth=linewidth_thick, label ='SLIP')
 ax.plot(sol_slip_pert.t, slip_spring_deflection_pert[0], color=color_slip_pert,
-        linewidth=linewidth_thick, label='SLIP perturbed')
+        linewidth=linewidth_thick, label ='SLIP perturbed')
 ax.plot(sol_daslip.t, daslip_spring_deflection[0], color=color_daslip,
-        linewidth=linewidth_thin, linestyle='--', label='DASLIP')
+        linewidth=linewidth_thin, linestyle='--', label ='DASLIP')
 plt.xlabel('Time (s)')
 plt.ylabel('Length (m)')
 plt.title('Spring Deflection')
@@ -465,11 +465,11 @@ plt.tight_layout()
 #Kinetic Energy
 ax=plt.subplot(gsDebug[3])
 ax.plot(sol_slip.t, tvw_slip[0],
-        color=color_slip, linewidth=linewidth_thick, label='SLIP')
+        color=color_slip, linewidth=linewidth_thick, label ='SLIP')
 ax.plot(sol_slip_pert.t, tvw_slip_pert[0], color=color_slip_pert,
-        linewidth=linewidth_thick, label='SLIP perturbed')
+        linewidth=linewidth_thick, label ='SLIP perturbed')
 ax.plot(sol_daslip.t, tvw_daslip[0], color=color_daslip,
-        linewidth=linewidth_thin, linestyle='--', label='DASLIP')
+        linewidth=linewidth_thin, linestyle='--', label ='DASLIP')
 plt.xlabel('Time (s)')
 plt.ylabel('Energy (J)')
 plt.title('Kinetic Energy')
@@ -484,11 +484,11 @@ plt.tight_layout()
 #Potential Energy
 ax=plt.subplot(gsDebug[4])
 ax.plot(sol_slip.t, tvw_slip[1],
-        color=color_slip, linewidth=linewidth_thick, label='SLIP')
+        color=color_slip, linewidth=linewidth_thick, label ='SLIP')
 ax.plot(sol_slip_pert.t, tvw_slip_pert[1], color=color_slip_pert, 
-        linewidth=linewidth_thick, label='SLIP perturbed')
+        linewidth=linewidth_thick, label ='SLIP perturbed')
 ax.plot(sol_daslip.t,tvw_daslip[1], color=color_daslip,
-        linewidth=linewidth_thin, linestyle='--', label='DASLIP')
+        linewidth=linewidth_thin, linestyle='--', label ='DASLIP')
 plt.xlabel('Time (s)')
 plt.ylabel('Energy (J)')
 plt.title('Potential Energy')
@@ -503,11 +503,11 @@ plt.tight_layout()
 #Work
 ax=plt.subplot(gsDebug[5])
 ax.plot(sol_slip.t, tvw_slip[2],
-        color=color_slip, linewidth=linewidth_thick, label='SLIP')
+        color=color_slip, linewidth=linewidth_thick, label ='SLIP')
 ax.plot(sol_daslip.t,tvw_daslip[2], color=color_daslip,
-        linewidth=linewidth_thin, linestyle='--', label='DASLIP actuator work')
+        linewidth=linewidth_thin, linestyle='--', label ='DASLIP actuator work')
 ax.plot(sol_daslip.t,tvw_daslip[3], color=color_daslip,
-        linewidth=linewidth_thin, linestyle='-.', label='DASLIP damper work')
+        linewidth=linewidth_thin, linestyle='-.', label ='DASLIP damper work')
 plt.xlabel('Time (s)')
 plt.ylabel('Energy (J)')
 plt.title('Work')
