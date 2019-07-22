@@ -3,7 +3,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 from matplotlib import gridspec
-import plotting.single_trials as da_plot
 
 FLAG_SAVE_PLOTS = False
 height_perturbation = 0.1
@@ -212,7 +211,7 @@ for i in range(1, 4):
 #===============================================================================
 
 #Use the limit cycle to form the actuator open-loop force time series
-actuator_time_force = model.create_open_loop_trajectory(sol_slip, p_lc)
+actuator_time_force = model.create_force_trajectory(sol_slip, p_lc)
 p_daslip = p_lc.copy() # python doesn't do deep copies by default
 p_daslip['model_type'] = daslip_model
 p_daslip['actuator_force'] = actuator_time_force

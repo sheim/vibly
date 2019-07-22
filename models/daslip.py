@@ -14,94 +14,99 @@ def find_limit_cycle(x, p, p_key_name, p_key_width):
 
     limit_cycle_found = False
 
-    if type(p) is dict:
-        if p['model_type'] != 0:
-            print("limit_cycle: can only be called with a slip model "
-                  + "(model_type 0)")
-            limit_cycle_found = False
-            return (p, limit_cycle_found)
+    if type(p) is not dict:
+        print("WARNING: p is not a dict and should be.")
+        return (p, False)
 
-        # Use the bisection method to get a good initial guess for key
-        key_delta = p_key_width
-
-        # Initial solution
-        x = reset_leg(x, p)
-        (pm, step_failed) = poincare_map(x, p)
-        err = np.abs(pm[1] - x[1])
-
-        # Memory for the left and right solutions
-        pm_left = pm
-        pm_right = pm
-        err_left = 0
-        err_right = 0
-
-        key = p[p_key_name]
-
-        # After this for loop returns the angle of attack will be known to
-        # a tolerance of pi/4 / 2^(max_iter_bisection)
-        for i in range(0, max_iter_bisection):
-            p[p_key_name] = key - key_delta
-            x = reset_leg(x, p)
-            (pm_left, step_failed_left) = poincare_map(x, p)
-            err_left = np.abs(pm_left[1] - x[1])
-
-            p[p_key_name] = key + key_delta
-            x = reset_leg(x, p)
-            (pm_right, step_failed_right) = poincare_map(x, p)
-            err_right = np.abs(pm_right[1] - x[1])
-
-            if ((err_left < err and step_failed_left is False) and
-               (err_left <= err_right or step_failed_right is True)):
-                err = err_left
-                key = key - key_delta
-
-            if ((err_right < err and step_failed_right is False) and
-               (err_right < err_left or step_failed_left is True)):
-                err = err_right
-                key = key + key_delta
-
-            key_delta = 0.5*key_delta
-
-        # Polish the root using Newton's method
-
-        idx = 0
-        h = np.sqrt(np.finfo('float64').eps)
-        while np.abs(err) > tol_newton and idx < max_iter_newton:
-
-            # Compute the error
-            p[p_key_name] = key
-            x = reset_leg(x, p)
-            (pm, step_failed) = poincare_map(x, p)
-            err = pm[1]-x[1]
-
-            # Compute D(error)/D(key) using a numerical derivative
-            p[p_key_name] = key-h
-            x = reset_leg(x, p)
-            (pm, step_failed) = poincare_map(x, p)
-            errL = pm[1]-x[1]
-
-            p[p_key_name] = key+h
-            x = reset_leg(x, p)
-            (pm, step_failed) = poincare_map(x, p)
-            errR = pm[1]-x[1]
-
-            # Compute a Newton step and take it
-            DerrDkey = (errR-errL)/(2*h)
-            key = key - err/DerrDkey
-            idx = idx+1
-
-        if np.abs(err) > tol_newton:
-            print("WARNING: Newton method failed to converge")
-            limit_cycle_found = False
-        else:
-            limit_cycle_found = True
-
-        p[p_key_name] = key
+    # TODO map da_slip to slip model
+    # * can probably just use the p as is, simply switching it to a slip model
+    if p['model_type'] != 0:
+        print("limit_cycle: can only be called with a slip model "
+              + "(model_type 0)")
+        limit_cycle_found = False
         return (p, limit_cycle_found)
 
+    if p['swing_type'] != 0:
+        print("Warning: overriding swing-type to constant")
+        p['swing_type'] = 0
+
+    # Use the bisection method to get a good initial guess for key
+    key_delta = p_key_width
+
+    # Initial solution
+    x = reset_leg(x, p)
+    (pm, step_failed) = poincare_map(x, p)
+    err = np.abs(pm[1] - x[1])
+
+    # Memory for the left and right solutions
+    pm_left = pm
+    pm_right = pm
+    err_left = 0
+    err_right = 0
+
+    key = p[p_key_name]
+
+    # After this for loop returns the angle of attack will be known to
+    # a tolerance of pi/4 / 2^(max_iter_bisection)
+    for i in range(0, max_iter_bisection):
+        p[p_key_name] = key - key_delta
+        x = reset_leg(x, p)
+        (pm_left, step_failed_left) = poincare_map(x, p)
+        err_left = np.abs(pm_left[1] - x[1])
+
+        p[p_key_name] = key + key_delta
+        x = reset_leg(x, p)
+        (pm_right, step_failed_right) = poincare_map(x, p)
+        err_right = np.abs(pm_right[1] - x[1])
+
+        if ((err_left < err and step_failed_left is False) and
+            (err_left <= err_right or step_failed_right is True)):
+            err = err_left
+            key = key - key_delta
+
+        if ((err_right < err and step_failed_right is False) and
+            (err_right < err_left or step_failed_left is True)):
+            err = err_right
+            key = key + key_delta
+
+        key_delta = 0.5*key_delta
+
+    # polish the root using Newton's method
+
+    idx = 0
+    h = np.sqrt(np.finfo('float64').eps)
+    while np.abs(err) > tol_newton and idx < max_iter_newton:
+
+        # Compute the error
+        p[p_key_name] = key
+        x = reset_leg(x, p)
+        (pm, step_failed) = poincare_map(x, p)
+        err = pm[1]-x[1]
+
+        # Compute D(error)/D(key) using a numerical derivative
+        p[p_key_name] = key-h
+        x = reset_leg(x, p)
+        (pm, step_failed) = poincare_map(x, p)
+        errL = pm[1]-x[1]
+
+        p[p_key_name] = key+h
+        x = reset_leg(x, p)
+        (pm, step_failed) = poincare_map(x, p)
+        errR = pm[1]-x[1]
+
+        # Compute a Newton step and take it
+        DerrDkey = (errR-errL)/(2*h)
+        key = key - err/DerrDkey
+        idx = idx+1
+
+    if np.abs(err) > tol_newton:
+        print("WARNING: Newton method failed to converge")
+        limit_cycle_found = False
     else:
-        print("WARNING: p is not a dict and should be.")
-        return p
+        limit_cycle_found = True
+
+    p[p_key_name] = key
+    return (p, limit_cycle_found)
 
 
 def feasible(x, p):
@@ -183,7 +188,7 @@ def step(x0, p, prev_sol=None):
         vfy = 0
         if p['swing_type'] == 1 and x[3] <= 0:
             alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
-            vPerp = p['swing_leg_angular_velocity']*(SPRING_RESTING_LENGTH +
+            vPerp = p['swing_velocity']*(SPRING_RESTING_LENGTH +
                                                      ACTUATOR_RESTING_LENGTH)
             vfx = vPerp*np.cos(alpha)
             vfy = vPerp*np.sin(alpha)
@@ -388,7 +393,7 @@ def check_failure(x, fail_idx=(0, 1)):
         return False
 
 
-def create_open_loop_trajectory(step_sol, p):
+def create_force_trajectory(step_sol, p):
     MODEL_TYPE = p['model_type']
     assert (MODEL_TYPE == 0 or MODEL_TYPE == 1)
 
@@ -401,6 +406,47 @@ def create_open_loop_trajectory(step_sol, p):
         actuator_time_force[1, i] = spring_force
 
     return actuator_time_force
+
+
+def create_open_loop_trajectories(x0, p):
+    '''
+    Create a nominal trajectory based on a SLIP model
+    '''
+    search_width = np.pi*0.25
+    p_slip = p.copy()
+    p_slip['model_type'] = 0
+    p_slip['swing_type'] = 0
+    x0_slip = np.concatenate([x0[0:6], x0[-1:]])
+    x0_slip = reset_leg(x0_slip, p_slip)
+    p_slip['total_energy'] = compute_total_energy(x0_slip, p_slip)
+    p, success = find_limit_cycle(x0_slip, p_slip, 'angle_of_attack',
+                                  search_width)
+    if not success:
+        print("WARNING: no limit-cycles found")
+        return p
+
+    x0_slip = reset_leg(x0_slip, p_slip)
+    p['total_energy'] = compute_total_energy(x0_slip, p_slip)
+    sol_slip = step(x0_slip, p)
+
+    # compute open-loop force trajectory from nominal slip traj
+    actuator_time_force = create_force_trajectory(sol_slip, p)
+    p['model_type'] = 1
+    p['actuator_force'] = actuator_time_force
+    p['actuator_force_period'] = np.max(actuator_time_force[0, :])
+
+    # TODO
+    if p['swing_type'] == 1:
+        t_contact = sol_slip.t_events[1][0]
+        p['swing_velocity'] = (
+                -(p['swing_leg_norm_angular_velocity']*x0_slip[2]) /
+                (p['spring_resting_length']+p['actuator_resting_length']))
+        p['angle_of_attack_offset'] = -t_contact*p['swing_velocity']
+        # Update the model.step solution
+    x0 = reset_leg(x0, p)
+    p['total_energy'] = compute_total_energy(x0, p)
+
+    return (x0, p)
 
 
 def compute_spring_length(x, p):
@@ -439,7 +485,6 @@ def reset_leg(x, p):
         angle_offset = p['angle_of_attack_offset']
     else:
         raise Exception('swing_type is not set correctly')
-
 
     x[4] = x[0] + np.sin(p['angle_of_attack']+angle_offset)*(
                     p['spring_resting_length']+p['actuator_resting_length'])

@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # colors corresponding to initial flight, stance, second flight
-colors = ['k','b','g']
+colors = ['k', 'b', 'g']
 
 ### The attributes of sol are:
 ## sol.t 		: series of time-points at which the solution was calculated
@@ -17,7 +17,7 @@ colors = ['k','b','g']
 # - fall during flight
 ### If the event did not occur than the array is empty.
 
-def com_visualisation(sol, leg_visibility = 0.5, colors = colors, size = 100, Ground = False):
+def com_visualisation(sol, leg_visibility=0.5, colors=colors, size=100, Ground=False):
 	'''
 	 This function plots failure events in red.
 	 '''
@@ -28,7 +28,7 @@ def com_visualisation(sol, leg_visibility = 0.5, colors = colors, size = 100, Gr
 	x_com    = result[0]
 	y_com    = result[1]
 
-	plt.figure()
+	# plt.figure()
 
 	### Initial position
 	plt.scatter(x_com[0], y_com[0], color = colors[0], s = size)
