@@ -156,7 +156,7 @@ def step(x0, p, prev_sol=None):
 
     MODEL_TYPE = p['model_type']
     assert(MODEL_TYPE == 0 or MODEL_TYPE == 1)
-    if MODEL_TYPE == 0 :
+    if MODEL_TYPE == 0:
         assert(len(x0) == 7)
     elif MODEL_TYPE == 1:
         assert(len(x0) == 10)
@@ -388,11 +388,11 @@ def check_failure(x, fail_idx=(0, 1)):
         return False
 
 
-def create_actuator_open_loop_time_series(step_sol, p):
+def create_open_loop_trajectory(step_sol, p):
     MODEL_TYPE = p['model_type']
     assert (MODEL_TYPE == 0 or MODEL_TYPE == 1)
 
-    actuator_time_force = np.zeros(shape=(2,len(step_sol.t)))
+    actuator_time_force = np.zeros(shape=(2, len(step_sol.t)))
     for i in range(0, len(step_sol.t)):
         spring_length = compute_spring_length(step_sol.y[:, i], p)
         spring_force = -p['stiffness']*(spring_length -
@@ -519,6 +519,7 @@ def mapSA2xp_y_xdot_aoa(state_action, x, p):
     '''
     print("TODO: re-implment mapSA2xp_y_xdot_aoa with ground height")
     p['angle_of_attack'] = state_action[2]
+    x = p['x0']
     x[1] = state_action[0]  # TODO: reimplement with ground ehight
     x[2] = state_action[1]
     x = reset_leg(x, p)
@@ -535,7 +536,7 @@ def map2s_energy_normalizedheight_aoa(x, p):
     return np.array([total_energy, potential_energy/total_energy])
 
 
-def mapSA2xp_energy_normalizedheight_aoa(state_action, x, p):
+def mapSA2xp_energy_normalizedheight_aoa(state_action, p):
     '''
     state_action[0]: total energy
     state_action[1]: potential energy / total energy
@@ -545,7 +546,7 @@ def mapSA2xp_energy_normalizedheight_aoa(state_action, x, p):
     total_energy = state_action[0]
     potential_energy = state_action[1]*total_energy
     kinetic_energy = (1-state_action[1])*total_energy
-
+    x = p['x0']
     x[1] = potential_energy/p['mass']/p['gravity']
     x[2] = np.sqrt(2*kinetic_energy/p['mass'])
 
