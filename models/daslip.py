@@ -507,14 +507,15 @@ def compute_total_energy(x, p):
 
 
 # TODO refactor this to return ([Kin, Pot_g, Pot_s], [work_a, work_d])
-def compute_potential_kinetic_work_total(sol, p):
+def compute_potential_kinetic_work_total(state_traj, p):
     '''
     Compute potential and kinetic energy, work, and total energy
+    state_traj: trajectory of states (e.g. sol.y)
     '''
-    cols = np.shape(sol)[1]
+    cols = np.shape(state_traj)[1]
     pkwt = np.zeros((5, cols))
     for i in range(0, cols):
-        spring_length = compute_spring_length(sol[:, i], p)
+        spring_length = compute_spring_length(state_traj[:, i], p)
         work_actuator = 0
         work_damper = 0
 
@@ -522,16 +523,16 @@ def compute_potential_kinetic_work_total(sol, p):
             work_actuator = 0
             work_damper = 0
         elif p['model_type'] == 1:
-            work_actuator = sol[7, i]
-            work_damper = sol[8, i]
+            work_actuator = state_traj[7, i]
+            work_damper = state_traj[8, i]
         else:
             raise Exception('model_type is not set correctly')
 
         spring_energy = 0.5*p['stiffness']*(spring_length
                                             - p['spring_resting_length'])**2
 
-        pkwt[0, i] = p['mass']/2*(sol[2, i]**2+sol[3, i]**2)
-        pkwt[1, i] = p['gravity']*p['mass']*(sol[1, i]) + spring_energy
+        pkwt[0, i] = p['mass']/2*(state_traj[2, i]**2+state_traj[3, i]**2)
+        pkwt[1, i] = p['gravity']*p['mass']*(state_traj[1, i]) + spring_energy
         pkwt[2, i] = work_actuator
         pkwt[3, i] = work_damper
         pkwt[4, i] = pkwt[0, i]+pkwt[1, i] #-pkwt[2,i]
