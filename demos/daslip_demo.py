@@ -163,10 +163,10 @@ for i in range(0, n):
 #   t: kinetic energy
 #   v: potential energy
 #   w: work
-tvw_slip = model.compute_potential_kinetic_work_total(sol_slip.y, p_lc)
-tvw_slip_error = np.zeros(np.shape(tvw_slip)[1])
-for i in range(0, len(tvw_slip_error)):
-    tvw_slip_error[i] = tvw_slip[3, i] - tvw_slip[3, 0]
+pkwt_slip = model.compute_potential_kinetic_work_total(sol_slip.y, p_lc)
+pkwt_slip_error = np.zeros(np.shape(pkwt_slip)[1])
+for i in range(0, len(pkwt_slip_error)):
+    pkwt_slip_error[i] = pkwt_slip[3, i] - pkwt_slip[3, 0]
 
 #Print the difference between the starting and ending state
 print('Limit Cycle State Error: x(start) - x(end)')
@@ -194,10 +194,10 @@ for i in range(0, n): #TODO: pythonize
 #   t: kinetic energy
 #   v: potential energy
 #   w: work
-tvw_slip_pert = model.compute_potential_kinetic_work_total(sol_slip_pert.y, p_lc)
-tvw_slip_error_pert = np.zeros(np.shape(tvw_slip_pert)[1])
-for i in range(0, len(tvw_slip_error_pert)):
-    tvw_slip_error_pert[i] = tvw_slip_pert[3, i] - tvw_slip_pert[3, 0]
+pkwt_slip_pert = model.compute_potential_kinetic_work_total(sol_slip_pert.y, p_lc)
+pkwt_slip_error_pert = np.zeros(np.shape(pkwt_slip_pert)[1])
+for i in range(0, len(pkwt_slip_error_pert)):
+    pkwt_slip_error_pert[i] = pkwt_slip_pert[3, i] - pkwt_slip_pert[3, 0]
 
 #Print the difference between the starting and ending state
 print('Perturbed SLIP State Error: x(start) - x(end)')
@@ -225,10 +225,10 @@ p_daslip['total_energy'] = model.compute_total_energy(x0_daslip, p_daslip)
 sol_daslip = model.step(x0_daslip, p_daslip)
 
 #Evaluate the energetics of the solution
-tvw_daslip = model.compute_potential_kinetic_work_total(sol_daslip.y,p_daslip)
-tvw_daslip_error =np.zeros(np.shape(tvw_daslip)[1])
-for i in range(0, len(tvw_daslip_error)):
-    tvw_daslip_error[i]=tvw_daslip[3,i]-tvw_daslip[3,0]
+pkwt_daslip = model.compute_potential_kinetic_work_total(sol_daslip.y, p_daslip)
+pkwt_daslip_error =np.zeros(np.shape(pkwt_daslip)[1])
+for i in range(0, len(pkwt_daslip_error)):
+    pkwt_daslip_error[i]=pkwt_daslip[3,i]-pkwt_daslip[3,0]
 
 n = len(sol_daslip.t)
 daslip_spring_deflection = np.zeros((1,n))
@@ -426,11 +426,11 @@ plt.tight_layout()
 
 #Energy Balance
 ax=plt.subplot(gsDebug[1])
-ax.plot(sol_slip.t, tvw_slip_error,
+ax.plot(sol_slip.t, pkwt_slip_error,
         color=color_slip, linewidth=linewidth_thick, label ='SLIP')
-ax.plot(sol_slip_pert.t, tvw_slip_error_pert, color=color_slip_pert,
+ax.plot(sol_slip_pert.t, pkwt_slip_error_pert, color=color_slip_pert,
         linewidth=linewidth_thick, label ='SLIP perturbed')
-ax.plot(sol_daslip.t, tvw_daslip_error, color=color_daslip,
+ax.plot(sol_daslip.t, pkwt_daslip_error, color=color_daslip,
         linewidth=linewidth_thin, linestyle='--', label ='DASLIP')
 plt.xlabel('Time (s)')
 plt.ylabel('Energy (J)')
@@ -464,11 +464,11 @@ plt.tight_layout()
 
 #Kinetic Energy
 ax=plt.subplot(gsDebug[3])
-ax.plot(sol_slip.t, tvw_slip[0],
+ax.plot(sol_slip.t, pkwt_slip[1],
         color=color_slip, linewidth=linewidth_thick, label ='SLIP')
-ax.plot(sol_slip_pert.t, tvw_slip_pert[0], color=color_slip_pert,
+ax.plot(sol_slip_pert.t, pkwt_slip_pert[1], color=color_slip_pert,
         linewidth=linewidth_thick, label ='SLIP perturbed')
-ax.plot(sol_daslip.t, tvw_daslip[0], color=color_daslip,
+ax.plot(sol_daslip.t, pkwt_daslip[1], color=color_daslip,
         linewidth=linewidth_thin, linestyle='--', label ='DASLIP')
 plt.xlabel('Time (s)')
 plt.ylabel('Energy (J)')
@@ -483,11 +483,11 @@ plt.tight_layout()
 
 #Potential Energy
 ax=plt.subplot(gsDebug[4])
-ax.plot(sol_slip.t, tvw_slip[1],
+ax.plot(sol_slip.t, pkwt_slip[0],
         color=color_slip, linewidth=linewidth_thick, label ='SLIP')
-ax.plot(sol_slip_pert.t, tvw_slip_pert[1], color=color_slip_pert, 
+ax.plot(sol_slip_pert.t, pkwt_slip_pert[0], color=color_slip_pert, 
         linewidth=linewidth_thick, label ='SLIP perturbed')
-ax.plot(sol_daslip.t,tvw_daslip[1], color=color_daslip,
+ax.plot(sol_daslip.t,pkwt_daslip[0], color=color_daslip,
         linewidth=linewidth_thin, linestyle='--', label ='DASLIP')
 plt.xlabel('Time (s)')
 plt.ylabel('Energy (J)')
@@ -502,11 +502,11 @@ plt.tight_layout()
 
 #Work
 ax=plt.subplot(gsDebug[5])
-ax.plot(sol_slip.t, tvw_slip[2],
+ax.plot(sol_slip.t, pkwt_slip[2],
         color=color_slip, linewidth=linewidth_thick, label ='SLIP')
-ax.plot(sol_daslip.t,tvw_daslip[2], color=color_daslip,
+ax.plot(sol_daslip.t,pkwt_daslip[2], color=color_daslip,
         linewidth=linewidth_thin, linestyle='--', label ='DASLIP actuator work')
-ax.plot(sol_daslip.t,tvw_daslip[3], color=color_daslip,
+ax.plot(sol_daslip.t,pkwt_daslip[3], color=color_daslip,
         linewidth=linewidth_thin, linestyle='-.', label ='DASLIP damper work')
 plt.xlabel('Time (s)')
 plt.ylabel('Energy (J)')

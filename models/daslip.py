@@ -506,10 +506,13 @@ def compute_total_energy(x, p):
     return energy
 
 
+# TODO refactor this to return ([Kin, Pot_g, Pot_s], [work_a, work_d])
 def compute_potential_kinetic_work_total(sol, p):
-
+    '''
+    Compute potential and kinetic energy, work, and total energy
+    '''
     cols = np.shape(sol)[1]
-    t_v_w = np.zeros((5, cols))
+    pkwt = np.zeros((5, cols))
     for i in range(0, cols):
         spring_length = compute_spring_length(sol[:, i], p)
         work_actuator = 0
@@ -527,13 +530,13 @@ def compute_potential_kinetic_work_total(sol, p):
         spring_energy = 0.5*p['stiffness']*(spring_length
                                             - p['spring_resting_length'])**2
 
-        t_v_w[0, i] = p['mass']/2*(sol[2, i]**2+sol[3, i]**2)
-        t_v_w[1, i] = p['gravity']*p['mass']*(sol[1, i]) + spring_energy
-        t_v_w[2, i] = work_actuator
-        t_v_w[3, i] = work_damper
-        t_v_w[4, i] = t_v_w[0, i]+t_v_w[1, i] #-t_v_w[2,i]
+        pkwt[0, i] = p['mass']/2*(sol[2, i]**2+sol[3, i]**2)
+        pkwt[1, i] = p['gravity']*p['mass']*(sol[1, i]) + spring_energy
+        pkwt[2, i] = work_actuator
+        pkwt[3, i] = work_damper
+        pkwt[4, i] = pkwt[0, i]+pkwt[1, i] #-pkwt[2,i]
 
-    return t_v_w
+    return pkwt
 
 # * Functions for Viability
 
