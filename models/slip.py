@@ -221,7 +221,100 @@ def compute_total_energy(x, p):
     (p['resting_length']-np.sqrt((x[0]-x[4])**2 + (x[1]-x[5])**2))**2)
 
 
-### Functions for Viability
+def find_limit_cycle(x, p, p_key_name, key_delta):
+    '''
+    Iterates over the angle of attack of the leg until a limit cycle is reached
+    '''
+    # Settings for the root finding methods
+
+    max_iter_bisection = 10
+    max_iter_newton = 10
+    tol_newton = 1e-12
+
+    limit_cycle_found = False
+
+    if type(p) is not dict:
+        print("WARNING: p is not a dict and should be.")
+        return (p, False)
+
+    # Use the bisection method to get a good initial guess for key
+
+    # Initial solution
+    x = reset_leg(x, p)
+    (pm, step_failed) = p_map(x, p)
+    err = np.abs(pm[1] - x[1])
+
+    # Memory for the left and right solutions
+    pm_left = pm
+    pm_right = pm
+    err_left = 0
+    err_right = 0
+
+    key = p[p_key_name]
+
+    # After this for loop returns the angle of attack will be known to
+    # a tolerance of pi/4 / 2^(max_iter_bisection)
+    for i in range(0, max_iter_bisection):
+        p[p_key_name] = key - key_delta
+        x = reset_leg(x, p)
+        (pm_left, step_failed_left) = p_map(x, p)
+        err_left = np.abs(pm_left[1] - x[1])
+
+        p[p_key_name] = key + key_delta
+        x = reset_leg(x, p)
+        (pm_right, step_failed_right) = p_map(x, p)
+        err_right = np.abs(pm_right[1] - x[1])
+
+        if ((err_left < err and step_failed_left is False) and
+            (err_left <= err_right or step_failed_right is True)):
+            err = err_left
+            key = key - key_delta
+
+        if ((err_right < err and step_failed_right is False) and
+            (err_right < err_left or step_failed_left is True)):
+            err = err_right
+            key = key + key_delta
+
+        key_delta = 0.5*key_delta
+
+    # polish the root using Newton's method
+
+    idx = 0
+    h = np.sqrt(np.finfo('float64').eps)
+    while np.abs(err) > tol_newton and idx < max_iter_newton:
+
+        # Compute the error
+        p[p_key_name] = key
+        x = reset_leg(x, p)
+        (pm, step_failed) = p_map(x, p)
+        err = pm[1]-x[1]
+
+        # Compute D(error)/D(key) using a numerical derivative
+        p[p_key_name] = key-h
+        x = reset_leg(x, p)
+        (pm, step_failed) = p_map(x, p)
+        errL = pm[1]-x[1]
+
+        p[p_key_name] = key+h
+        x = reset_leg(x, p)
+        (pm, step_failed) = p_map(x, p)
+        errR = pm[1]-x[1]
+
+        # Compute a Newton step and take it
+        DerrDkey = (errR-errL)/(2*h)
+        key = key - err/DerrDkey
+        idx = idx+1
+
+    if np.abs(err) > tol_newton:
+        print("WARNING: Newton method failed to converge")
+        limit_cycle_found = False
+    else:
+        limit_cycle_found = True
+
+    # p[p_key_name] = key
+    return (key, limit_cycle_found)
+
+# * Functions for Viability
 
 
 def xp2s(x, p):
