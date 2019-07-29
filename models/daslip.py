@@ -1,112 +1,6 @@
 import numpy as np
 import scipy.integrate as integrate
-
-
-def find_limit_cycle(x, p, p_key_name, p_key_width):
-    '''
-    Iterates over the angle of attack of the leg until a limit cycle is reached
-    '''
-    # Settings for the root finding methods
-
-    max_iter_bisection = 10
-    max_iter_newton = 10
-    tol_newton = 1e-12
-
-    limit_cycle_found = False
-
-    if type(p) is not dict:
-        print("WARNING: p is not a dict and should be.")
-        return (p, False)
-
-    # TODO map da_slip to slip model
-    # * can probably just use the p as is, simply switching it to a slip model
-    if p['model_type'] != 0:
-        print("limit_cycle: can only be called with a slip model "
-              + "(model_type 0)")
-        limit_cycle_found = False
-        return (p, limit_cycle_found)
-
-    if p['swing_type'] != 0:
-        print("Warning: overriding swing-type to constant")
-        p['swing_type'] = 0
-
-    # Use the bisection method to get a good initial guess for key
-    key_delta = p_key_width
-
-    # Initial solution
-    x = reset_leg(x, p)
-    (pm, step_failed) = poincare_map(x, p)
-    err = np.abs(pm[1] - x[1])
-
-    # Memory for the left and right solutions
-    pm_left = pm
-    pm_right = pm
-    err_left = 0
-    err_right = 0
-
-    key = p[p_key_name]
-
-    # After this for loop returns the angle of attack will be known to
-    # a tolerance of pi/4 / 2^(max_iter_bisection)
-    for i in range(0, max_iter_bisection):
-        p[p_key_name] = key - key_delta
-        x = reset_leg(x, p)
-        (pm_left, step_failed_left) = poincare_map(x, p)
-        err_left = np.abs(pm_left[1] - x[1])
-
-        p[p_key_name] = key + key_delta
-        x = reset_leg(x, p)
-        (pm_right, step_failed_right) = poincare_map(x, p)
-        err_right = np.abs(pm_right[1] - x[1])
-
-        if ((err_left < err and step_failed_left is False) and
-            (err_left <= err_right or step_failed_right is True)):
-            err = err_left
-            key = key - key_delta
-
-        if ((err_right < err and step_failed_right is False) and
-            (err_right < err_left or step_failed_left is True)):
-            err = err_right
-            key = key + key_delta
-
-        key_delta = 0.5*key_delta
-
-    # polish the root using Newton's method
-
-    idx = 0
-    h = np.sqrt(np.finfo('float64').eps)
-    while np.abs(err) > tol_newton and idx < max_iter_newton:
-
-        # Compute the error
-        p[p_key_name] = key
-        x = reset_leg(x, p)
-        (pm, step_failed) = poincare_map(x, p)
-        err = pm[1]-x[1]
-
-        # Compute D(error)/D(key) using a numerical derivative
-        p[p_key_name] = key-h
-        x = reset_leg(x, p)
-        (pm, step_failed) = poincare_map(x, p)
-        errL = pm[1]-x[1]
-
-        p[p_key_name] = key+h
-        x = reset_leg(x, p)
-        (pm, step_failed) = poincare_map(x, p)
-        errR = pm[1]-x[1]
-
-        # Compute a Newton step and take it
-        DerrDkey = (errR-errL)/(2*h)
-        key = key - err/DerrDkey
-        idx = idx+1
-
-    if np.abs(err) > tol_newton:
-        print("WARNING: Newton method failed to converge")
-        limit_cycle_found = False
-    else:
-        limit_cycle_found = True
-
-    p[p_key_name] = key
-    return (p, limit_cycle_found)
+import models.slip as slip
 
 
 def feasible(x, p):
@@ -145,7 +39,7 @@ def poincare_map(x, p):
         return (vector_of_x, vector_of_fail)
     else:
         print("WARNING: I got a parameter type that I don't understand.")
-        return x
+        return x, True
 
 
 def step(x0, p, prev_sol=None):
@@ -155,112 +49,91 @@ def step(x0, p, prev_sol=None):
     '''
 
     # * nested functions - scroll down to step code * #
-
     # unpacking constants
     MAX_TIME = 5
 
-    MODEL_TYPE = p['model_type']
-    assert(MODEL_TYPE == 0 or MODEL_TYPE == 1)
-    if MODEL_TYPE == 0:
-        assert(len(x0) == 7)
-    elif MODEL_TYPE == 1:
-        assert(len(x0) == 10)
-    else:
-        raise Exception('model_type is not set correctly')
+    assert(len(x0) == 10)
 
-    AOA = p['angle_of_attack']
+    # AOA = p['angle_of_attack']
     GRAVITY = p['gravity']
-
     MASS = p['mass']
     SPRING_RESTING_LENGTH = p['spring_resting_length']
     STIFFNESS = p['stiffness']
-    # SPECIFIC_STIFFNESS = p['stiffness'] / p['mass']
 
     ACTUATOR_RESTING_LENGTH = p['actuator_resting_length']
+    SWING_VELOCITY = p['swing_velocity']
+    ACTUATOR_PERIOD = p['actuator_force_period']
+    VISCOUS_DAMPING = p['constant_normalized_damping']*p['stiffness']
+    ACTIVE_DAMPING = p['linear_normalized_damping_coefficient']
+    MIN_DAMPING = (p['linear_normalized_damping_coefficient'] * p['mass']
+                   * p['gravity'] * p['linear_minimum_normalized_damping'])
 
-    DAMPING_TYPE = p['damping_type']
-    # ACTUATOR_FORCE = 0
-
-#    @jit(nopython=True)
+    # @jit(nopython=True)
     def flight_dynamics(t, x):
         # swing leg retraction
-        vfx = 0
-        vfy = 0
-        if p['swing_type'] == 1 and x[3] <= 0:
-            alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
-            vPerp = p['swing_velocity']*(SPRING_RESTING_LENGTH +
-                                                     ACTUATOR_RESTING_LENGTH)
-            vfx = vPerp*np.cos(alpha)
-            vfy = vPerp*np.sin(alpha)
 
-        # code in flight dynamics, xdot_ = f()
-        if(MODEL_TYPE == 0):
-            return np.array([x[2], x[3], 0, -GRAVITY, x[2]+vfx, x[3]+vfy, 0])
-        elif(MODEL_TYPE == 1):
-            # The actuator length does not change, and no work is done.
-            return np.array([x[2], x[3], 0, -GRAVITY, x[2]+vfx, x[3]+vfy,
-                            0, 0, 0, 0])
-        else:
-            raise Exception('model_type is not set correctly')
+        alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
+        leg_length = compute_leg_length(x)
+        vPerp = SWING_VELOCITY*leg_length
+        vfx = vPerp*np.cos(alpha)
+        vfy = vPerp*np.sin(alpha)
+
+        # The actuator length does change!
+        # TODO actuator is displaced with activation!
+        return np.array([x[2], x[3], 0, -GRAVITY, x[2]+vfx, x[3]+vfy,
+                        0, 0, 0, 0])
 
 #    @jit(nopython=True)
     def stance_dynamics(t, x):
         # stance dynamics
         alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
-        leg_length = np.hypot(x[0]-x[4], x[1]-x[5])
-        # output = x
+        spring_length = compute_spring_length(x)
 
-        spring_length = compute_spring_length(x, p)
-        spring_force  = STIFFNESS*(SPRING_RESTING_LENGTH - spring_length)
-
+        spring_force = STIFFNESS*(SPRING_RESTING_LENGTH - spring_length)
         ldotdot = spring_force/MASS
         xdotdot = -ldotdot*np.sin(alpha)
         ydotdot = ldotdot*np.cos(alpha) - GRAVITY
 
-        if MODEL_TYPE == 0:
-            output = np.array([x[2], x[3], xdotdot, ydotdot, 0, 0, 0])
-        elif MODEL_TYPE == 1:
-            actuator_open_loop_force = 0
-            if np.shape(p['actuator_force'])[0] > 0:
-                actuator_open_loop_force = np.interp(t,
-                    p['actuator_force'][0,:],
-                    p['actuator_force'][1,:],
-                    period=p['actuator_force_period'])
-
-            actuator_damping_coefficient = 0
-
-            if DAMPING_TYPE == 0:
-                actuator_damping_coefficient = (p['constant_normalized_damping']
-                    *p['stiffness'])
-            elif DAMPING_TYPE == 1:
-                damping_min = (p['linear_normalized_damping_coefficient']
-                               * p['mass']*p['gravity']
-                               * p['linear_minimum_normalized_damping'])
-                damping_val = (actuator_open_loop_force
-                               * p['linear_normalized_damping_coefficient'])
-                # TODO check if this is a scalar. If yes, use np.max
-                actuator_damping_coefficient = np.maximum([damping_min],
-                                                          [damping_val])[0]
-            else:
-                raise Exception('damping_type is not set correctly')
-
-            actuator_damping_force = spring_force-actuator_open_loop_force
-
-            ladot = -actuator_damping_force/actuator_damping_coefficient
-            wadot = actuator_open_loop_force*ladot
-            wddot = actuator_damping_force*ladot
-
-            # These forces are identical to the slip: there's no (other) mass
-            #  between the spring and the point mass
-            # ldotdot = (actuator_open_loop_force+actuator_damping_force)/MASS
-            # xdotdot = -ldotdot*np.sin(alpha)
-            # ydotdot =  ldotdot*np.cos(alpha) - GRAVITY
-            output = np.array([x[2], x[3], xdotdot, ydotdot, 0, 0,
-                ladot, wadot, wddot, 0])
+        if np.shape(p['actuator_force'])[0] > 0:
+            actuator_force = np.interp(t, p['actuator_force'][0, :],
+                                       p['actuator_force'][1, :],
+                                       period=ACTUATOR_PERIOD)
         else:
-            raise Exception('model_type is not set correctly')
+            actuator_force = 0
 
-        return output
+        # * Damping
+
+        actuator_damping_coefficient = (p['constant_normalized_damping']
+                                        * p['stiffness'])
+        damping_min = (p['linear_normalized_damping_coefficient']
+                       * p['mass']*p['gravity']
+                       * p['linear_minimum_normalized_damping'])
+        damping_val = (actuator_force
+                       * p['linear_normalized_damping_coefficient'])
+        actuator_damping_coefficient = np.maximum([damping_min],
+                                                  [damping_val])[0]
+
+        actuator_damping_force = spring_force - actuator_force
+
+        # * old damping
+        # active_damping = np.max([MIN_DAMPING, ACTIVE_DAMPING*actuator_force])
+        # total_damping = VISCOUS_DAMPING + active_damping
+
+        actuator_damping_force = spring_force - actuator_force
+
+        # ladot = -actuator_damping_force/total_damping
+        ladot = -actuator_damping_force/actuator_damping_coefficient
+        wadot = actuator_force*ladot
+        wddot = actuator_damping_force*ladot
+
+        # These forces are identical to the slip: there's no (other) mass
+        #  between the spring and the point mass
+        # ldotdot = (actuator_force+actuator_damping_force)/MASS
+        # xdotdot = -ldotdot*np.sin(alpha)
+        # ydotdot =  ldotdot*np.cos(alpha) - GRAVITY
+
+        return np.array([x[2], x[3], xdotdot, ydotdot, 0, 0,
+                        ladot, wadot, wddot, 0])
 
 #    @jit(nopython=True)
     def fall_event(t, x):
@@ -287,7 +160,7 @@ def step(x0, p, prev_sol=None):
         '''
         Event function to reach maximum spring extension (transition to flight)
         '''
-        spring_length = compute_spring_length(x, p)
+        spring_length = compute_spring_length(x)
         event_val = spring_length - SPRING_RESTING_LENGTH
         return event_val
     liftoff_event.terminal = True
@@ -393,13 +266,21 @@ def check_failure(x, fail_idx=(0, 1)):
         return False
 
 
-def create_force_trajectory(step_sol, p):
-    MODEL_TYPE = p['model_type']
-    assert (MODEL_TYPE == 0 or MODEL_TYPE == 1)
+def compute_leg_length(x):
+    return np.hypot(x[0]-x[4], x[1]-x[5])
 
+
+# TODO: make this consistent with SLIP model again (call with (x,p) as args)
+def compute_spring_length(x):
+    assert(np.isclose(np.sqrt((x[0]-x[4])**2 + (x[1]-x[5])**2),
+           np.hypot(x[0]-x[4], x[1]-x[5])))
+    return np.hypot(x[0]-x[4], x[1]-x[5]) - x[6]
+
+
+def create_force_trajectory(step_sol, p):
     actuator_time_force = np.zeros(shape=(2, len(step_sol.t)))
     for i in range(0, len(step_sol.t)):
-        spring_length = compute_spring_length(step_sol.y[:, i], p)
+        spring_length = slip.compute_spring_length(step_sol.y[:, i], p)
         spring_force = -p['stiffness']*(spring_length -
                                         p['spring_resting_length'])
         actuator_time_force[0, i] = step_sol.t[i]
@@ -408,97 +289,177 @@ def create_force_trajectory(step_sol, p):
     return actuator_time_force
 
 
+def find_limit_cycle(x, p, p_key_name, p_key_width):
+    '''
+    Iterates over the angle of attack of the leg until a limit cycle is reached
+    '''
+    # Settings for the root finding methods
+
+    max_iter_bisection = 10
+    max_iter_newton = 10
+    tol_newton = 1e-12
+
+    limit_cycle_found = False
+
+    if type(p) is not dict:
+        print("WARNING: p is not a dict and should be.")
+        return (p, False)
+
+    # TODO map da_slip to slip model
+    # * can probably just use the p as is, simply switching it to a slip model
+    if p['model_type'] != 0:
+        print("limit_cycle: can only be called with a slip model "
+              + "(model_type 0)")
+        limit_cycle_found = False
+        return (p, limit_cycle_found)
+
+    # Use the bisection method to get a good initial guess for key
+    key_delta = p_key_width
+
+    # Initial solution
+    x = reset_leg(x, p)
+    (pm, step_failed) = poincare_map(x, p)
+    err = np.abs(pm[1] - x[1])
+
+    # Memory for the left and right solutions
+    pm_left = pm
+    pm_right = pm
+    err_left = 0
+    err_right = 0
+
+    key = p[p_key_name]
+
+    # After this for loop returns the angle of attack will be known to
+    # a tolerance of pi/4 / 2^(max_iter_bisection)
+    for i in range(0, max_iter_bisection):
+        p[p_key_name] = key - key_delta
+        x = reset_leg(x, p)
+        (pm_left, step_failed_left) = poincare_map(x, p)
+        err_left = np.abs(pm_left[1] - x[1])
+
+        p[p_key_name] = key + key_delta
+        x = reset_leg(x, p)
+        (pm_right, step_failed_right) = poincare_map(x, p)
+        err_right = np.abs(pm_right[1] - x[1])
+
+        if ((err_left < err and step_failed_left is False) and
+            (err_left <= err_right or step_failed_right is True)):
+            err = err_left
+            key = key - key_delta
+
+        if ((err_right < err and step_failed_right is False) and
+            (err_right < err_left or step_failed_left is True)):
+            err = err_right
+            key = key + key_delta
+
+        key_delta = 0.5*key_delta
+
+    # polish the root using Newton's method
+
+    idx = 0
+    h = np.sqrt(np.finfo('float64').eps)
+    while np.abs(err) > tol_newton and idx < max_iter_newton:
+
+        # Compute the error
+        p[p_key_name] = key
+        x = reset_leg(x, p)
+        (pm, step_failed) = poincare_map(x, p)
+        err = pm[1]-x[1]
+
+        # Compute D(error)/D(key) using a numerical derivative
+        p[p_key_name] = key-h
+        x = reset_leg(x, p)
+        (pm, step_failed) = poincare_map(x, p)
+        errL = pm[1]-x[1]
+
+        p[p_key_name] = key+h
+        x = reset_leg(x, p)
+        (pm, step_failed) = poincare_map(x, p)
+        errR = pm[1]-x[1]
+
+        # Compute a Newton step and take it
+        DerrDkey = (errR-errL)/(2*h)
+        key = key - err/DerrDkey
+        idx = idx+1
+
+    if np.abs(err) > tol_newton:
+        print("WARNING: Newton method failed to converge")
+        limit_cycle_found = False
+    else:
+        limit_cycle_found = True
+
+    # p[p_key_name] = key
+    return (key, limit_cycle_found)
+
+
+def get_slip_trajectory(x0, p):
+    x0_slip = np.concatenate([x0[0:6], x0[-1:]])
+    x0_slip = slip.reset_leg(x0_slip, p)
+    p['total_energy'] = slip.compute_total_energy(x0_slip, p)
+    sol = slip.step(x0_slip, p)
+    return sol
+
+
 def create_open_loop_trajectories(x0, p):
     '''
     Create a nominal trajectory based on a SLIP model
     '''
+
     search_width = np.pi*0.25
     p_slip = p.copy()
-    p_slip['model_type'] = 0
-    p_slip['swing_type'] = 0
     x0_slip = np.concatenate([x0[0:6], x0[-1:]])
-    x0_slip = reset_leg(x0_slip, p_slip)
-    p_slip['total_energy'] = compute_total_energy(x0_slip, p_slip)
-    p, success = find_limit_cycle(x0_slip, p_slip, 'angle_of_attack',
-                                  search_width)
+    x0_slip = slip.reset_leg(x0_slip, p_slip)
+    p_slip['total_energy'] = slip.compute_total_energy(x0_slip, p_slip)
+    aoa, success = slip.find_limit_cycle(x0_slip, p_slip, 'angle_of_attack',
+                                         search_width)
     if not success:
         print("WARNING: no limit-cycles found")
-        return p
+        return (x0, p)
+    p_slip['angle_of_attack'] = aoa
+    p['angle_of_attack'] = aoa
+    x0_slip = slip.reset_leg(x0_slip, p_slip)
 
-    x0_slip = reset_leg(x0_slip, p_slip)
-    p['total_energy'] = compute_total_energy(x0_slip, p_slip)
-    sol_slip = step(x0_slip, p)
+    # this should not change...
+    # p['total_energy'] = compute_total_energy(x0_slip, p_slip)
+
+    sol_slip = slip.step(x0_slip, p_slip)
 
     # compute open-loop force trajectory from nominal slip traj
     actuator_time_force = create_force_trajectory(sol_slip, p)
-    p['model_type'] = 1
     p['actuator_force'] = actuator_time_force
     p['actuator_force_period'] = np.max(actuator_time_force[0, :])
 
     # TODO
-    if p['swing_type'] == 1:
-        t_contact = sol_slip.t_events[1][0]
-        p['swing_velocity'] = (
-                -(p['swing_leg_norm_angular_velocity']*x0_slip[2]) /
-                (p['spring_resting_length']+p['actuator_resting_length']))
-        p['angle_of_attack_offset'] = -t_contact*p['swing_velocity']
-        # Update the model.step solution
+    t_contact = sol_slip.t_events[1][0]
+    p['angle_of_attack'] = aoa
+    p['swing_velocity'] = (-(p['swing_leg_norm_angular_velocity']*x0_slip[2]) /
+                           (p['spring_resting_length']
+                           + p['actuator_resting_length']))
+    p['angle_of_attack_offset'] = -t_contact*p['swing_velocity']
+    # Update the model.step solution
     x0 = reset_leg(x0, p)
-    p['total_energy'] = compute_total_energy(x0, p)
+    # this should not have changed...
+    assert(p['total_energy'] == compute_total_energy(x0, p))
 
     return (x0, p)
 
 
-def compute_spring_length(x, p):
-    spring_length = 0
-    leg_length = np.sqrt((x[0]-x[4])**2
-                         + (x[1]-x[5])**2)
-    if p['model_type'] == 0:
-        spring_length = leg_length - p['actuator_resting_length']
-    elif p['model_type'] == 1:
-        spring_length = leg_length - x[6]  # actuator length
-    else:
-        raise Exception('model_type is not set correctly')
-
-    return spring_length
-
-
-def compute_leg_force(x, p):
-    # TODO ...check why all this unused stuff is being computed...
-    alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
-    leg_length = np.hypot(x[0]-x[4], x[1]-x[5])
-    output = x
-
-    spring_length = compute_spring_length(x, p)
-
-    # Since both models contact the ground through a serially connected spring:
-    spring_force = -p['stiffness']*(spring_length-p['spring_resting_length'])
-
-    return spring_force
-
-
 def reset_leg(x, p):
-    angle_offset = 0
-    if p['swing_type'] == 0:
-        angle_offset = 0
-    elif p['swing_type'] == 1:
-        angle_offset = p['angle_of_attack_offset']
-    else:
-        raise Exception('swing_type is not set correctly')
+    angle_offset = p['angle_of_attack_offset']
 
     x[4] = x[0] + np.sin(p['angle_of_attack']+angle_offset)*(
                     p['spring_resting_length']+p['actuator_resting_length'])
     x[5] = x[1] - np.cos(p['angle_of_attack']+angle_offset)*(
                     p['spring_resting_length']+p['actuator_resting_length'])
-    if p['model_type'] == 1:
-        x[6] = p['actuator_resting_length']
+    x[6] = p['actuator_resting_length']
+
     return x
 
 
 def compute_total_energy(x, p):
     # TODO: make this accept a trajectory, and output parts as well
     energy = 0
-    spring_length = compute_spring_length(x, p)
+    spring_length = compute_spring_length(x)
     energy = (p['mass']/2*(x[2]**2+x[3]**2)
               + p['gravity']*p['mass']*(x[1])
               + p['stiffness']/2*(spring_length-p['spring_resting_length'])**2)
@@ -515,7 +476,7 @@ def compute_potential_kinetic_work_total(state_traj, p):
     cols = np.shape(state_traj)[1]
     pkwt = np.zeros((5, cols))
     for i in range(0, cols):
-        spring_length = compute_spring_length(state_traj[:, i], p)
+        spring_length = compute_spring_length(state_traj[:, i])
         work_actuator = 0
         work_damper = 0
 
@@ -602,3 +563,14 @@ def mapSA2xp_energy_normalizedheight_aoa(state_action, p):
     x = reset_leg(x, p)
 
     return x, p
+
+
+# * Utility functions (only used for analysis, not for simulation)
+
+def compute_leg_force(x, p):
+
+    spring_length = compute_spring_length(x)
+    # Since both models contact the ground through a serially connected spring:
+    spring_force = -p['stiffness']*(spring_length-p['spring_resting_length'])
+
+    return spring_force

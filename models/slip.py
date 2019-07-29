@@ -59,6 +59,7 @@ def step(x0, p, prev_sol = None):
     RESTING_LENGTH = p['spring_resting_length']
     STIFFNESS = p['stiffness']
     MAX_TIME = 5
+    LEG_LENGTH_OFFSET = p['actuator_resting_length']
 
     # @jit(nopython=True)
     def flight_dynamics(t, x):
@@ -69,8 +70,8 @@ def step(x0, p, prev_sol = None):
     def stance_dynamics(t, x):
         # stance dynamics
         alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
-        leg_length = np.hypot(x[0]-x[4], x[1]-x[5])
-        leg_force = STIFFNESS/MASS*(RESTING_LENGTH - leg_length)
+        spring_length = np.hypot(x[0]-x[4], x[1]-x[5]) - LEG_LENGTH_OFFSET
+        leg_force = STIFFNESS/MASS*(RESTING_LENGTH - spring_length)
         xdotdot = -leg_force*np.sin(alpha)
         ydotdot = leg_force*np.cos(alpha) - GRAVITY
         return np.array([x[2], x[3], xdotdot, ydotdot, 0, 0, 0])
@@ -100,7 +101,10 @@ def step(x0, p, prev_sol = None):
         '''
         Event function to reach maximum spring extension (transition to flight)
         '''
-        return ((x[0]-x[4])**2 + (x[1]-x[5])**2) - RESTING_LENGTH**2
+        spring_length = (np.hypot(x[0]-x[4], x[1]-x[5])
+                         - p['actuator_resting_length'])
+        return spring_length - RESTING_LENGTH
+        #((x[0]-x[4])**2 + (x[1]-x[5])**2) - RESTING_LENGTH**2
     liftoff_event.terminal = True
     liftoff_event.direction = 1
 
@@ -208,17 +212,24 @@ def check_failure(x, fail_idx=(0, 1, 2)):
 
 
 def reset_leg(x, p):
-    x[4] = x[0] + np.sin(p['angle_of_attack'])*p['spring_resting_length']
-    x[5] = x[1] - np.cos(p['angle_of_attack'])*p['spring_resting_length']
+    leg_length = p['spring_resting_length'] + p['actuator_resting_length']
+    x[4] = x[0] + np.sin(p['angle_of_attack'])*leg_length
+    x[5] = x[1] - np.cos(p['angle_of_attack'])*leg_length
     return x
+
+
+def compute_spring_length(x, p):
+    return np.hypot(x[0]-x[4], x[1]-x[5]) - p['actuator_resting_length']
 
 
 def compute_total_energy(x, p):
     # TODO: make this accept a trajectory, and output parts as well
+    spring_length = (np.hypot(x[0]-x[4], x[1]-x[5])
+                     - p['actuator_resting_length'])
     return (p['mass']/2*(x[2]**2+x[3]**2) +
-    p['gravity']*p['mass']*(x[1]) +
-    p['stiffness']/2*
-    (p['spring_resting_length']-np.sqrt((x[0]-x[4])**2 + (x[1]-x[5])**2))**2)
+            p['gravity']*p['mass']*(x[1]) +
+            p['stiffness']/2 *
+            (p['spring_resting_length']-spring_length)**2)
 
 
 def find_limit_cycle(x, p, p_key_name, key_delta):
