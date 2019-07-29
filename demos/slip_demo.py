@@ -2,8 +2,13 @@ from models import slip
 import numpy as np
 import matplotlib.pyplot as plt
 
-p = {'mass': 80.0, 'stiffness': 8200.0, 'resting_length': 1.0, 'gravity': 9.81,
-     'angle_of_attack': 1/5*np.pi}
+p = {'mass': 80.0,
+     'stiffness': 8200.0,
+     'spring_resting_length': 1.0,
+     'gravity': 9.81,
+     'angle_of_attack': 1/5*np.pi,
+     'actuator_resting_length': 0.0}  # offset of CoG to leg-start. Unimoprtant
+
 x0 = np.array([10,  # x position: forwards
                0.85,  # y position: upwards
                5.5, 	# x velocity
