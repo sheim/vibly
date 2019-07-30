@@ -52,7 +52,7 @@ Q_V, S_V = vibly.compute_QV(Q_map, grids, ~Q_F, Q_on_grid=Q_on_grid)
 S_M = vibly.project_Q2S(Q_V, grids, proj_opt=np.mean)
 # * map_S2Q maps the measure back into state-action space using the gridded
 # * transition map
-Q_M = vibly.map_S2Q(Q_map, S_M, Q_V)
+Q_M = vibly.map_S2Q(Q_map, S_M, s_grid, Q_V=Q_V)
 
 ###############################################################################
 # * save data as pickle

@@ -302,14 +302,40 @@ def is_outside(s, s_grid, S_V, already_binned=True, on_grid=False):
         return False
 
 
-def map_S2Q(Q_map, S_M, Q_V=None, Q_on_grid=None):
+def get_grid_indices(bin_idx, s_grid):
+    '''
+    from a bin index (unraveled), get surrounding grid indices, and also check
+    if you're on the grid edge. Returns a list of tuples
+    '''
+    dims = len(s_grid)
+    # s_grid_shape = list(map(np.size, s_grid))
+    # s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
+    grid_indices = list()
+
+    for dim_idx, grid in enumerate(s_grid):
+        # if outside the left-most or right-most side of grid, mark as outside
+        # TODO handle this nicely, and still return neighboring grid indices
+        if bin_idx[dim_idx] == 0:
+            return grid_indices
+        elif bin_idx[dim_idx] >= grid.size:
+            return grid_indices
+
+    # unravel
+    base_indices = it.repeat(bin_idx, 2**dims)
+    index_offsets = it.product([0, -1], repeat=2)
+    for base, offset in zip(base_indices, index_offsets):
+        grid_indices.append(tuple(x + y for x, y in zip(base, offset)))
+
+    return grid_indices
+
+
+def map_S2Q(Q_map, S_M, s_grid, Q_V=None, Q_on_grid=None):
     '''
     map the measure of robustness of S to the state action space Q, via
     inverse dynamics (using the lookup table).
     '''
 
-    # TODO move binning into a helper-function. Currently used in
-    # is_outside also, and elsewhere.
+    # TODO s_grid isn't strictly needed, can be done without it
 
     if Q_on_grid is None:
         Q_on_grid = np.zeros_like(Q_map, dtype=bool)
@@ -326,7 +352,19 @@ def map_S2Q(Q_map, S_M, Q_V=None, Q_on_grid=None):
             else:
                 sdx = np.unravel_index(Q_map[qdx],
                                        list(x+1 for x in S_M.shape))
-            Q_M[qdx] = S_M[sdx]
+            edge_indices = get_grid_indices(sdx, s_grid)
+
+            # TODO check that it actually has the right size
+            measure = 0
+            # taking the average measure of all enclosing grid-points
+            if len(edge_indices) > 0:
+                for idx in edge_indices:
+                    measure += S_M[(idx)]
+                measure /= len(edge_indices)
+
+            # If sdx is on the outer edge, don't map it
+
+            Q_M[qdx] = measure
 
     return Q_M
 
