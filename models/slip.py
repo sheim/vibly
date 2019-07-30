@@ -83,7 +83,7 @@ def step(x0, p, prev_sol = None):
         '''
         return x[1]
     fall_event.terminal = True
-    fall_event.terminal = -1
+    fall_event.direction = -1
 
     # @jit(nopython=True)
     def touchdown_event(t, x):
