@@ -278,28 +278,38 @@ def is_outside(s, s_grid, S_V, already_binned=True, on_grid=False):
         else:
             return True
 
-    for dim_idx, grid in enumerate(s_grid):
-        # if outside the left-most or right-most side of grid, mark as outside
-        # * NOTE: this can result in disastrous underestimations if the grid is
-        # * not larger than the viable set!
-        # TODO: this can lead to understimation if s is right on the gridline
-        # because it will still check its neighbors. need to first check.
-        if bin_idx[dim_idx] == 0:
-            return True
-        elif bin_idx[dim_idx] >= grid.size:
-            return True
-    # Need to redo the loop. In the first loop, we check if any of the points
-    # has exited the grid. This needs to be done first to ensure we don't try
-    # to index outside the grid
-    for dim_idx, grid in enumerate(s_grid):
-        # check if enclosing grid points are viable or not
-        index_vec = np.zeros(len(s_grid), dtype=int)
-        index_vec[dim_idx] = 1
-        if (not S_V[tuple(bin_idx)] or
-                not S_V[tuple(bin_idx - index_vec)]):
-            return True
+    edge_indices = get_grid_indices(bin_idx, s_grid)
 
-        return False
+    if len(edge_indices) > 0:
+        for idx in edge_indices:
+            if not S_V[idx]:
+                return True
+    else:
+        return True
+
+    return False
+    # for dim_idx, grid in enumerate(s_grid):
+    #     # if outside the left-most or right-most side of grid, mark as outside
+    #     # * NOTE: this can result in disastrous underestimations if the grid is
+    #     # * not larger than the viable set!
+    #     # TODO: this can lead to understimation if s is right on the gridline
+    #     # because it will still check its neighbors. need to first check.
+    #     if bin_idx[dim_idx] == 0:
+    #         return True
+    #     elif bin_idx[dim_idx] >= grid.size:
+    #         return True
+    # # Need to redo the loop. In the first loop, we check if any of the points
+    # # has exited the grid. This needs to be done first to ensure we don't try
+    # # to index outside the grid
+    # for dim_idx, grid in enumerate(s_grid):
+    #     # check if enclosing grid points are viable or not
+    #     index_vec = np.zeros(len(s_grid), dtype=int)
+    #     index_vec[dim_idx] = 1
+    #     if (not S_V[tuple(bin_idx)] or
+    #             not S_V[tuple(bin_idx - index_vec)]):
+    #         return True
+
+    #     return False
 
 
 def get_grid_indices(bin_idx, s_grid):
