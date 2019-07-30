@@ -8,11 +8,11 @@ import viability as vibly  # algorithms for brute-force viability
 # * we also put in a place-holder action (thrust)
 p = {'n_states': 1,
      'base_gravity': 0.1,
-     'gravity': .9,
+     'gravity': 0.5,
      'thrust': 0,
-     'max_thrust': 0.95,
+     'max_thrust': 0.5,
      'ceiling': 2,
-     'control_frequency': 420  # hertz
+     'control_frequency': 1  # hertz
      }
 
 # * Choose an initial condition
@@ -21,7 +21,7 @@ x0 = np.array([0.5, 0])
 # * For convenience, helper functions, a default parameter dict and initial
 # * condition are attached to the transition map.
 p_map.p = p
-p_map.x = x0 
+p_map.x = x0
 p_map.sa2xp = sys.sa2xp
 p_map.xp2s = sys.xp2s
 
@@ -69,7 +69,7 @@ outfile.close()
 # data = pickle.load(infile)
 # infile.close()
 
-plt.imshow(Q_M, origin='lower') # visualize the Q-safety measure
+plt.imshow(Q_M, origin='lower')  # visualize the Q-safety measure
 plt.show()
 # plt.imshow(Q_V) # visualize the viable set
-# plt.show() 
+# plt.show()

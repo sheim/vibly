@@ -36,11 +36,19 @@ def p_map(x, p):
     # * what you put in here can be as complicated as you like.
     def continuous_dynamics(t, x):
         grav_field = np.max([0, np.tanh(0.75*(CEILING - x[0]))])*GRAVITY
-        x[0] -= BASE_GRAVITY + grav_field - THRUST
-        x[0] = np.min([CEILING, x[0]])  # saturate at ceiling (x=0)
-        return x
+        f = - BASE_GRAVITY - grav_field + THRUST
+        return f
 
-    sol = integrate.solve_ivp(continuous_dynamics, t_span=[0, MAX_TIME], y0=x)
+    def ceiling_event(t, x):
+        '''
+        Event function to detect the body hitting the floor (failure)
+        '''
+        return x-CEILING
+    ceiling_event.terminal = True
+    ceiling_event.direction = 1
+
+    sol = integrate.solve_ivp(continuous_dynamics, t_span=[0, MAX_TIME], y0=x,
+                              events=ceiling_event)
 
     # * we return the final
     return sol.y[:, -1], check_failure(sol.y[:, -1], p)
