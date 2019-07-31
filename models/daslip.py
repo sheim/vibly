@@ -517,17 +517,20 @@ def map2s_y_xdot_aoa(x, p):
 #     return x
 
 
-def mapSA2xp_y_xdot_aoa(state_action, x, p):
+def sa2xp_y_xdot_aoa(state_action, p):
     '''
     Specifically map state_actions to x and p
     '''
-    print("TODO: re-implment mapSA2xp_y_xdot_aoa with ground height")
     p['angle_of_attack'] = state_action[2]
     x = p['x0']
     x[1] = state_action[0]  # TODO: reimplement with ground ehight
     x[2] = state_action[1]
     x = reset_leg(x, p)
     return x, p
+
+
+def xp2s_y_xdot(x, p):
+    return np.array((x[1], x[2]))
 
 
 def map2s_energy_normalizedheight_aoa(x, p):
