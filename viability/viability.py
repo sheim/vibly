@@ -185,7 +185,7 @@ def compute_Q_map(grids, p_map, verbose=0, check_grid=False):
             s_next = p_map.xp2s(x_next, p)
             # note: Q_map is implicitly already excluding transitions that
             # move straight to a failure. While this is not equivalent to the
-            # algorithm in the paper, for our systems it is a bit more faster
+            # algorithm in the paper, for our systems it is a bit faster
             # bin_idx = np.digitize(state_val, s_grid[state_dx])
             # sbin = np.digitize(s_next, s)
             if check_grid:

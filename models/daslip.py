@@ -480,14 +480,8 @@ def compute_potential_kinetic_work_total(state_traj, p):
         work_actuator = 0
         work_damper = 0
 
-        if p['model_type'] == 0:
-            work_actuator = 0
-            work_damper = 0
-        elif p['model_type'] == 1:
-            work_actuator = state_traj[7, i]
-            work_damper = state_traj[8, i]
-        else:
-            raise Exception('model_type is not set correctly')
+        work_actuator = state_traj[7, i]
+        work_damper = state_traj[8, i]
 
         spring_energy = 0.5*p['stiffness']*(spring_length
                                             - p['spring_resting_length'])**2
@@ -496,7 +490,7 @@ def compute_potential_kinetic_work_total(state_traj, p):
         pkwt[1, i] = p['gravity']*p['mass']*(state_traj[1, i]) + spring_energy
         pkwt[2, i] = work_actuator
         pkwt[3, i] = work_damper
-        pkwt[4, i] = pkwt[0, i]+pkwt[1, i] #-pkwt[2,i]
+        pkwt[4, i] = pkwt[0, i]+pkwt[1, i]
 
     return pkwt
 

@@ -32,7 +32,7 @@ def p_map(x, p):
     MAX_TIME = 1.0/p['control_frequency']
 
     def continuous_dynamics(t, x):
-        grav_field = np.max([0, CEILING-x[0]])*GRAVITY
+        grav_field = np.max([0, np.tanh(0.75*(CEILING - x[0]))])*GRAVITY
         f = np.zeros_like(x)
         # np.max([0, np.tanh(0.75*(CEILING - x[0]))])*GRAVITY
         f[0] = - BASE_GRAVITY - grav_field + THRUST_V

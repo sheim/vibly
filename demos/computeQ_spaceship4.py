@@ -8,13 +8,13 @@ import pickle
 # * here we choose the parameters to use
 # * we also put in a place-holder action (thrust)
 p = {'n_states': 2,
-     'base_gravity': 0.1,
-     'gravity': .5,
+     'base_gravity': 0.2,
+     'gravity': .6,
      'thrust_vertical': 0,
      'thrust_horizontal': 0,
      'ceiling': 2,
      'wind': 0.1,
-     'control_frequency': 1,  # hertz
+     'control_frequency': 2,  # hertz
      'x0_upper_bound': 2.1,
      'x0_lower_bound': 0,
      'x1_upper_bound': 0.9,
@@ -34,11 +34,11 @@ p_map.xp2s = sys.xp2s
 # * determine the bounds and resolution of your grids
 # * note, the s_grid is a tuple of grids, such that each dimension can have
 # * different resolution, and we do not need to initialize the entire array
-s_grid = (np.linspace(-0.01, p['ceiling'], 51),
-          np.linspace(-1, 1, 51))
+s_grid = (np.linspace(0, p['ceiling'], 21),
+          np.linspace(-1, 1, 17))
 # * same thing for the actions
-a_grid = (np.linspace(0.0, 0.95, 11),
-          np.linspace(-0.1, 0.1, 11))
+a_grid = (np.linspace(0.0, 1, 11),
+          np.linspace(-0.1, 0.1, 5))
 
 # * for convenience, both grids are placed in a dictionary
 grids = {'states': s_grid, 'actions': a_grid}
