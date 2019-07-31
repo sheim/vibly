@@ -52,8 +52,13 @@ print("viable portion of Q: " + str(np.sum(Q_V)/Q_V.size))
 ################################################################################
 # save data as pickle
 ################################################################################
-# import p()
-
+import pickle
+filename = 'daslip.pickle'
+data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
+             "Q_M": Q_M, "S_M": S_M, "p": p, "x0": x0}
+outfile = open(filename, 'wb')
+pickle.dump(data2save, outfile)
+outfile.close()
 # to load this data, do:
 # infile = open(filename, 'rb')
 # data = pickle.load(infile)
