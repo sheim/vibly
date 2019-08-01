@@ -14,7 +14,8 @@ p = {'mass': 80,                          # kg
      'actuator_resting_length': 0.1,      # m
      'actuator_force': [],                # * 2 x M matrix of time and force
      'actuator_force_period': 10,         # * s
-     'constant_normalized_damping': 0.75,          # *    s   : D/K : [N/m/s]/[N/m]
+     'activation_delay': 0.0,  # * a delay for when to start activation
+     'constant_normalized_damping': 0.75,          # *    s : D/K : [N/m/s]/[N/m]
      'linear_normalized_damping_coefficient': 3.5,  # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
      'linear_minimum_normalized_damping': 0.05,    # *   1/A*(kg*N/kg) :
      'swing_leg_norm_angular_velocity':  0,  # [1/s]/[m/s] (omega/(vx/lr))
@@ -33,13 +34,13 @@ p['x0'] = x0
 p_map = model.poincare_map
 p_map.p = p
 p_map.x = x0
-p_map.sa2xp = model.sa2xp_y_xdot_aoa
+p_map.sa2xp = model.sa2xp_y_xdot_timedaoa
 p_map.xp2s = model.xp2s_y_xdot
 
-s_grid_height = np.linspace(0.2, 2.5, 185)
-s_grid_velocity = np.linspace(0, 14, 71)
+s_grid_height = np.linspace(0.5, 1.5, 3) #185)
+s_grid_velocity = np.linspace(4, 6, 3)#1)
 s_grid = (s_grid_height, s_grid_velocity)
-a_grid = (np.linspace(0/180*np.pi, 60/180*np.pi, 25), )
+a_grid = (np.linspace(20/180*np.pi, 60/180*np.pi, 3), ) #25), )
 
 grids = {'states': s_grid, 'actions': a_grid}
 Q_map, Q_F = vibly.compute_Q_map(grids, p_map, verbose=2)
@@ -49,9 +50,9 @@ Q_M = vibly.map_S2Q(Q_map, S_M, s_grid=s_grid, Q_V=Q_V)
 print("non-failing portion of Q: " + str(np.sum(~Q_F)/Q_F.size))
 print("viable portion of Q: " + str(np.sum(Q_V)/Q_V.size))
 
-################################################################################
+###############################################################################
 # save data as pickle
-################################################################################
+###############################################################################
 import pickle
 filename = 'daslip.pickle'
 data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
