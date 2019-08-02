@@ -158,12 +158,10 @@ def compute_Q_map(grids, p_map, verbose=0, check_grid=False):
     s_grid_shape = list(map(np.size, grids['states']))
     s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
     a_grid_shape = list(map(np.size, grids['actions']))
-    a_bin_shape = tuple(dim+1 for dim in a_grid_shape)
-    total_bins = np.prod(s_bin_shape)*np.prod(a_bin_shape)
     total_gridpoints = np.prod(s_grid_shape)*np.prod(a_grid_shape)
 
     if verbose > 0:
-        print('computing a total of ' + str(total_bins) + ' points.')
+        print('computing a total of ' + str(total_gridpoints) + ' points.')
 
     Q_map = np.zeros((total_gridpoints, 1), dtype=int)
     Q_F = np.zeros((total_gridpoints, 1), dtype=bool)
@@ -175,7 +173,7 @@ def compute_Q_map(grids, p_map, verbose=0, check_grid=False):
 
         if verbose > 1:
             # NOTE: requires running python unbuffered (python -u)
-            if idx % (total_bins/10) == 0:
+            if idx % (total_gridpoints/10) == 0:
                 print('.', end=' ')
 
         x, p = p_map.sa2xp(state_action, p_map.p)
