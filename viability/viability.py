@@ -144,12 +144,13 @@ def digitize_s(s, s_grid, shape=None, to_bin=True):
         return np.ravel_multi_index(s_idx, shape)
 
 
-def compute_Q_map(grids, p_map, verbose=0, check_grid=False):
+def compute_Q_map(grids, p_map, verbose=0, check_grid=False, keep_coords=False):
     ''' Compute the transition map of a system with 1D state and 1D action
     NOTES
     - s_grid and a_grid have to be iterable lists of lists
     e.g. if they have only 1 dimension, they should be `s_grid = ([1, 2], )`
     - use p_map to carry parameters
+    - keep_coords: toggle to true to also output an array of actual states
     '''
     # TODO get rid of check_grid, solve the problem permanently
 
@@ -165,6 +166,9 @@ def compute_Q_map(grids, p_map, verbose=0, check_grid=False):
 
     Q_map = np.zeros((total_gridpoints, 1), dtype=int)
     Q_F = np.zeros((total_gridpoints, 1), dtype=bool)
+    if keep_coords:
+        Q_reached = np.zeros((len(grids['states']), total_gridpoints))
+
     if check_grid:
         Q_on_grid = np.copy(Q_F)  # HACK: keep track of wether you are in a bin
 
@@ -178,9 +182,10 @@ def compute_Q_map(grids, p_map, verbose=0, check_grid=False):
 
         x, p = p_map.sa2xp(state_action, p_map.p)
         x_next, failed = p_map(x, p)
-
+        s_next = p_map.xp2s(x_next, p)
+        if keep_coords:
+            Q_reached[:, idx] = s_next
         if not failed:
-            s_next = p_map.xp2s(x_next, p)
             # note: Q_map is implicitly already excluding transitions that
             # move straight to a failure. While this is not equivalent to the
             # algorithm in the paper, for our systems it is a bit faster
@@ -206,12 +211,14 @@ def compute_Q_map(grids, p_map, verbose=0, check_grid=False):
     Q_map = Q_map.reshape(s_grid_shape + a_grid_shape)
     Q_F = Q_F.reshape(s_grid_shape + a_grid_shape)
 
-    if check_grid:
-        Q_on_grid = Q_on_grid.reshape(s_grid_shape + a_grid_shape)
-        return (Q_map, Q_F, Q_on_grid)
-    else:
-        return (Q_map, Q_F)
+    deliver = [Q_map, Q_F]
 
+    if check_grid:
+        deliver.append(Q_on_grid.reshape(s_grid_shape+a_grid_shape))
+    if keep_coords:
+        deliver.append(Q_reached)
+
+    return deliver
 
 def project_Q2S(Q, grids, proj_opt=None):
     if proj_opt is None:
@@ -402,3 +409,47 @@ def get_feasibility_mask(feasible, sa2xp, grids, x0, p0):
         Q_feasible[idx] = feasible(x, p)
 
     return Q_feasible.reshape(s_shape + a_shape)
+
+
+def compute_Q_cont(grids, p_map, verbose=0):
+    ''' Compute the transition map of a system, and output the result _without_
+    discretizing into bins, as an array of coordinate vectors (n, m) where
+    n is the dimensionality of state, and m are the number of grid-points
+    NOTES
+    - s_grid and a_grid have to be iterable lists of lists
+    e.g. if they have only 1 dimension, they should be `s_grid = ([1, 2], )`
+    - use p_map to carry parameters
+    '''
+    # TODO get rid of check_grid, solve the problem permanently
+
+    # initialize 1D, reshape later
+    # shape of state-space grid
+    # initialize 1D, reshape later
+    # shape of state-space grid
+    s_grid_shape = list(map(np.size, grids['states']))
+    a_grid_shape = list(map(np.size, grids['actions']))
+    total_gridpoints = np.prod(s_grid_shape)*np.prod(a_grid_shape)
+
+    if verbose > 0:
+        print('computing a total of ' + str(total_gridpoints) + ' points.')
+
+    # Q_map = np.zeros((total_gridpoints, 1), dtype=int)
+    Q_map = np.zeros((len(grids['states']), total_gridpoints))
+    Q_F = np.zeros((total_gridpoints, 1), dtype=bool)
+
+    for idx, state_action in enumerate(np.array(list(
+            it.product(*grids['states'], *grids['actions'])))):
+
+        if verbose > 1:
+            # NOTE: requires running python unbuffered (python -u)
+            if idx % (total_gridpoints/10) == 0:
+                print('.', end=' ')
+
+        x, p = p_map.sa2xp(state_action, p_map.p)
+        x_next, failed = p_map(x, p)
+        s_next = p_map.xp2s(x_next, p)
+        Q_map[:, idx] = s_next
+        if failed:
+            Q_F[idx] = True
+
+    return (Q_map, Q_F)
