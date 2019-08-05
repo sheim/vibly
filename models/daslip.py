@@ -68,6 +68,7 @@ def step(x0, p, prev_sol=None):
     MIN_DAMPING = (p['linear_normalized_damping_coefficient'] * p['mass']
                    * p['gravity'] * p['linear_minimum_normalized_damping'])
     DELAY = p['activation_delay']  # can also be negative
+    AMPLI = p['activation_amplification']
 
     # @jit(nopython=True)
     def flight_dynamics(t, x):
@@ -99,6 +100,7 @@ def step(x0, p, prev_sol=None):
             actuator_force = np.interp(t, p['actuator_force'][0, :]+DELAY,
                                        p['actuator_force'][1, :],
                                        period=ACTUATOR_PERIOD)
+            actuator_force *= AMPLI
         else:
             actuator_force = 0
 
@@ -251,22 +253,27 @@ def step(x0, p, prev_sol=None):
     return sol
 
 
-def check_failure(x, fail_idx=(0, 1)):
+def check_failure(x):
     '''
     Check if a state is in the failure set. Pass in a tuple of indices for which
     failure conditions to check. Currently: 0 for falling, 1 for direction rev.
     '''
-    for idx in fail_idx:
-        if idx == 0:  # check for falling
-            if np.less_equal(x[1], 0):
-                return True
-            if np.isclose(x[1], 0):
-                return True
-        elif idx == 1:
-            if np.less_equal(x[2], 0):  # check for direction reversal
-                return True
-    else:  # loop completes, no fail conditions triggered
-        return False
+
+    if np.less_equal(x[1], 0):
+        return True
+    if np.isclose(x[1], 0):
+        return True
+    if np.less_equal(x[2], 0):  # check for direction reversal
+        return True
+    # if x[2]>7.5:
+    #     return True
+    # elif x[1]<0.6:
+    #     return True
+    # elif x[2]<3.5:
+    #     return True
+    # elif x[1]>1.4:
+    #     return True
+    return False
 
 
 def compute_leg_length(x):
@@ -539,6 +546,27 @@ def sa2xp_y_xdot_timedaoa(state_action, p):
     x[1] = state_action[0]  # TODO: reimplement with ground ehight
     x[2] = state_action[1]
     x = reset_leg(x, p)
+
+    # time till foot touches down
+    if feasible(x, p):
+        time_to_touchdown = np.sqrt(2*(x[5] - x[-1])/p['gravity'])
+        start_idx = np.argwhere(~np.isclose(p['actuator_force'][1], 0))[0]
+        time_to_activation = p['actuator_force'][0, start_idx]
+        p['activation_delay'] = time_to_touchdown - time_to_activation
+
+    return x, p
+
+
+def sa2xp_amam(state_action, p):
+    '''
+    Specifically map state_actions to x and p
+    '''
+    p['angle_of_attack'] = state_action[2]
+    x = p['x0']
+    x[1] = state_action[0]  # TODO: reimplement with ground ehight
+    x[2] = state_action[1]
+    x = reset_leg(x, p)
+    p['activation_amplification'] = state_action[3]
 
     # time till foot touches down
     if feasible(x, p):
