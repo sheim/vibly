@@ -20,9 +20,9 @@ s_grid = np.linspace(0.1, 1, 51)
 s_grid = (s_grid[:-1],)
 a_grid = (np.linspace(-10/180*np.pi, 70/180*np.pi, 41),)
 grids = {'states': s_grid, 'actions': a_grid}
-Q_map, Q_F, Q_on_grid = vibly.compute_Q_map(grids, p_map,
-                                            check_grid=True)
-Q_V, S_V = vibly.compute_QV(Q_map, grids, Q_on_grid=Q_on_grid)
+Q_map, Q_F = vibly.compute_Q_map(grids, p_map)
+# Q_map, Q_F = vibly.parcompute_Q_map(grids, p_map)
+Q_V, S_V = vibly.compute_QV(Q_map, grids)
 S_M = vibly.project_Q2S(Q_V, grids, proj_opt=np.mean)
 Q_M = vibly.map_S2Q(Q_map, S_M, s_grid, Q_V=Q_V)
 ################################################################################
