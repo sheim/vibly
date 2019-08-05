@@ -30,7 +30,6 @@ def p_map(x, p):
     GRAVITY = p['gravity']
     MAX_TIME = 1.0/p['control_frequency']
     CEILING = p['ceiling']
-
     # * for convenience, we define the continuous-time dynamics, and use
     # * scipy.integrate to solve this over one control time-step (MAX_TIME)
     # * what you put in here can be as complicated as you like.
@@ -89,8 +88,9 @@ def sa2xp(state_action, p):
     p: dict of parameters updated with new action
     '''
     x = np.atleast_1d(state_action[:p['n_states']])
-    p['thrust'] = np.atleast_1d(state_action[p['n_states']:])
-    return x.flatten(), p
+    p_new = p.copy()
+    p_new['thrust'] = np.atleast_1d(state_action[p['n_states']:])
+    return x.flatten(), p_new
 
 # * we also need to provide a function to go back from the continuous-time
 # * state x to the high-level state s

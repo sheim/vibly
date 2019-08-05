@@ -361,6 +361,7 @@ def sa2xp(state_action, p):
     '''
     Specifically map state_actions to x and p
     '''
-    p['angle_of_attack'] = state_action[1]
-    x = s2x(p['x0'], p, state_action[0])
-    return x, p
+    p_new = p.copy()
+    p_new['angle_of_attack'] = state_action[1]
+    x = s2x(p_new['x0'], p_new, state_action[0]).copy()
+    return x, p_new

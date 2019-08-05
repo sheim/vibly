@@ -1,3 +1,4 @@
+
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -42,18 +43,18 @@ p_map.sa2xp = model.sa2xp_y_xdot_timedaoa
 # p_map.sa2xp = model.sa2xp_y_xdot_aoa
 p_map.xp2s = model.xp2s_y_xdot
 
-s_grid_height = np.linspace(0.5, 1.5, 11)
-s_grid_velocity = np.linspace(3, 8, 11)
+s_grid_height = np.linspace(0.5, 1.5, 7)
+s_grid_velocity = np.linspace(3, 8, 7)
 s_grid = (s_grid_height, s_grid_velocity)
-a_grid_aoa = np.linspace(00/180*np.pi, 70/180*np.pi, 71)
+a_grid_aoa = np.linspace(00/180*np.pi, 70/180*np.pi, 21)
 # a_grid = (a_grid_aoa, )
-a_grid_amp = np.linspace(0.9, 1.2, 31)
+a_grid_amp = np.linspace(0.9, 1.2, 11)
 a_grid = (a_grid_aoa, a_grid_amp)
 
 grids = {'states': s_grid, 'actions': a_grid}
 t = TicToc()
 t.tic()
-Q_map, Q_F, Q_reach = vibly.compute_Q_map(grids, p_map, keep_coords=True,
+Q_map, Q_F, Q_reach = vibly.parcompute_Q_map(grids, p_map, keep_coords=True,
                                           verbose=2)
 t.toc()
 print("time elapsed: " + str(t.elapsed/60))

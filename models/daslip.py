@@ -525,27 +525,29 @@ def map2s_y_xdot_aoa(x, p):
 #     return x
 
 
-def sa2xp_y_xdot_aoa(state_action, p):
+def sa2xp_y_xdot_aoa(state_action, p_def):
     '''
     Specifically map state_actions to x and p
     '''
+    p = p_def.copy()
     p['angle_of_attack'] = state_action[2]
     x = p['x0']
     x[1] = state_action[0]  # TODO: reimplement with ground ehight
     x[2] = state_action[1]
-    x = reset_leg(x, p)
+    x = reset_leg(x, p).copy()
     return x, p
 
 
-def sa2xp_y_xdot_timedaoa(state_action, p):
+def sa2xp_y_xdot_timedaoa(state_action, p_def):
     '''
     Specifically map state_actions to x and p
     '''
+    p = p_def.copy()
     p['angle_of_attack'] = state_action[2]
     x = p['x0']
-    x[1] = state_action[0]  # TODO: reimplement with ground ehight
+    x[1] = state_action[0]
     x[2] = state_action[1]
-    x = reset_leg(x, p)
+    x = reset_leg(x, p).copy()
 
     # time till foot touches down
     if feasible(x, p):
@@ -557,15 +559,16 @@ def sa2xp_y_xdot_timedaoa(state_action, p):
     return x, p
 
 
-def sa2xp_amam(state_action, p):
+def sa2xp_amam(state_action, p_def):
     '''
     Specifically map state_actions to x and p
     '''
+    p = p_def.copy()
     p['angle_of_attack'] = state_action[2]
     x = p['x0']
-    x[1] = state_action[0]  # TODO: reimplement with ground ehight
+    x[1] = state_action[0]
     x[2] = state_action[1]
-    x = reset_leg(x, p)
+    x = reset_leg(x, p).copy()
     p['activation_amplification'] = state_action[3]
 
     # time till foot touches down
