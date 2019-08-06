@@ -15,6 +15,7 @@ p = {'mass': 80,                          # kg
      'actuator_force': [],                # * 2 x M matrix of time and force
      'actuator_force_period': 10,         # * s
      'activation_delay': 0.0,  # * a delay for when to start activation
+     'activation_amplification': 1.0,
      'constant_normalized_damping': 0.75,          # *    s : D/K : [N/m/s]/[N/m]
      'linear_normalized_damping_coefficient': 3.5,  # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
      'linear_minimum_normalized_damping': 0.05,    # *   1/A*(kg*N/kg) :
@@ -37,10 +38,10 @@ p_map.x = x0
 p_map.sa2xp = model.sa2xp_y_xdot_timedaoa
 p_map.xp2s = model.xp2s_y_xdot
 
-s_grid_height = np.linspace(0.5, 1.5, 3) #185)
-s_grid_velocity = np.linspace(4, 6, 3)#1)
+s_grid_height = np.linspace(0.5, 1.5, 26)
+s_grid_velocity = np.linspace(1, 6, 26)
 s_grid = (s_grid_height, s_grid_velocity)
-a_grid = (np.linspace(20/180*np.pi, 60/180*np.pi, 11), ) #25), )
+a_grid = (np.linspace(20/180*np.pi, 60/180*np.pi, 25), )
 
 grids = {'states': s_grid, 'actions': a_grid}
 Q_map, Q_F = vibly.parcompute_Q_map(grids, p_map, verbose=2)
