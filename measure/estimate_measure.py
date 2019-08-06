@@ -142,12 +142,9 @@ class MeasureEstimation:
         self.prior_mean.f = prior_mean
         self.prior_mean.update_gradients = lambda a, b: None
 
+        print(self.prior)
         print(self.prior_kernel.lengthscale)
-
-        self.prior_kernel.lengthscale = self.prior_kernel.lengthscale * 10
         self.kernel = self.prior_kernel.copy()
-
-        print(self.kernel.lengthscale)
 
 
     def set_data(self, X=None, Y=None):
