@@ -63,9 +63,12 @@ class MeasureLearner:
         action_dim = len(grids['actions'])
 
         estimation = estimate_measure.MeasureEstimation(state_dim=state_dim,
-                                                        action_dim=action_dim,seed=self.seed)
+                                                        action_dim=action_dim,
+                                                        grids=grids,
+                                                        seed=self.seed)
 
-        AS_grid = np.meshgrid(*(grids['actions']), *(grids['states']))
+        AS_grid = np.meshgrid(*(grids['states']), *(grids['actions']), indexing='ij')
+        # AS_grid = np.meshgrid(*(grids['actions']), *(grids['states']), indexing='ij')
 
         if learn_hyperparameters:
 
@@ -95,7 +98,7 @@ class MeasureLearner:
     def sample(self, s0, measure_confidence, exploration_confidence, ndx,
                safety_threshold=0):
 
-        s0 = np.atleast_1d(s0)
+        s0 = np.atleast_2d(s0).reshape(-1,1)
 
         estimation = self.current_estimation
 
@@ -105,56 +108,73 @@ class MeasureLearner:
             self.y = np.empty((0, 1))
 
         # TODO Anynomous: dont grid states, dont evalutate the whole sets
-        s_grid_shape = list(map(np.size, self.grids['states']))
-        s0_idx = vibly.digitize_s(s0, self.grids['states'],
-                                  shape=None, to_bin=False)
+        # s_grid_shape = list(map(np.size, self.grids['states']))
+        # # TODO dont rely on vibly here
+        # s0_idx = vibly.digitize_s(s0, self.grids['states'],
+        #                           shape=None, to_bin=False)
 
 
         Q_V = estimation.safe_level_set(safety_threshold=0,
-                                        confidence_threshold=measure_confidence)
+                                        confidence_threshold=measure_confidence,
+                                        current_state=s0)
 
-        S_M_0 = estimation.project_Q2S(Q_V)
+        #S_M_0 = estimation.project_Q2S(Q_V)
 
-        Q_M, Q_M_s2 = estimation.Q_M()
         Q_V_explore = estimation.safe_level_set(safety_threshold=safety_threshold,
-                                                confidence_threshold=exploration_confidence)
+                                                confidence_threshold=exploration_confidence,
+                                                current_state=s0)
 
         # slice actions available for those states
-        A_slice = np.copy(Q_V_explore[tuple(s0_idx) + (slice(None),)])
+        # A_slice = np.copy(Q_V_explore[tuple(s0_idx) + (slice(None),)])
+        A_slice = Q_V_explore
 
-        A_slice_s2 = np.copy(Q_M_s2[tuple(s0_idx)  + (slice(None),)])
+        Q_M, Q_M_s2 = estimation.Q_M(current_state=s0)
+        # A_slice_s2 = np.copy(Q_M_s2[tuple(s0_idx) + (slice(None),)])
+        A_slice_s2 = Q_M_s2
 
-        thresh_idx = np.array(A_slice, dtype=bool)
+        thresh_idx = np.array(A_slice > 0, dtype=bool)
 
         if not thresh_idx.any():  # empty, pick the safest
             if self.verbose > 1:
                 print('taking safest on iteration ' + str(ndx + 1))
 
             Q_V_prop = estimation.safe_level_set(safety_threshold=0,
-                                                 confidence_threshold=None)
-            Q_prop_slice = np.copy(Q_V_prop[tuple(s0_idx) + (slice(None),)])
-            a_idx = np.argmax(Q_prop_slice
-                              + np.random.randn(A_slice.shape[0])*0.01)
+                                                 confidence_threshold=None,
+                                                 current_state=s0)
+
+            # Q_prop_slice = np.copy(Q_V_prop[tuple(s0_idx) + (slice(None),)])
+            Q_prop_slice = Q_V_prop
+
+            # Add some noise to avoid getting stuck forever
+            Q_prop_slice = Q_prop_slice + (np.random.randn(*Q_prop_slice.shape)*0.01)
+
+            a_idx = np.unravel_index(np.argmax(Q_prop_slice), Q_prop_slice.shape)
 
         else:  # not empty, pick one of these
 
             A_slice[~thresh_idx] = np.nan
             A_slice_s2[~thresh_idx] = np.nan
             a_idx = np.nanargmax(A_slice_s2)
+            a_idx = np.unravel_index(np.nanargmax(A_slice_s2), A_slice_s2.shape)
 
-        # TODO only 1d actions?
-        a = self.grids['actions'][0][a_idx]
-        a = np.atleast_1d(a)
+        a = list()
+        for i in range(len(a_idx)):
+            a.append(self.grids['actions'][i][a_idx[i]])
+
+        a = np.atleast_2d(a).reshape(-1,1)
         # apply action, get to the next state
-        x0, p_true = self.model.sa2xp(tuple(s0) + tuple(a), self.p)
-        x_next, failed = self.model.p_map(x0, p_true)
+        x0, p_true = self.model.sa2xp(np.concatenate((s0, a)), self.p)
+        x_next, failed = self.model.p_map(x0.reshape(-1), p_true)
 
         if failed:
             self.failed_samples.append(True)
             if self.verbose:
                 print('FAILED on iteration ' + str(ndx + 1))
 
-            S_M_safe = estimation.project_Q2S(Q_V_explore)
+            Q_V_full = estimation.safe_level_set(safety_threshold=safety_threshold,
+                                                 confidence_threshold=measure_confidence)
+
+            S_M_safe = estimation.project_Q2S(Q_V_full)
 
             if S_M_safe.any():
                 safe_idx = np.where(S_M_safe > 0)
@@ -164,14 +184,15 @@ class MeasureLearner:
                 s_next = np.array(s_next)
 
             else:
-                # if the measure is 0, you should crash anyway.
-                S_M_safe = estimation.project_Q2S(Q_V)
-
-                s_next_idx = np.argmax(S_M_safe)
-                s_next_idx = np.unravel_index(s_next_idx, S_M_safe.shape)
-                s_next = [self.grids['states'][i][s_next_idx[i]] for i in range(0,len(s_next_idx))]
-                s_next_idx = np.array(s_next_idx)
-                s_next = np.array(s_next)
+                # if the measure is 0 everywhere, we cannot recover anyway.
+                raise Exception('The whole measure is 0 now. There exits no action that is safe')
+                # S_M_safe = estimation.project_Q2S(Q_V)
+                #
+                # s_next_idx = np.argmax(S_M_safe)
+                # s_next_idx = np.unravel_index(s_next_idx, S_M_safe.shape)
+                # s_next = [self.grids['states'][i][s_next_idx[i]] for i in range(0,len(s_next_idx))]
+                # s_next_idx = np.array(s_next_idx)
+                # s_next = np.array(s_next)
 
             measure = self.current_estimation.failure_value
         else:
@@ -181,10 +202,17 @@ class MeasureLearner:
             s_next_idx = vibly.digitize_s(s_next, self.grids['states'],
                                           None, to_bin=False)
 
-            measure = S_M_0[tuple(s_next_idx)]
+            Q_V = estimation.safe_level_set(safety_threshold=0,
+                                            confidence_threshold=measure_confidence,
+                                            current_state=s_next)
+
+            measure = np.mean(Q_V[:])
+            #measure = S_M_0[tuple(s_next_idx)]
 
         # Add action state pair to dataset
-        q_new = np.concatenate((np.atleast_1d(a), s0)).reshape(1,-1)
+        #q_new = np.concatenate((np.atleast_1d(a), s0)).reshape(1,-1)
+        q_new = np.concatenate((s0, np.atleast_1d(a))).reshape(1,-1)
+
         self.X = np.concatenate((self.X, q_new), axis=0)
 
         y_new = np.array(measure).reshape(-1, 1)

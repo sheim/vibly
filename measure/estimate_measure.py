@@ -12,7 +12,7 @@ from scipy.stats import norm
 
 class MeasureEstimation:
 
-    def __init__(self, state_dim, action_dim, seed=None):
+    def __init__(self, state_dim, action_dim, grids, seed=None):
 
         self.prior_kernel = None
         self.prior = None
@@ -27,6 +27,7 @@ class MeasureEstimation:
 
         self.X_grid = None
         self.Q_shape = None
+        self.grids = grids
 
     def set_grid_shape(self, X_grid, Q_shape):
         self.X_grid = X_grid
@@ -98,6 +99,9 @@ class MeasureEstimation:
         gp_prior.likelihood.variance.constrain_bounded(1e-7, 1e-3)
         gp_prior.optimize_restarts(num_restarts=3)  # This is expensive
 
+        print(gp_prior)
+        print(gp_prior.kern1.lengthscale)
+
         if save:
             file = Path(save)
             file.parent.mkdir(parents=True, exist_ok=True)
@@ -138,7 +142,13 @@ class MeasureEstimation:
         self.prior_mean.f = prior_mean
         self.prior_mean.update_gradients = lambda a, b: None
 
+        print(self.prior_kernel.lengthscale)
+
+        self.prior_kernel.lengthscale = self.prior_kernel.lengthscale * 10
         self.kernel = self.prior_kernel.copy()
+
+        print(self.kernel.lengthscale)
+
 
     def set_data(self, X=None, Y=None):
 
@@ -163,23 +173,57 @@ class MeasureEstimation:
         return np.mean(Q, a_axes)
 
 
-    def safe_level_set(self, safety_threshold = 0, confidence_threshold = 0.5):
+    def safe_level_set(self, safety_threshold = 0, confidence_threshold = 0.5, current_state=None):
         # assert self.Q_shape != None, "Q_shape was not initialized"
         # assert self.X_grid != None, "X_grid was not initialized"
 
-        Q_est, Q_est_s2 = self.gp.predict(self.X_grid)
+        if current_state is None:
+            Q_est, Q_est_s2 = self.gp.predict(self.X_grid)
+        else:
+            a_grid = np.meshgrid(*(self.grids['actions']), indexing='ij')
+            a_points = np.vstack(map(np.ravel, a_grid)).T
+
+            # TODO:  check math
+            state_points = np.ones((a_points.shape[0], len(self.grids['actions']))) * current_state.T
+
+            x_points = np.hstack((state_points, a_points))
+            Q_est, Q_est_s2 = self.gp.predict(x_points)
+
+
+
         Q_level_set = norm.cdf((Q_est - safety_threshold) / np.sqrt(Q_est_s2))
 
         if confidence_threshold is not None:
             Q_level_set[np.where(Q_level_set < confidence_threshold)] = 0
             Q_level_set[np.where(Q_level_set > confidence_threshold)] = 1
-        return Q_level_set.reshape(self.Q_shape)
 
+        # TODO: Return boolean or int
+        if current_state is None:
+            return self.prediction_to_grid(Q_level_set)
+        else:
+            return Q_level_set.reshape(self.Q_shape[-self.action_dim:])
 
-    def Q_M(self):
-        Q_est, Q_est_s2 = self.gp.predict(self.X_grid)
+    # TODO: unite with safe_level_set
+    def Q_M(self, current_state = None):
+        if current_state is None:
+            Q_est, Q_est_s2 = self.gp.predict(self.X_grid)
+        else:
+            a_grid = np.meshgrid(*(self.grids['actions']), indexing='ij')
+            a_points = np.vstack(map(np.ravel, a_grid)).T
 
-        return Q_est.reshape(self.Q_shape), Q_est_s2.reshape(self.Q_shape)
+            # TODO:  check math
+            state_points = np.ones((a_points.shape[0], len(self.grids['actions']))) * current_state.T
+
+            x_points = np.hstack((state_points, a_points))
+            Q_est, Q_est_s2 = self.gp.predict(x_points)
+
+        if current_state is None:
+            return self.prediction_to_grid(Q_est), self.prediction_to_grid(Q_est_s2)
+        else:
+            return Q_est.reshape(self.Q_shape[-self.action_dim:]), Q_est_s2.reshape(self.Q_shape[-self.action_dim:])
+
+    def prediction_to_grid(self, pred):
+        return pred.reshape(self.Q_shape)
 
 
 if __name__ == "__main__":
@@ -232,7 +276,7 @@ if __name__ == "__main__":
     estimation.init_estimator(X_seed, y_seed, load='./model/prior.npy')
 
 
-    X_grid_1, X_grid_2 = np.meshgrid(grids['actions'], grids['states'])
+    X_grid_1, X_grid_2 = np.meshgrid(grids['states'], grids['actions'])
     X_grid = np.column_stack((X_grid_1.flatten(), X_grid_2.flatten()))
 
     estimation.set_grid_shape(X_grid, Q_M.shape)

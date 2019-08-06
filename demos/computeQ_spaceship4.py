@@ -9,13 +9,13 @@ import pickle
 # * we also put in a place-holder action (thrust)
 p = {'n_states': 2,
      'base_gravity': 0.2,
-     'gravity': .6,
+     'gravity': .8,
      'thrust_vertical': 0,
      'thrust_horizontal': 0,
-     'ceiling': 2,
-     'wind': 0.1,
+     'ceiling': 2.1,
+     'wind': 0.2,
      'control_frequency': 2,  # hertz
-     'x0_upper_bound': 2.1,
+     'x0_upper_bound': 2,
      'x0_lower_bound': 0,
      'x1_upper_bound': 0.9,
      'x1_lower_bound': -0.9
@@ -34,11 +34,11 @@ p_map.xp2s = sys.xp2s
 # * determine the bounds and resolution of your grids
 # * note, the s_grid is a tuple of grids, such that each dimension can have
 # * different resolution, and we do not need to initialize the entire array
-s_grid = (np.linspace(0, p['ceiling'], 21),
-          np.linspace(-1, 1, 17))
+s_grid = (np.linspace(0, p['ceiling'], 51),
+          np.linspace(-1, 1, 41))
 # * same thing for the actions
 a_grid = (np.linspace(0.0, 1, 11),
-          np.linspace(-0.1, 0.1, 5))
+          np.linspace(-0.1, 0.1, 17))
 
 # * for convenience, both grids are placed in a dictionary
 grids = {'states': s_grid, 'actions': a_grid}
@@ -66,13 +66,13 @@ Q_M = vibly.map_S2Q(Q_map, S_M, s_grid, Q_V=Q_V, Q_on_grid=Q_on_grid)
 ###############################################################################
 # * save data as pickle
 ###############################################################################
-# import pickle
-# filename = '../data/spaceship4_map.pickle'
-# data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
-#              "Q_M": Q_M, "S_M": S_M, "p": p, "x0": x0}
-# outfile = open(filename, 'wb')
-# pickle.dump(data2save, outfile)
-# outfile.close()
+import pickle
+filename = '../data/dynamics/spaceship4_map.pickle'
+data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
+             "Q_M": Q_M, "S_M": S_M, "p": p, "x0": x0}
+outfile = open(filename, 'wb')
+pickle.dump(data2save, outfile)
+outfile.close()
 # to load this data, do:
 # infile = open(filename, 'rb')
 # data = pickle.load(infile)

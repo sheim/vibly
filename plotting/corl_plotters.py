@@ -159,8 +159,8 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
     norm = BoundaryNorm(bounds, cmap.N)
 
     if samples is not None and samples[0] is not None:
-        action = samples[0][:, 0]
-        state = samples[0][:, 1]
+        action = samples[0][:, 1]
+        state = samples[0][:, 0]
         if failed_samples is not None and len(failed_samples) > 0:
             ax_Q.scatter(action[failed_samples], state[failed_samples],
                          marker='x', edgecolors=[[0.9, 0.3, 0.3]], s=30,
