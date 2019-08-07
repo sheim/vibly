@@ -73,11 +73,12 @@ def check_failure(x, p):
 
 # Viability functions
 def sa2xp(state_action, p):
+    p_new = p.copy()
     x = np.atleast_1d(state_action[:p['n_states']])
     actions = np.atleast_1d(state_action[p['n_states']:])
-    p['thrust_vertical'] = actions[0]
-    p['thrust_horizontal'] = actions[1]
-    return x, p
+    p_new['thrust_vertical'] = actions[0]
+    p_new['thrust_horizontal'] = actions[1]
+    return x, p_new
 
 
 def xp2s(x, p):
