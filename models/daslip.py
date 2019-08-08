@@ -529,6 +529,7 @@ def sa2xp_y_xdot_aoa(state_action, p_def):
     '''
     Specifically map state_actions to x and p
     '''
+    assert(len(state_action) == 3)
     p = p_def.copy()
     p['angle_of_attack'] = state_action[2]
     x = p['x0']
@@ -542,6 +543,7 @@ def sa2xp_y_xdot_timedaoa(state_action, p_def):
     '''
     Specifically map state_actions to x and p
     '''
+    assert(len(state_action) == 3)
     p = p_def.copy()
     p['angle_of_attack'] = state_action[2]
     x = p['x0']
@@ -563,6 +565,7 @@ def sa2xp_amam(state_action, p_def):
     '''
     Specifically map state_actions to x and p
     '''
+    assert(len(state_action) == 4)
     p = p_def.copy()
     p['angle_of_attack'] = state_action[2]
     x = p['x0']

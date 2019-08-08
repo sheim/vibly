@@ -86,6 +86,7 @@ def compute_QV_2D(Q_map, grids, Q_V=None):
 
     return Q_V, S_V
 
+
 # ** Reimplement everything as N-D
 
 
@@ -218,6 +219,7 @@ def compute_Q_map(grids, p_map, verbose=0, check_grid=False, keep_coords=False):
         deliver.append(Q_reached)
 
     return deliver
+
 
 def project_Q2S(Q, grids, proj_opt=None):
     if proj_opt is None:
