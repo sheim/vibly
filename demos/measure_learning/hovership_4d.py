@@ -50,10 +50,10 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path='./data/gp_
     sampler = sampling.MeasureLearner(model=true_model, model_data=data)
     sampler.init_estimation(seed_data=seed_data, prior_model_path=gp_model_file, learn_hyperparameters=False)
 
-    sampler.exploration_confidence_s = 0.55
-    sampler.exploration_confidence_e = 0.55
-    sampler.measure_confidence_s = 0.40
-    sampler.measure_confidence_e = 0.40
+    sampler.exploration_confidence_s = 0.85
+    sampler.exploration_confidence_e = 0.85
+    sampler.measure_confidence_s = 0.60
+    sampler.measure_confidence_e = 0.60
     sampler.safety_threshold_s = 0.0
     sampler.safety_threshold_e = 0.0
 
@@ -61,13 +61,13 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path='./data/gp_
     sampler.seed = np.random.randint(1, 100)
     print('Seed: ' + str(sampler.seed))
 
-    n_samples = 200
+    n_samples = 500
 
     s0 = X_seed[0,0:2].T
 
     def plot_callback(sampler, ndx, thresholds):
         # Plot every n-th iteration
-        if ndx % 5 == 0 or ndx + 1 == n_samples or ndx == -1:
+        if ndx % 100 == 0 or ndx + 1 == n_samples or ndx == -1:
 
             extent = [grids['states'][1][0],
                       grids['states'][1][-1],
