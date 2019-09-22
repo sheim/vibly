@@ -104,13 +104,13 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
     c = tuple(c/256 for c in truth_color)
     #ax_S.plot(S_M_true, grids['states'][0],
     #          color=c)
-    ax_S.fill_betweenx(grids['states'][0], 0, S_M_true, facecolor=c)
+    ax_S.fill_betweenx(grids['states'][0], 0, S_M_true, facecolor="none", hatch="\\\\", edgecolor='k')
 
     c = tuple(c/256 for c in optimistic_color)
     ax_S.plot(S_M_0, grids['states'][0],
-              color=c)
+              color='k')
 
-    ax_S.fill_betweenx(grids['states'][0], 0, S_M_0, facecolor="none", hatch="\\\\", edgecolor='k')
+    ax_S.fill_betweenx(grids['states'][0], 0, S_M_0, facecolor=c, alpha=0.7)
 
 
     # if S_labels:
@@ -136,12 +136,22 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
     ax_Q.contour(X, Y, Q_V_safe, [.5], colors='k')
     ax_Q.contour(X, Y, Q_V_explore, [.5], colors='k')
 
+    Q_unviable = (~Q_V_true)*1
+
+    ax_Q.contourf(X, Y, Q_V_true, [.5,2], colors='w', hatches=["\\\\", None])
+    if Q_F is not None:
+        ax_Q.contourf(X, Y, Q_F, [.5,2], colors='w', hatches=["XX", None])
+        Q_unviable[Q_F] = 0
+
+    ax_Q.contourf(X, Y, Q_unviable, [.5,2], colors='w', hatches=["--", None])
+
+
     ax_Q.contourf(X, Y, Q_V_safe, [.5,2],
-                  hatches=['\\\\',None], colors=[tuple((c)/256 for c in optimistic_color), (0,0,0,0)],
+                  colors=[tuple((c)/256 for c in optimistic_color), (0,0,0,0)],
                   alpha=0.7)
 
     ax_Q.contourf(X, Y, Q_V_explore, [.5,2],
-                  hatches=['////',None], colors=[tuple((c)/256 for c in explore_color), (0,0,0,0)],
+                  colors=[tuple((c)/256 for c in explore_color), (0,0,0,0)],
                   alpha=0.7)
 
     img = np.zeros(Q_V_true.shape)
