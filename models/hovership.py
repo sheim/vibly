@@ -6,6 +6,7 @@ However, the planet has an unusual gravitational field... getting too close to
 the surface may result in getting sucked in, with no escape!
 '''
 
+
 # * Transition Map. This is your oracle.
 def p_map(x, p):
     '''
