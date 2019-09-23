@@ -4,7 +4,6 @@ import models.spaceship4 as sys
 from models.spaceship4 import p_map
 import viability as vibly  # algorithms for brute-force viability
 import pickle
-from ttictoc import TicToc
 
 # * here we choose the parameters to use
 # * we also put in a place-holder action (thrust)
@@ -44,19 +43,14 @@ a_grid = (np.linspace(0.0, 1, 11),
 # * for convenience, both grids are placed in a dictionary
 grids = {'states': s_grid, 'actions': a_grid}
 
-t = TicToc()  # utility for timing
-
 # * compute_Q_map computes a gridded transition map, `Q_map`, which is used as
 # * a look-up table for computing viable sets
 # * Q_F is a grid marking all failing state-action pairs
 # * Q_on_grid is a helper grid, which marks if a state has not moved
 # * this is used to catch corner cases, and is not important for most systems
 # * setting `check_grid` to False will omit Q_on_grid
-t.tic()
 Q_map, Q_F, Q_on_grid = vibly.parcompute_Q_map(grids, p_map, check_grid=True,
                                                verbose=1)
-t.toc()
-print('Time elapsed: ' + str(t.elapsed/60.0))
 # * compute_QV computes the viable set and viability kernel
 Q_V, S_V = vibly.compute_QV(Q_map, grids, ~Q_F, Q_on_grid=Q_on_grid)
 

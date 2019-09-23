@@ -77,10 +77,10 @@ class MeasureEstimation:
         idx_safe = np.argwhere(Q_V.ravel()).ravel()
         idx_unsafe = np.argwhere(~Q_V.ravel()).ravel()
 
-        if len(idx_safe) > 1000: # or len(idx_unsafe) > 250:
+        if len(idx_safe) > 2000: # or len(idx_unsafe) > 250:
             print('Warning: Dataset to big to learn hyperparameter fast. Using a subset to speed things up.')
 
-        idx_sample_safe = np.random.choice(idx_safe, size=np.min([1000, len(idx_safe)]), replace=False)
+        idx_sample_safe = np.random.choice(idx_safe, size=np.min([2000, len(idx_safe)]), replace=False)
         idx_sample_unsafe = np.random.choice(idx_unsafe, size=np.min([250, len(idx_unsafe)]), replace=False)
 
         #idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
