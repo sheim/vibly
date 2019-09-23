@@ -28,9 +28,9 @@ p_map.xp2s = sys.xp2s
 # * determine the bounds and resolution of your grids
 # * note, the s_grid is a tuple of grids, such that each dimension can have
 # * different resolution, and we do not need to initialize the entire array
-s_grid = (np.linspace(-0.0, p['ceiling'], 101),)
+s_grid = (np.linspace(-0.0, p['ceiling'], 401),)
 # * same thing for the actions
-a_grid = (np.linspace(0.0, 0.8, 41),)
+a_grid = (np.linspace(0.0, 0.8, 351),)
 
 # * for convenience, both grids are placed in a dictionary
 grids = {'states': s_grid, 'actions': a_grid}
@@ -57,13 +57,13 @@ Q_M = vibly.map_S2Q(Q_map, S_M, s_grid, Q_V=Q_V)
 ###############################################################################
 # * save data as pickle
 ###############################################################################
-# import pickle
-# filename = '../data/hover_map.pickle'
-# data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
-#              "Q_M": Q_M, "S_M": S_M, "p": p, "x0": x0}
-# outfile = open(filename, 'wb')
-# pickle.dump(data2save, outfile)
-# outfile.close()
+import pickle
+filename = '../data/dynamics/hover_map.pickle'
+data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
+             "Q_M": Q_M, "S_M": S_M, "p": p, "x0": x0}
+outfile = open(filename, 'wb')
+pickle.dump(data2save, outfile)
+outfile.close()
 # to load this data, do:
 # infile = open(filename, 'rb')
 # data = pickle.load(infile)
