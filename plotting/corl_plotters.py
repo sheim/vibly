@@ -30,13 +30,13 @@ matplotlib.rc('font', **font)
 # brewer2
 dark_blue = [31, 120, 180]
 light_blue = [166, 206, 227]
-green = [178, 223, 138]
 
 light_orange = [253, 205, 172]
 light_purple = [203, 213, 232]
 
+green = [115, 163, 72]
 orange = [253, 174, 97]
-yellow = [255, 255, 191]
+yellow = [227, 198, 52]
 
 optimistic_color = light_blue
 explore_color = dark_blue
@@ -104,12 +104,14 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
     c = tuple(c/256 for c in truth_color)
     #ax_S.plot(S_M_true, grids['states'][0],
     #          color=c)
-    ax_S.fill_betweenx(grids['states'][0], 0, S_M_true, facecolor="none", hatch="\\\\",
+    ax_S.fill_betweenx(grids['states'][0], 0, S_M_true, facecolor="none", hatch="--",
                        edgecolor=tuple(c / 256 for c in truth_color)
 )
 
     c = tuple(c/256 for c in optimistic_color)
     ax_S.plot(S_M_0, grids['states'][0],
+              color='k')
+    ax_S.plot(S_M_true, grids['states'][0],
               color='k')
 
     ax_S.fill_betweenx(grids['states'][0], 0, S_M_0, facecolor=c, alpha=0.7)
@@ -141,15 +143,15 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
     Q_unviable = (~Q_V_true)*1
 
     matplotlib.rcParams['hatch.color'] = tuple(c/256 for c in truth_color)
-    ax_Q.contourf(X, Y, Q_V_true, [.5,2], colors='w', hatches=["\\\\", None])
+    ax_Q.contourf(X, Y, Q_V_true, [.5,2], colors='w', hatches=["--", None])
 
     if Q_F is not None:
-        matplotlib.rcParams['hatch.color'] = tuple(c / 256 for c in unviable_color)
+        matplotlib.rcParams['hatch.color'] = tuple(c / 256 for c in failure_color)
         ax_Q.contourf(X, Y, Q_F, [.5,2], colors='w', hatches=["XX", None])
         Q_unviable[Q_F] = 0
 
-    matplotlib.rcParams['hatch.color'] = tuple(c / 256 for c in failure_color)
-    ax_Q.contourf(X, Y, Q_unviable, [.5,2], colors='w', hatches=["--", None])
+    matplotlib.rcParams['hatch.color'] = tuple(c / 256 for c in unviable_color)
+    ax_Q.contourf(X, Y, Q_unviable, [.5,2], colors='w', hatches=["//", None])
 
 
     ax_Q.contourf(X, Y, Q_V_safe, [.5,2],
