@@ -5,12 +5,11 @@ from matplotlib import gridspec
 
 # * helper functions
 
-
 def get_step_trajectories(x0, p, ground_heights=None):
-     '''
+    '''
     helper function to apply a battery of ground-height perturbations.
     returns a list of trajectories.
-     '''
+    '''
 
     if ground_heights is None:
         total_leg_length = p['spring_resting_length']

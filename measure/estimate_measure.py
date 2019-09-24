@@ -43,17 +43,17 @@ class MeasureEstimation:
     def failure_value(self):
         return - 2*np.sqrt(self.gp.likelihood.variance)
 
-    def init_default_kernel(self):
+    def init_default_kernel(self, ranges=1):
 
         # Initialize GP with a general kernel and constrain hyperparameter
         # TODO Hyperpriors and kernel choice
 
-        kernel_1 = GPy.kern.Matern52(input_dim=self.input_dim, variance=1., lengthscale=.5,
+        kernel_1 = GPy.kern.Matern52(input_dim=self.input_dim, variance=1., lengthscale=np.array(ranges) * .2,
                                       ARD=True, name='kern1')
 
         kernel_1.variance.constrain_bounded(1e-3, 1e4)
 
-        kernel_2 = GPy.kern.RBF(input_dim=self.input_dim, variance=1, lengthscale=.5,
+        kernel_2 = GPy.kern.RBF(input_dim=self.input_dim, variance=1, lengthscale=.4,
             ARD=True, name='kern2')
 
         kernel_2.variance.constrain_bounded(1e-3, 1e4)
@@ -69,6 +69,10 @@ class MeasureEstimation:
         # np.mgrid[action1, action2, state1, state2]
         # or np.meshgrid(np.linspace(0,3,3), np.linspace(0,3,3), np.linspace(0,3,4))
         # The Q_M,Q_V and Q_feas data needs to be in a corresponding n**d grid
+
+        ranges = list()
+        for i in range(self.input_dim):
+            ranges.append(AS_grid[i].max() - AS_grid[i].min())
 
         AS = np.vstack(map(np.ravel, AS_grid)).T
         Q = Q_M.ravel().T
@@ -89,7 +93,7 @@ class MeasureEstimation:
         X_train = AS[idx, :]
         y_train = Q[idx].reshape(-1, 1)
 
-        self.prior_kernel = self.init_default_kernel()
+        self.prior_kernel = self.init_default_kernel(ranges=ranges)
 
         gp_prior = GPy.models.GPRegression(X=X_train,
                                            Y=y_train,

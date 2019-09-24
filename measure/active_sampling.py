@@ -96,7 +96,7 @@ class MeasureLearner:
         # self.Y = y_seed
 
     def sample(self, s0, measure_confidence, exploration_confidence, ndx,
-               safety_threshold=0):
+               safety_threshold=0, reset=None):
 
         s0 = np.atleast_2d(s0).reshape(-1,1)
 
@@ -152,6 +152,9 @@ class MeasureLearner:
 
         else:  # not empty, pick one of these
 
+            if self.verbose > 1:
+                print('explore on iteration ' + str(ndx + 1))
+
             A_slice[~thresh_idx] = np.nan
             A_slice_s2[~thresh_idx] = np.nan
             a_idx = np.nanargmax(A_slice_s2)
@@ -171,36 +174,41 @@ class MeasureLearner:
             if self.verbose:
                 print('FAILED on iteration ' + str(ndx + 1))
 
-            Q_V_full = estimation.safe_level_set(safety_threshold=safety_threshold,
-                                                 confidence_threshold=measure_confidence)
 
-            S_M_safe = estimation.project_Q2S(Q_V_full)
+            # Reset deterministic to save a lot of computation time in higher dimensions
+            if reset is not None:
 
-            if S_M_safe.any():
-                safe_idx = np.where(S_M_safe > 0)
-                s_next_idx = [np.random.choice(safe_idx[i]) for i in range(0, len(safe_idx))]
-                s_next = [self.grids['states'][i][s_next_idx[i]] for i in range(0,len(s_next_idx))]
-                s_next_idx = np.array(s_next_idx)
-                s_next = np.array(s_next)
+                s_next = reset
 
             else:
-                # if the measure is 0 everywhere, we cannot recover anyway.
-                raise Exception('The whole measure is 0 now. There exits no action that is safe')
-                # S_M_safe = estimation.project_Q2S(Q_V)
-                #
-                # s_next_idx = np.argmax(S_M_safe)
-                # s_next_idx = np.unravel_index(s_next_idx, S_M_safe.shape)
-                # s_next = [self.grids['states'][i][s_next_idx[i]] for i in range(0,len(s_next_idx))]
-                # s_next_idx = np.array(s_next_idx)
-                # s_next = np.array(s_next)
+                Q_V_full = estimation.safe_level_set(safety_threshold=safety_threshold,
+                                                     confidence_threshold=measure_confidence)
+
+                S_M_safe = estimation.project_Q2S(Q_V_full)
+
+                if S_M_safe.any():
+                    safe_idx = np.where(S_M_safe > 0)
+                    s_next_idx = [np.random.choice(safe_idx[i]) for i in range(0, len(safe_idx))]
+                    s_next = [self.grids['states'][i][s_next_idx[i]] for i in range(0,len(s_next_idx))]
+                    s_next_idx = np.array(s_next_idx)
+                    s_next = np.array(s_next)
+
+                else:
+                    # if the measure is 0 everywhere, we cannot recover anyway.
+                    raise Exception('The whole measure is 0 now. There exits no action that is safe')
+                    # S_M_safe = estimation.project_Q2S(Q_V)
+                    #
+                    # s_next_idx = np.argmax(S_M_safe)
+                    # s_next_idx = np.unravel_index(s_next_idx, S_M_safe.shape)
+                    # s_next = [self.grids['states'][i][s_next_idx[i]] for i in range(0,len(s_next_idx))]
+                    # s_next_idx = np.array(s_next_idx)
+                    # s_next = np.array(s_next)
 
             measure = self.current_estimation.failure_value
         else:
             self.failed_samples.append(False)
 
             s_next = self.model.xp2s(x_next, p_true)
-            s_next_idx = vibly.digitize_s(s_next, self.grids['states'],
-                                          None, to_bin=False)
 
             Q_V = estimation.safe_level_set(safety_threshold=0,
                                             confidence_threshold=measure_confidence,
@@ -213,6 +221,9 @@ class MeasureLearner:
         #q_new = np.concatenate((np.atleast_1d(a), s0)).reshape(1,-1)
         q_new = np.concatenate((s0, np.atleast_1d(a))).reshape(1,-1)
 
+        if self.verbose:
+            print('State: ' + np.array2string(s0.reshape(-1), precision=3, separator=', ') + ' Action: ' + np.array2string(a.reshape(-1), precision=3, separator=', '))
+
         self.X = np.concatenate((self.X, q_new), axis=0)
 
         y_new = np.array(measure).reshape(-1, 1)
@@ -221,9 +232,9 @@ class MeasureLearner:
 
         self.current_estimation = estimation
 
-        return s_next, s_next_idx
+        return s_next
 
-    def run(self, n_samples, s0, callback=None):
+    def run(self, n_samples, s0, callback=None, reset_to_s0=False):
 
         # Callback for e.g. plotting
         if callable(callback):
@@ -234,6 +245,10 @@ class MeasureLearner:
             }
             callback(self, -1, thresholds)
 
+        reset_state = None
+        if reset_to_s0:
+            reset_state = s0
+
         for ndx in range(n_samples):
 
             exploration_confidence = self.interpolation(self.exploration_confidence_s, self.exploration_confidence_e, ndx / n_samples)
@@ -242,11 +257,12 @@ class MeasureLearner:
 
             safety_threshold = self.interpolation(self.safety_threshold_s, self.safety_threshold_e, ndx / n_samples)
 
-            s0, s0_idx = self.sample(s0,
-                                     measure_confidence=measure_confidence,
-                                     exploration_confidence=exploration_confidence,
-                                     safety_threshold=safety_threshold,
-                                     ndx=ndx)
+            s0 = self.sample(s0,
+                             measure_confidence=measure_confidence,
+                             exploration_confidence=exploration_confidence,
+                             safety_threshold=safety_threshold,
+                             ndx=ndx,
+                             reset=reset_state)
 
             # Callback for e.g. plotting
             if callable(callback):
