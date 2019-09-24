@@ -21,7 +21,7 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path='./data/gp_
     infile.close()
 
     # A prior state action pair that is considered safe (from system knowledge)
-    X_seed = np.atleast_2d(np.array([38 / (180) * np.pi, .45]))
+    X_seed = np.atleast_2d(np.array([.45, 38 / (180) * np.pi]))
     y_seed = np.array([[.2]])
 
     seed_data = {'X': X_seed, 'y': y_seed}
@@ -55,16 +55,11 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path='./data/gp_
 
 
 
-## TODO: Start from good prior
+if __name__ == "__main__":
+    dynamics_model_path = '../../data/dynamics/'
+    gp_model_path = '../../data/gp_model/'
+    results_path = '../../results/'
 
-# idx_safe = np.argwhere(Q_V_proxy.ravel()).ravel()
-# idx_unsafe = np.argwhere(~Q_V_proxy.ravel()).ravel()
-#
-# idx_sample_safe = np.random.choice(idx_safe, size=np.min([200, len(idx_safe)]), replace=False)
-# idx_sample_unsafe = np.random.choice(idx_unsafe, size=np.min([100, len(idx_unsafe)]), replace=False)
-#
-# idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
-#
-# X_prior = X_grid[idx, :]
-# y_prior = Q_M_proxy.ravel()
-# y_prior = y_prior[idx].reshape(-1, 1)
+    run_demo(dynamics_model_path=dynamics_model_path,
+             gp_model_path=gp_model_path,
+             results_path=results_path)

@@ -107,13 +107,6 @@ class MeasureLearner:
             self.X = np.empty((0, estimation.input_dim))
             self.y = np.empty((0, 1))
 
-        # TODO Anynomous: dont grid states, dont evalutate the whole sets
-        # s_grid_shape = list(map(np.size, self.grids['states']))
-        # # TODO dont rely on vibly here
-        # s0_idx = vibly.digitize_s(s0, self.grids['states'],
-        #                           shape=None, to_bin=False)
-
-
         Q_V = estimation.safe_level_set(safety_threshold=0,
                                         confidence_threshold=measure_confidence,
                                         current_state=s0)

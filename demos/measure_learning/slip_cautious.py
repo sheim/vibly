@@ -23,7 +23,7 @@ def run_demo(dynamics_model_path='./data/dynamics/',
     infile.close()
 
     # A prior state action pair that is considered safe (from system knowledge)
-    X_seed = np.atleast_2d(np.array([38 / (180) * np.pi, .45]))
+    X_seed = np.atleast_2d(np.array([.45, 38 / (180) * np.pi]))
     y_seed = np.array([[.2]])
 
     seed_data = {'X': X_seed, 'y': y_seed}
@@ -56,3 +56,12 @@ def run_demo(dynamics_model_path='./data/dynamics/',
     s0 = .45
 
     sampler.run(n_samples=n_samples, s0=s0, callback=plot_callback)
+
+if __name__ == "__main__":
+    dynamics_model_path = '../../data/dynamics/'
+    gp_model_path = '../../data/gp_model/'
+    results_path = '../../results/'
+
+    run_demo(dynamics_model_path=dynamics_model_path,
+             gp_model_path=gp_model_path,
+             results_path=results_path)

@@ -24,7 +24,7 @@ def run_demo(dynamics_model_path='./data/dynamics/', gp_model_path='./data/gp_mo
 
     # The ground truth measure
 
-    X = np.meshgrid(*(data['grids']['actions']), *(data['grids']['states']))
+    X = np.meshgrid(*(data['grids']['states']), *(data['grids']['actions']), indexing='ij')
     Y = data['Q_M']
 
     X = np.vstack(map(np.ravel, X)).T
@@ -45,10 +45,10 @@ def run_demo(dynamics_model_path='./data/dynamics/', gp_model_path='./data/gp_mo
                             prior_model_path=gp_model_file,
                             learn_hyperparameters=False)
 
-    sampler.exploration_confidence_s = 0.85
-    sampler.exploration_confidence_e = 0.85
-    sampler.measure_confidence_s = 0.85
-    sampler.measure_confidence_e = 0.85
+    sampler.exploration_confidence_s = 0.9
+    sampler.exploration_confidence_e = 0.9
+    sampler.measure_confidence_s = 0.9
+    sampler.measure_confidence_e = 0.9
     sampler.safety_threshold_s = 0.01
     sampler.safety_threshold_e = 0.01
 
@@ -70,3 +70,11 @@ def run_demo(dynamics_model_path='./data/dynamics/', gp_model_path='./data/gp_mo
     sampler.run(n_samples=n_samples, s0=s0, callback=plot_callback)
 
 
+if __name__ == "__main__":
+    dynamics_model_path = '../../data/dynamics/'
+    gp_model_path = '../../data/gp_model/'
+    results_path = '../../results/'
+
+    run_demo(dynamics_model_path=dynamics_model_path,
+             gp_model_path=gp_model_path,
+             results_path=results_path)
