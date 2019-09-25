@@ -136,7 +136,6 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
     # ax_Q.contour(X, Y, Q_V_safe, [.5], colors='k')
 
     # Build image from sets
-
     ax_Q.contour(X, Y, Q_V_safe, [.5], colors='k')
     ax_Q.contour(X, Y, Q_V_explore, [.5], colors='k')
 
@@ -162,20 +161,6 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
                   colors=[tuple((c)/256 for c in explore_color), (0,0,0,0)],
                   alpha=0.7)
 
-    img = np.zeros(Q_V_true.shape)
-    img[Q_V_true == 1] = 0.5
-    if Q_F is not None:
-        img[Q_F] = 1.5
-    img[Q_V_true == 1] = 2.5
-    # img[Q_V_safe == 1] = 3.5
-    # img[Q_V_explore == 1] = 4.5
-
-    # img = frame_image(img, 10)
-
-    cmap = create_set_colormap()
-    bounds = [0, 1, 2, 3, 4, 5]
-    norm = BoundaryNorm(bounds, cmap.N)
-
     if samples is not None and samples[0] is not None:
         action = samples[0][:, 1]
         state = samples[0][:, 0]
@@ -192,9 +177,7 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
                          facecolors=[[0.9, 0.3, 0.3]], s=30,
                          marker='.', edgecolors='none')
 
-    # this needs to happen after the scatter plot
-    ax_Q.imshow(img, origin='lower', extent=extent, aspect=aspect_ratio_Q,
-                interpolation='none', cmap=cmap, norm=norm)
+
 
     ax_Q.set_xlabel('action space $A$')
     ax_Q.set_ylabel('state space $S$')
