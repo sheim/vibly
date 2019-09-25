@@ -10,7 +10,7 @@ p = {'n_states': 1,
      'base_gravity': 0.1,
      'gravity': 1,
      'thrust': 0,
-     'max_thrust': 0.8,
+     'max_thrust': 0.5,
      'ceiling': 2,
      'control_frequency': 1  # hertz
      }
@@ -28,9 +28,9 @@ p_map.xp2s = sys.xp2s
 # * determine the bounds and resolution of your grids
 # * note, the s_grid is a tuple of grids, such that each dimension can have
 # * different resolution, and we do not need to initialize the entire array
-s_grid = (np.linspace(-0.0, p['ceiling'], 401),)
+s_grid = (np.linspace(-0.0, p['ceiling'], 201),)
 # * same thing for the actions
-a_grid = (np.linspace(0.0, 0.8, 351),)
+a_grid = (np.linspace(0.0, 0.5, 151),)
 
 # * for convenience, both grids are placed in a dictionary
 grids = {'states': s_grid, 'actions': a_grid}
@@ -41,7 +41,7 @@ grids = {'states': s_grid, 'actions': a_grid}
 # * Q_on_grid is a helper grid, which marks if a state has not moved
 # * this is used to catch corner cases, and is not important for most systems
 # * setting `check_grid` to False will omit Q_on_grid
-Q_map, Q_F, Q_on_grid = vibly.compute_Q_map(grids, p_map, check_grid=True)
+Q_map, Q_F, Q_on_grid = vibly.parcompute_Q_map(grids, p_map, check_grid=True)
 
 # * compute_QV computes the viable set and viability kernel
 Q_V, S_V = vibly.compute_QV(Q_map, grids, ~Q_F, Q_on_grid=Q_on_grid)
