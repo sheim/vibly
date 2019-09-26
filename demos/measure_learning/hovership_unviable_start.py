@@ -21,7 +21,7 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path = './data/g
 
     # A prior state action pair that is considered safe (from system knowledge)
     # Here it is chosen to be outside the viable set to demonstrate that the learner can deal with this case
-    X_seed = np.atleast_2d(np.array([1.2, .5]))
+    X_seed = np.atleast_2d(np.array([1.45, .5]))
     y_seed = np.array([[.8]])
 
     seed_data = {'X': X_seed, 'y': y_seed}
@@ -32,9 +32,9 @@ def run_demo(dynamics_model_path = './data/dynamics/', gp_model_path = './data/g
                             learn_hyperparameters=False)
 
     sampler.exploration_confidence_s = 0.95
-    sampler.exploration_confidence_e = 0.999
-    sampler.measure_confidence_s = 0.55
-    sampler.measure_confidence_e = 0.999
+    sampler.exploration_confidence_e = 0.9999
+    sampler.measure_confidence_s = 0.75
+    sampler.measure_confidence_e = 0.9999
     sampler.safety_threshold_s = 0.0
     sampler.safety_threshold_e = 0.1
 
