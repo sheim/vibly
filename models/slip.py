@@ -251,7 +251,25 @@ def find_limit_cycle(x, p, p_key_name, key_delta):
     # Use the bisection method to get a good initial guess for key
 
     # Initial solution
-    x = reset_leg(x, p)
+    reset_leg(x, p)
+    # check for feasibility
+    if not feasible(x, p):
+        # if we're searching for AOAs, start from a feasible one
+        if p_key_name is 'angle_of_attack':
+            # starting infeasible
+            # assuming we're looking for an aoa
+            for aoa in np.linspace(p['angle_of_attack'], np.pi/2, 9):
+                p['angle_of_attack'] = aoa
+                reset_leg(x, p)
+                if feasible(x, p):
+                    break
+            else:
+                return aoa, limit_cycle_found
+        else:
+            # if not, out of luck
+            print("WARNING: requested LC at infeasible point")
+            return key_delta, limit_cycle_found
+
     (pm, step_failed) = p_map(x, p)
     err = np.abs(pm[1] - x[1])
 
@@ -323,7 +341,7 @@ def find_limit_cycle(x, p, p_key_name, key_delta):
         limit_cycle_found = True
 
     # p[p_key_name] = key
-    return (key, limit_cycle_found)
+    return key, limit_cycle_found
 
 # * Functions for Viability
 

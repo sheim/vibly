@@ -297,6 +297,8 @@ def create_force_trajectory(step_sol, p):
     return actuator_time_force
 
 
+# ! WARNING: depecrated, using slip model directly to find LCs
+# TODO: remove.
 def find_limit_cycle(x, p, p_key_name, p_key_width):
     '''
     Iterates over the angle of attack of the leg until a limit cycle is reached
