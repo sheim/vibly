@@ -316,6 +316,9 @@ def find_limit_cycle(x, p, p_key_name, key_delta):
         p[p_key_name] = key
         x = reset_leg(x, p)
         (pm, step_failed) = p_map(x, p)
+
+        if step_failed:
+            break
         err = pm[1]-x[1]
 
         # Compute D(error)/D(key) using a numerical derivative
