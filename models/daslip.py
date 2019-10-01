@@ -462,7 +462,6 @@ def reset_leg(x, p):
     x[5] = x[1] - np.cos(p['angle_of_attack']+angle_offset)*(
                     p['spring_resting_length']+p['actuator_resting_length'])
     x[6] = p['actuator_resting_length']
-
     return x
 
 
@@ -563,7 +562,7 @@ def sa2xp_y_xdot_timedaoa(state_action, p_def):
     return x, p
 
 
-def sa2xp_amam(state_action, p_def):
+def sa2xp_amp(state_action, p_def):
     '''
     Specifically map state_actions to x and p
     '''
