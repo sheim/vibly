@@ -18,7 +18,7 @@ sns.set_style('dark')
 sns.set_context('poster')
 
 FLAG_ALL_SM = False
-FLAG_SM4 = True
+FLAG_SM4 = False
 FLAG_TRAJS = True
 FLAG_DAMPING_2D = False
 FLAG_WATERFALL = False
@@ -200,7 +200,7 @@ if FLAG_SM4:
 
 if FLAG_TRAJS:
     # * get index of nominal trajectory, max step up/down
-    index0 = 0
+    index0 = -1
     max_up = 0
     max_down = 0
     for idx, traj in enumerate(trajecs[0]):
@@ -223,43 +223,16 @@ if FLAG_TRAJS:
     plot_these = (5, 10, 12, 14)
     # trajectories = data[idx]['trajectories']
 
+    import plotting.guinea_plotters as daplot
     for idx in plot_these:
-        fig = plt.figure(idx)
-        mycmap = plt.get_cmap("Blues")
-        for up_dx in range(index0):
-
-            # col = height_cmap(0.5+traj.y[-1, 0])
-            traj = trajecs[idx][up_dx]
-
-            # X0 = [traj.y[:, 0] for traj in data[idx]['trajectories']]
-            x = traj.y[:, -1]
-            s = sys.xp2s_y_xdot(x, data[idx]['p'])
-            sbin = vibly.digitize_s(s, data[idx]['grids']['states'])
-            s_m = interp_measure(sbin, data[idx]['S_M'], data[idx]['grids'])
-
-            if s_m > 0.1:
-                col = mycmap(0.65-np.abs(traj.y[-1, 0]))
-                plt.plot(traj.y[0], traj.y[1], color=col)
-
-        mycmap = plt.get_cmap("Reds")
-        for down_dx in range(index0+1, len(trajecs[idx])):
-            traj = trajecs[idx][down_dx]
-
-            x = traj.y[:, -1]
-            s = sys.xp2s_y_xdot(x, data[idx]['p'])
-            sbin = vibly.digitize_s(s, data[idx]['grids']['states'])
-            s_m = interp_measure(sbin, data[idx]['S_M'], data[idx]['grids'])
-
-            if s_m > 0.1:
-                col = mycmap(0.65-np.abs(traj.y[-1, 0]))
-                plt.plot(traj.y[0], traj.y[1], color=col)
-
-        traj = trajecs[idx][index0]
-        plt.plot(traj.y[0], traj.y[1], color='k')
-        plt.title(str(np.round(data[idx]['p']['linear_normalized_damping_coefficient'], decimals=2)))
-        plt.xlabel('x position')
-        plt.ylabel('y position')
+        # fig = plt.figure(idx)
+        fig, ax = plt.subplots()
+        daplot.ground_perturbations(ax, trajecs[idx], data[idx]['S_M'],
+                                    data[idx]['grids'], data[idx]['p'])
     plt.show()
+
+
+#####
 # plot_these = (6,7,8,9,10)
 # for tdx in plot_these:
 #     plt.plot(trajectories[tdx].y[0], trajectories[tdx].y[1])
