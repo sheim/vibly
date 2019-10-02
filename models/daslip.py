@@ -596,11 +596,10 @@ def mapSA2xp_energy_normalizedheight_aoa(state_action, p):
     return x, p
 
 
-# * Utility functions (only used for analysis, not for simulation)
-# * Careful: The code in these utility functions must be kept up to date
-#            with the model implementation
 def compute_leg_force(x, p):
-
+    '''
+    Computes the force developed by the leg spring
+    '''
     spring_length = compute_spring_length(x)
     # Since both models contact the ground through a serially connected spring:
     spring_force = -p['stiffness']*(spring_length-p['spring_resting_length'])
@@ -608,6 +607,10 @@ def compute_leg_force(x, p):
     return spring_force
 
 def compute_spring_damper_actuator_force(t, x, p):
+    '''
+    Computes the forces developed by the leg spring, and the damper-actuator 
+    that is in series with the leg spring.
+    '''
     
     ACTUATOR_PERIOD = p['actuator_force_period']
     DELAY = p['activation_delay']  # can also be negative
