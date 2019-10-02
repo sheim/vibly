@@ -67,7 +67,7 @@ p_map.p = p
 p_map.x = x0.copy()
 
 # * choose high-level represenation
-p_map.sa2xp = model.sa2xp_amam
+p_map.sa2xp = model.sa2xp_amp
 # p_map.sa2xp = model.sa2xp_y_xdot_timedaoa
 p_map.xp2s = model.xp2s_y_xdot
 
