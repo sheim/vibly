@@ -89,22 +89,16 @@ def step(x0, p, prev_sol=None):
     def stance_dynamics(t, x):
         # stance dynamics
         alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
-        spring_length = compute_spring_length(x)
+        spring_damper_actuator_force = compute_spring_damper_actuator_force(t,x,p)
 
-        spring_force = STIFFNESS*(SPRING_RESTING_LENGTH - spring_length)
+        spring_force           = spring_damper_actuator_force[0]
+        actuator_damping_force = spring_damper_actuator_force[1]
+        actuator_force         = spring_damper_actuator_force[2]
+
         ldotdot = spring_force/MASS
         xdotdot = -ldotdot*np.sin(alpha)
         ydotdot = ldotdot*np.cos(alpha) - GRAVITY
 
-        if np.shape(p['actuator_force'])[0] > 0:
-            actuator_force = np.interp(t, p['actuator_force'][0, :]+DELAY,
-                                       p['actuator_force'][1, :],
-                                       period=ACTUATOR_PERIOD)
-            actuator_force *= AMPLI
-        else:
-            actuator_force = 0
-
-        # * Damping
 
         actuator_damping_coefficient = (p['constant_normalized_damping']
                                         * p['stiffness'])
@@ -116,24 +110,9 @@ def step(x0, p, prev_sol=None):
         actuator_damping_coefficient = np.maximum([damping_min],
                                                   [damping_val])[0]
 
-        actuator_damping_force = spring_force - actuator_force
-
-        # * old damping
-        # active_damping = np.max([MIN_DAMPING, ACTIVE_DAMPING*actuator_force])
-        # total_damping = VISCOUS_DAMPING + active_damping
-
-        actuator_damping_force = spring_force - actuator_force
-
-        # ladot = -actuator_damping_force/total_damping
         ladot = -actuator_damping_force/actuator_damping_coefficient
         wadot = actuator_force*ladot
         wddot = actuator_damping_force*ladot
-
-        # These forces are identical to the slip: there's no (other) mass
-        #  between the spring and the point mass
-        # ldotdot = (actuator_force+actuator_damping_force)/MASS
-        # xdotdot = -ldotdot*np.sin(alpha)
-        # ydotdot =  ldotdot*np.cos(alpha) - GRAVITY
 
         return np.array([x[2], x[3], xdotdot, ydotdot, 0, 0,
                         ladot, wadot, wddot, 0])
@@ -618,7 +597,8 @@ def mapSA2xp_energy_normalizedheight_aoa(state_action, p):
 
 
 # * Utility functions (only used for analysis, not for simulation)
-
+# * Careful: The code in these utility functions must be kept up to date
+#            with the model implementation
 def compute_leg_force(x, p):
 
     spring_length = compute_spring_length(x)
@@ -626,3 +606,22 @@ def compute_leg_force(x, p):
     spring_force = -p['stiffness']*(spring_length-p['spring_resting_length'])
 
     return spring_force
+
+def compute_spring_damper_actuator_force(t, x, p):
+    
+    ACTUATOR_PERIOD = p['actuator_force_period']
+    DELAY = p['activation_delay']  # can also be negative
+    AMPLI = p['activation_amplification']
+
+    spring_force = compute_leg_force(x,p)
+    actuator_force = 0
+    if np.shape(p['actuator_force'])[0] > 0:
+        actuator_force = np.interp(t, p['actuator_force'][0, :]+DELAY,
+                                    p['actuator_force'][1, :],
+                                    period=ACTUATOR_PERIOD)
+        actuator_force *= AMPLI
+    else:
+        actuator_force = 0
+
+    actuator_damping_force = spring_force - actuator_force
+    return np.array([spring_force, actuator_damping_force, actuator_force])
