@@ -232,14 +232,14 @@ def compute_total_energy(x, p):
             (p['spring_resting_length']-spring_length)**2)
 
 
-def find_limit_cycle(x, p, p_key_name, key_delta):
+def find_limit_cycle(x, p, options):
     '''
-    Iterates over the angle of attack of the leg until a limit cycle is reached
+    Iterates over the value of key-name until limit cycle is reached
     '''
     # Settings for the root finding methods
 
-    max_iter_bisection = 10
-    max_iter_newton = 10
+    max_iter_bisection = 20
+    max_iter_newton = 20
     tol_newton = 1e-12
 
     limit_cycle_found = False
@@ -248,11 +248,35 @@ def find_limit_cycle(x, p, p_key_name, key_delta):
         print("WARNING: p is not a dict and should be.")
         return (p, False)
 
+    if type(options) is not dict:
+        print("WARNING: p is not a dict and should be.")
+        return (p, False)
+
+    if( options['search_initial_state'] == True
+        and options['search_parameter'] == True):
+        print(  "WARNING: options search_initial_state and search_parameter "
+                "cannot both be True - choose one.")
+        return(p, False)
+
+    if(options['search_initial_state'] == False 
+       and options['search_parameter'] == False):
+        print(  "WARNING: options search_initial_state and search_parameter "
+                "cannot both be False - choose one.")
+        return(p, False)
+
+    if(options['search_initial_state']== True 
+        and (options['state_index'] < 0 or options['state_index'] > 5 ) ):
+        print("WARNING: Only one of the first 6 states can be varied to "
+              "find a limit cycle")
+
+    searchP = options['search_parameter']
+
     # Use the bisection method to get a good initial guess for key
 
     # Initial solution
     reset_leg(x, p)
-    # check for feasibility
+    # * check for feasibility
+    # Somewhat hacky, very specific to AoA
     if not feasible(x, p):
         # if we're searching for AOAs, start from a feasible one
         if p_key_name is 'angle_of_attack':
@@ -270,6 +294,7 @@ def find_limit_cycle(x, p, p_key_name, key_delta):
             print("WARNING: requested LC at infeasible point")
             return key_delta, limit_cycle_found
 
+    p['total_energy'] = compute_total_energy(x, p)
     (pm, step_failed) = p_map(x, p)
     err = np.abs(pm[1] - x[1])
 
@@ -279,32 +304,55 @@ def find_limit_cycle(x, p, p_key_name, key_delta):
     err_left = 0
     err_right = 0
 
-    key = p[p_key_name]
+    val       = 0
+    val_delta = 0
+    if(searchP):
+        val       = p[options['parameter_name']]
+        val_delta = options['parameter_search_width']
+    else:
+        val       = x[options['state_index']]
+        val_delta = options['state_search_width']
 
+    val_left = 0
+    val_right = 0
     # After this for loop returns the angle of attack will be known to
     # a tolerance of pi/4 / 2^(max_iter_bisection)
     for i in range(0, max_iter_bisection):
-        p[p_key_name] = key - key_delta
+        #Evaluate the solution to the left of the current best solution val
+        val_left = val - val_delta
+        if(searchP):
+            p[options['parameter_name']] = val_left
+        else:
+            x[options['state_index']] = val_left
+
         x = reset_leg(x, p)
+        p['total_energy'] = compute_total_energy(x, p)
         (pm_left, step_failed_left) = p_map(x, p)
         err_left = np.abs(pm_left[1] - x[1])
 
-        p[p_key_name] = key + key_delta
+        # Evaluate the solution to the right of the current best solution val
+        val_right = val + val_delta
+        if(searchP):
+            p[options['parameter_name']] = val_right
+        else:
+            x[options['state_index']] = val_right
+
         x = reset_leg(x, p)
+        p['total_energy'] = compute_total_energy(x, p)
         (pm_right, step_failed_right) = p_map(x, p)
         err_right = np.abs(pm_right[1] - x[1])
 
         if ((err_left < err and step_failed_left is False) and
             (err_left <= err_right or step_failed_right is True)):
             err = err_left
-            key = key - key_delta
+            val = val_left
 
         if ((err_right < err and step_failed_right is False) and
             (err_right < err_left or step_failed_left is True)):
             err = err_right
-            key = key + key_delta
+            val = val_right
 
-        key_delta = 0.5*key_delta
+        val_delta = 0.5*val_delta
 
     # polish the root using Newton's method
 
@@ -313,28 +361,42 @@ def find_limit_cycle(x, p, p_key_name, key_delta):
     while np.abs(err) > tol_newton and idx < max_iter_newton:
 
         # Compute the error
-        p[p_key_name] = key
+        if(searchP):
+            p[options['parameter_name']] = val
+        else:
+            x[options['state_index']] = val
         x = reset_leg(x, p)
+        p['total_energy'] = compute_total_energy(x, p)
         (pm, step_failed) = p_map(x, p)
 
         if step_failed:
             break
         err = pm[1]-x[1]
 
-        # Compute D(error)/D(key) using a numerical derivative
-        p[p_key_name] = key-h
+        # Compute D(error)/D(val) using a numerical derivative
+        if(searchP):
+            p[options['parameter_name']] = val-h
+        else:
+            x[options['state_index']] = val-h
+
         x = reset_leg(x, p)
+        p['total_energy'] = compute_total_energy(x, p)
         (pm, step_failed) = p_map(x, p)
         errL = pm[1]-x[1]
 
-        p[p_key_name] = key+h
+        if(searchP):
+            p[options['parameter_name']] = val+h
+        else:
+            x[options['state_index']] = val+h
+
         x = reset_leg(x, p)
+        p['total_energy'] = compute_total_energy(x, p)
         (pm, step_failed) = p_map(x, p)
         errR = pm[1]-x[1]
 
         # Compute a Newton step and take it
-        DerrDkey = (errR-errL)/(2*h)
-        key = key - err/DerrDkey
+        DerrDval = (errR-errL)/(2*h)
+        val = val - err/DerrDval
         idx = idx+1
 
     if np.abs(err) > tol_newton:
@@ -343,8 +405,8 @@ def find_limit_cycle(x, p, p_key_name, key_delta):
     else:
         limit_cycle_found = True
 
-    # p[p_key_name] = key
-    return key, limit_cycle_found
+    # p[p_key_name] = val
+    return val, limit_cycle_found
 
 # * Functions for Viability
 
