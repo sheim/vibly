@@ -20,14 +20,14 @@ def p_map(x, p):
     '''
     if type(p) is dict:
         if not feasible(x, p):
-            return x, True # return failed if foot starts underground
+            return x, True  # return failed if foot starts underground
         sol = step(x, p)
         # if len(sol.t_events) < 7:
         #     # print(len(sol.t_events))
         #     return sol.y[:, -1], True
         return sol.y[:, -1], check_failure(sol.y[:, -1])
     elif type(p) is tuple:
-        vector_of_x = np.zeros(x.shape) # initialize result array
+        vector_of_x = np.zeros(x.shape)  # initialize result array
         vector_of_fail = np.zeros(x.shape[1])
         # TODO: for shorthand, allow just a single tuple to be passed in
         # this can be done easily with itertools
@@ -36,7 +36,7 @@ def p_map(x, p):
                 vector_of_x[:, idx] = x[:, idx]
                 vector_of_fail[idx] = True
             else:
-                sol = step(x[:, idx], p0) # p0 = p[idx]
+                sol = step(x[:, idx], p0)  # p0 = p[idx]
                 vector_of_x[:, idx] = sol.y[:, -1]
                 vector_of_fail[idx] = check_failure(sol.y[:, -1])
         return vector_of_x, vector_of_fail
@@ -45,7 +45,7 @@ def p_map(x, p):
         return (x, True)
 
 
-def step(x0, p, prev_sol = None):
+def step(x0, p, prev_sol=None):
     '''
     Take one step from apex to apex/failure.
     returns a sol object from integrate.solve_ivp, with all phases
@@ -90,8 +90,8 @@ def step(x0, p, prev_sol = None):
         '''
         Event function for foot touchdown (transition to stance)
         '''
-            # x[1]- np.cos(p['angle_of_attack'])*RESTING_LENGTH
-            # (which is = x[5])
+        # x[1]- np.cos(p['angle_of_attack'])*RESTING_LENGTH
+        # (which is = x[5])
         return x[5]
     touchdown_event.terminal = True  # no longer actually necessary...
     touchdown_event.direction = -1
@@ -104,7 +104,7 @@ def step(x0, p, prev_sol = None):
         spring_length = (np.hypot(x[0]-x[4], x[1]-x[5])
                          - p['actuator_resting_length'])
         return spring_length - RESTING_LENGTH
-        #((x[0]-x[4])**2 + (x[1]-x[5])**2) - RESTING_LENGTH**2
+        # ((x[0]-x[4])**2 + (x[1]-x[5])**2) - RESTING_LENGTH**2
     liftoff_event.terminal = True
     liftoff_event.direction = 1
 
@@ -115,7 +115,6 @@ def step(x0, p, prev_sol = None):
         '''
         return x[3]
     apex_event.terminal = True
-
 
     # @jit(nopython=True)
     def reversal_event(t, x):
@@ -137,16 +136,16 @@ def step(x0, p, prev_sol = None):
 
     # * FLIGHT: simulate till touchdown
     events = [fall_event, touchdown_event]
-    sol = integrate.solve_ivp(flight_dynamics,
-        t_span = [t0, t0 + MAX_TIME], y0=x0, events=events, max_step=0.01)
+    sol = integrate.solve_ivp(flight_dynamics, t_span=[t0, t0 + MAX_TIME],
+                              y0=x0, events=events, max_step=0.01)
 
     # TODO Put each part of the step into a list, so you can concat them
     # TODO programmatically, and reduce code length.
-        # if you fell, stop now
+    # if you fell, stop now
     if sol.t_events[0].size != 0:  # if empty
         if prev_sol is not None:
             sol.t = np.concatenate((prev_sol.t, sol.t))
-            sol.y = np.concatenate((prev_sol.y, sol.y), axis =1)
+            sol.y = np.concatenate((prev_sol.y, sol.y), axis=1)
             sol.t_events = prev_sol.t_events + sol.t_events
         return sol
 
@@ -154,18 +153,18 @@ def step(x0, p, prev_sol = None):
     events = [fall_event, liftoff_event, reversal_event]
     x0 = sol.y[:, -1]
     sol2 = integrate.solve_ivp(stance_dynamics,
-        t_span = [sol.t[-1], sol.t[-1] + MAX_TIME], y0=x0,
-        events=events, max_step=0.001)
+                               t_span=[sol.t[-1], sol.t[-1] + MAX_TIME],
+                               y0=x0, events=events, max_step=0.001)
 
     # if you fell, stop now
-    if sol2.t_events[0].size != 0 or sol2.t_events[2].size != 0: # if empty
+    if sol2.t_events[0].size != 0 or sol2.t_events[2].size != 0:  # if empty
         # concatenate all solutions
         sol.t = np.concatenate((sol.t, sol2.t))
         sol.y = np.concatenate((sol.y, sol2.y), axis=1)
         sol.t_events += sol2.t_events
         if prev_sol is not None:  # concatenate to previous solution
             sol.t = np.concatenate((prev_sol.t, sol.t))
-            sol.y = np.concatenate((prev_sol.y, sol.y), axis =1)
+            sol.y = np.concatenate((prev_sol.y, sol.y), axis=1)
             sol.t_events = prev_sol.t_events + sol.t_events
         return sol
 
@@ -174,8 +173,8 @@ def step(x0, p, prev_sol = None):
 
     x0 = reset_leg(sol2.y[:, -1], p)
     sol3 = integrate.solve_ivp(flight_dynamics,
-            t_span = [sol2.t[-1], sol2.t[-1] + MAX_TIME], y0=x0,
-            events=events, max_step=0.01)
+                               t_span=[sol2.t[-1], sol2.t[-1] + MAX_TIME],
+                               y0=x0, events=events, max_step=0.01)
 
     # concatenate all solutions
     sol.t = np.concatenate((sol.t, sol2.t, sol3.t))
@@ -184,23 +183,24 @@ def step(x0, p, prev_sol = None):
 
     if prev_sol is not None:
         sol.t = np.concatenate((prev_sol.t, sol.t))
-        sol.y = np.concatenate((prev_sol.y, sol.y), axis =1)
+        sol.y = np.concatenate((prev_sol.y, sol.y), axis=1)
         sol.t_events = prev_sol.t_events + sol.t_events
 
     return sol
 
 
+# TODO (Steve): refactor without fail_idx for consistency
 def check_failure(x, fail_idx=(0, 1, 2)):
     '''
     Check if a state is in the failure set. Pass in a tuple of indices, which
     failure conditions to check. Currently: 0 for falling, 1 for direction rev.
     '''
     for idx in fail_idx:
-        if idx is 0: # check for falling
+        if idx == 0:  # check for falling
             if np.less_equal(x[1], 0.0) or np.isclose(x[1], 0.0):
                 return True
-        elif idx is 1:
-            if np.less_equal(x[2], 0.0): # check for direction reversal
+        elif idx == 1:
+            if np.less_equal(x[2], 0.0):  # check for direction reversal
                 return True
         # elif idx is 2: # check if you're still on the ground
         #     if np.less_equal(x[5], 0.0):
@@ -252,20 +252,20 @@ def find_limit_cycle(x, p, options):
         print("WARNING: p is not a dict and should be.")
         return (p, False)
 
-    if( options['search_initial_state'] == True
-        and options['search_parameter'] == True):
-        print(  "WARNING: options search_initial_state and search_parameter "
-                "cannot both be True - choose one.")
+    if(options['search_initial_state'] is True and
+       options['search_parameter'] is True):
+        print("WARNING: options search_initial_state and search_parameter "
+              "cannot both be True - choose one.")
         return(p, False)
 
-    if(options['search_initial_state'] == False 
-       and options['search_parameter'] == False):
-        print(  "WARNING: options search_initial_state and search_parameter "
-                "cannot both be False - choose one.")
+    if(options['search_initial_state'] is False
+       and options['search_parameter'] is False):
+        print("WARNING: options search_initial_state and search_parameter "
+              "cannot both be False - choose one.")
         return(p, False)
 
-    if(options['search_initial_state']== True 
-        and (options['state_index'] < 0 or options['state_index'] > 5 ) ):
+    if(options['search_initial_state'] is True
+       and (options['state_index'] < 0 or options['state_index'] > 5)):
         print("WARNING: Only one of the first 6 states can be varied to "
               "find a limit cycle")
 
@@ -304,13 +304,13 @@ def find_limit_cycle(x, p, options):
     err_left = 0
     err_right = 0
 
-    val       = 0
+    val = 0
     val_delta = 0
     if(searchP):
-        val       = p[options['parameter_name']]
+        val = p[options['parameter_name']]
         val_delta = options['parameter_search_width']
     else:
-        val       = x[options['state_index']]
+        val = x[options['state_index']]
         val_delta = options['state_search_width']
 
     val_left = 0
@@ -318,7 +318,7 @@ def find_limit_cycle(x, p, options):
     # After this for loop returns the angle of attack will be known to
     # a tolerance of pi/4 / 2^(max_iter_bisection)
     for i in range(0, max_iter_bisection):
-        #Evaluate the solution to the left of the current best solution val
+        # Evaluate the solution to the left of the current best solution val
         val_left = val - val_delta
         if(searchP):
             p[options['parameter_name']] = val_left
@@ -342,13 +342,13 @@ def find_limit_cycle(x, p, options):
         (pm_right, step_failed_right) = p_map(x, p)
         err_right = np.abs(pm_right[1] - x[1])
 
-        if ((err_left < err and step_failed_left is False) and
-            (err_left <= err_right or step_failed_right is True)):
+        if((err_left < err and step_failed_left is False) and
+           (err_left <= err_right or step_failed_right is True)):
             err = err_left
             val = val_left
 
-        if ((err_right < err and step_failed_right is False) and
-            (err_right < err_left or step_failed_left is True)):
+        if((err_right < err and step_failed_right is False) and
+           (err_right < err_left or step_failed_left is True)):
             err = err_right
             val = val_right
 
@@ -428,14 +428,14 @@ def s2x(x, p, s):
     '''
     if 'total_energy' not in p:
         print('WARNING: you did not initialize your parameters with '
-        'total energy. You really should do this...')
+              'total energy. You really should do this...')
     # check that we are at apex
     assert np.isclose(x[3], 0), "state x: " + str(x) + " and e: " + str(s)
 
     x_new = p['x0']
     x_new[1] = p['total_energy']*s/p['mass']/p['gravity']
     x_new[2] = np.sqrt(p['total_energy']*(1-s)/p['mass']*2)
-    x_new[3] = 0.0 # shouldn't be necessary, but avoids errors accumulating
+    x_new[3] = 0.0  # shouldn't be necessary, but avoids errors accumulating
     x = reset_leg(x, p)
     return x_new
 
