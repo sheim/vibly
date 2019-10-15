@@ -1,8 +1,62 @@
 import models.daslip as model
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.io as spio
+import pickle
 from matplotlib import gridspec
 from enum import Enum
+
+# Helper functions from
+# https://stackoverflow.com/questions/7008608/scipy-io-loadmat-nested-structures-i-e-dictionaries
+def loadmat(filename):
+    '''
+    this function should be called instead of direct spio.loadmat
+    as it cures the problem of not properly recovering python dictionaries
+    from mat files. It calls the function check keys to cure all entries
+    which are still mat-objects
+    '''
+    def _check_keys(d):
+        '''
+        checks if entries in dictionary are mat-objects. If yes
+        todict is called to change them to nested dictionaries
+        '''
+        for key in d:
+            if isinstance(d[key], spio.matlab.mio5_params.mat_struct):
+                d[key] = _todict(d[key])
+        return d
+
+    def _todict(matobj):
+        '''
+        A recursive function which constructs from matobjects nested dictionaries
+        '''
+        d = {}
+        for strg in matobj._fieldnames:
+            elem = matobj.__dict__[strg]
+            if isinstance(elem, spio.matlab.mio5_params.mat_struct):
+                d[strg] = _todict(elem)
+            elif isinstance(elem, np.ndarray):
+                d[strg] = _tolist(elem)
+            else:
+                d[strg] = elem
+        return d
+
+    def _tolist(ndarray):
+        '''
+        A recursive function which constructs lists from cellarrays
+        (which are loaded as numpy ndarrays), recursing into the elements
+        if they contain matobjects.
+        '''
+        elem_list = []
+        for sub_elem in ndarray:
+            if isinstance(sub_elem, spio.matlab.mio5_params.mat_struct):
+                elem_list.append(_todict(sub_elem))
+            elif isinstance(sub_elem, np.ndarray):
+                elem_list.append(_tolist(sub_elem))
+            else:
+                elem_list.append(sub_elem)
+        return elem_list
+    data = spio.loadmat(filename, struct_as_record=False, squeeze_me=True)
+    return _check_keys(data)
 
 # * helper functions
 
@@ -23,6 +77,106 @@ def get_step_trajectories(x0, p, ground_heights=None):
         trajectories.append(model.step(x0, p))
     x0[-1] = 0.0  # reset x0 back to 0
     return trajectories
+
+#Simulation Configuration:
+#   
+#  The fields below match the experimental data (not public) from the MAT
+#  file GF_Drop_AllSteps_SIUnits.mat that contains raw data from Blum et al.
+#  All of the step parameters and timeseries data is contained in:
+#  
+#  'Step'
+#       'Bird1',...,'Bird5'
+#           m     : mass of the bird in kg
+#           L0    : leg length of the bird in meters
+#           ObsH0 : data from flat running trials
+#           ObsH4 : data from 4 cm drop-step trials
+#           ObsH6 : data from 6 cm drop-step trials
+#
+#   Within ObsH0 .. 4 are the following fields
+#       STm3 : 3 steps before the drop (empty for ObsH0)
+#       STm2 : 2 steps " ... "
+#       STm1 : 1 step " ... "
+#       STze : drop step (all data for flat running trials here)
+#       STp1 : 1 step after the drop (empty for ObsH0)
+#       STp2 : 2 steps after " ... "
+#       STp3 : 3 steps after " ... "
+#  
+#   Within STm3 ... STp3 are many fields related to step parameters as well as 
+#   time series data recorded from each step. For details please see
+#   GFData_stepVariables_READEME.rtf and the paper.
+#
+#   To simulate a specific trial you need to choose:
+# 
+#   birdNo      : select one of 'Bird1' ... 'Bird5'
+#   observation : select one of 'ObsH0' ... 'ObsH6'
+#   stepType    : select one of 'STm3' ... 'STp3'
+#   stepNo      : select one of the step indices between 0 and maxSteps
+#
+#   Note:   maxSteps varies for each combination of birdNo, observation, and 
+#           stepType. The value of maxSteps for the selected combination is 
+#           printed to the terminal prior to simulation.
+#
+# Blum Y, Vejdani HR, Birn-Jeffery AV, Hubicki CM, Hurst JW, Daley MA. 
+# Swing-leg trajectory of running guinea fowl suggests task-level priority 
+# of force regulation rather than disturbance rejection. PloS one. 2014 Jun 
+# 30;9(6):e100399.
+#  
+#  
+
+birdNo      = 'Bird1' #'Bird1','Bird2','Bird3''Bird4''Bird5'
+observation = 'ObsH0' #'ObsH0, 'ObsH4', 'ObsH6'
+stepType    = 'STze'  #'STm3','STm2','STm1','STze','STp1','STp2','STp3'
+stepNo      = 0
+
+
+folderBlum2014 = "data/BlumVejdaniBirnJefferyHubickiHurstDaley2014"
+fileName       = "/GF_Drop_AllSteps_SIUnits"
+
+flag_readMATFile = False #This is slow, so the MAT file contents are pickled.
+                        #Once the pickle file exists use it instead
+if(flag_readMATFile):
+    dataMat = loadmat(folderBlum2014+fileName+".mat")
+    pklFileName = open(folderBlum2014+fileName+".pkl",'wb')
+    pickle.dump(dataMat, pklFileName)
+    pklFileName.close()
+
+pklFileName = open(folderBlum2014+fileName+".pkl",'rb')
+dataBlum2014SIUnits = pickle.load(pklFileName)
+pklFileName.close()
+
+
+trialNo = 2
+print('Selected:'+birdNo+' '+observation+' '+stepType)
+
+totalTrials  = np.shape(dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['aTD'])[0]
+
+print('Total recorded trails:',totalTrials)
+assert(trialNo < totalTrials and trialNo >= 0)
+
+#Go get all of the parameters necessary for the simulation:
+
+#Physical Parameters
+m      = dataBlum2014SIUnits['Step'][birdNo]['m']
+L0     = dataBlum2014SIUnits['Step'][birdNo]['L0']
+
+#Step Parameters
+yApex  = dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['yApex'][trialNo]
+vApex  = dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['vApex'][trialNo]
+aTD    = dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['aTD'][trialNo]
+adotTD = dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['adotTD'][trialNo]
+LTD    = dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['LTD'][trialNo]
+LdotTD = dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['LdotTD'][trialNo]
+
+#Time series data: used to extract out leg stiffness and damping. This is 
+#reported in the paper but not in the step parameters
+timeSeries=dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['t'][trialNo]
+LSeries   =dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['LStance'][trialNo]
+fLegSeries=dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['FLeg'][trialNo] 
+
+DfDLSeries = np.gradient(fLegSeries,LSeries)
+
+#Stiffness?
+#Damping?
 
 # Parameters from Blum, Vejdani, Birn-Jeffery, Hubicki, Hurst, & Daley 2014 
 #
@@ -214,7 +368,7 @@ p['total_energy'] = model.compute_total_energy(x0, p)
 
 # * Solve for nominal open-loop trajectories
 
-heightSearchWidth = 0.025
+heightSearchWidth = 0.05
 
 limit_cycle_options = {'search_initial_state' : True,
                        'state_index'          : 1,
