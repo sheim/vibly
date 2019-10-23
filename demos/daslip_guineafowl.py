@@ -4,7 +4,6 @@ import matplotlib.pyplot as plt
 import scipy.io as spio
 import pickle
 from matplotlib import gridspec
-from enum import Enum
 
 # Functions to read in a MAT file and then convert it to an easily accessible 
 # dictionary. These functions come thanks to the post:
@@ -142,7 +141,7 @@ def get_step_trajectories(x0, p, ground_heights=None):
 # 30;9(6):e100399.
 #  
 
-#===============================================================================
+# =============================================================================
 #  Set configuration here
 birdNo      = 'Bird1' #'Bird1','Bird2','Bird3''Bird4''Bird5'
 observation = 'ObsH0' #'ObsH0, 'ObsH4', 'ObsH6'

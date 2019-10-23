@@ -1,12 +1,64 @@
 import models.daslip as model
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib import gridspec
-from enum import Enum
+import pickle
 from ttictoc import TicToc
 
 import viability as vibly
 # * helper functions
+# Functions to read in a MAT file and then convert it to an easily accessible 
+# dictionary. These functions come thanks to the post:
+# https://stackoverflow.com/questions/7008608/scipy-io-loadmat-nested-structures-i-e-dictionaries
+def loadmat(filename):
+    '''
+    this function should be called instead of direct spio.loadmat
+    as it cures the problem of not properly recovering python dictionaries
+    from mat files. It calls the function check keys to cure all entries
+    which are still mat-objects
+    '''
+    def _check_keys(d):
+        '''
+        checks if entries in dictionary are mat-objects. If yes
+        todict is called to change them to nested dictionaries
+        '''
+        for key in d:
+            if isinstance(d[key], spio.matlab.mio5_params.mat_struct):
+                d[key] = _todict(d[key])
+        return d
+
+    def _todict(matobj):
+        '''
+        A recursive function which constructs from matobjects nested
+        dictionaries
+        '''
+        d = {}
+        for strg in matobj._fieldnames:
+            elem = matobj.__dict__[strg]
+            if isinstance(elem, spio.matlab.mio5_params.mat_struct):
+                d[strg] = _todict(elem)
+            elif isinstance(elem, np.ndarray):
+                d[strg] = _tolist(elem)
+            else:
+                d[strg] = elem
+        return d
+
+    def _tolist(ndarray):
+        '''
+        A recursive function which constructs lists from cellarrays
+        (which are loaded as numpy ndarrays), recursing into the elements
+        if they contain matobjects.
+        '''
+        elem_list = []
+        for sub_elem in ndarray:
+            if isinstance(sub_elem, spio.matlab.mio5_params.mat_struct):
+                elem_list.append(_todict(sub_elem))
+            elif isinstance(sub_elem, np.ndarray):
+                elem_list.append(_tolist(sub_elem))
+            else:
+                elem_list.append(sub_elem)
+        return elem_list
+    data = spio.loadmat(filename, struct_as_record=False, squeeze_me=True)
+    return _check_keys(data)
 
 
 def get_step_trajectories(x0, p, ground_heights=None):
@@ -28,166 +80,116 @@ def get_step_trajectories(x0, p, ground_heights=None):
     return trajectories
 
 
-# Parameters from Blum, Vejdani, Birn-Jeffery, Hubicki, Hurst, & Daley 2014
-#
-# As a start the parameters have been set to the average of the 5 birds. Why?
-# Almost all of the parameters needed to simulate the 367 steps recorded,
-# except for: the height at apex, and the forward velocity at apex. The average
-# forward velocity is reported, the height at apex is not. For now we can
-# solve for the height at apex that leads to a limit cycle for the 'averaged'
-# bird.
-# GFData_normParams
-folder_Blum14 = "data/BlumVejdaniBirnJefferyHubickiHurstDaley2014"
-data_norm_Blum14 = np.loadtxt(folder_Blum14+"/GFData_normParams.csv",
-                              delimiter=",", skiprows=1)
-#    individual=0
-#    L0_m =1
-#    m_kg =2
+#  data wrangling. See demos/daslip_guineafowl.py for more details
+# =============================================================================
+#  Set configuration here
+birdNo      = 'Bird1' #'Bird1','Bird2','Bird3''Bird4''Bird5'
+observation = 'ObsH0' #'ObsH0, 'ObsH4', 'ObsH6'
+stepType    = 'STze'  #'STm3','STm2','STm1','STze','STp1','STp2','STp3'
+stepNo      = 0       #The trial number which varies for each combination of 
+                      #bird, observation, and step type
 
-dataStepBlum2014 = np.loadtxt(folder_Blum14+"/GFData_stepVariables_upd.csv",
-                              delimiter=",", skiprows=1)
-#    stepType  =0
-#    dropHeight  =1
-#    individual  =2
-#    aTD  =3
-#    adotTD =4
-#    LTD  =5
-#    LdotTD =6
-#    LdotTD_sc =7
-#    kLeg =8
-#    FmaxLeg   =9
-#    FmaxLeg_sc  =10
-#    Ix =11
-#    ILeg =12
-#    dECoM  =13
+flag_plotLegCompressionCycle = True
 
-##
-# Simulation Configuration
-#  Comment overall:
-#     There is a slight error between the start of the actuator
-#     function and the contact time in simulation due to integration
-#     error of the state and foot position (which now has swing leg retration
-#     and extension following Blum et al. 2014). That means that even the
-#     nominal trial has a big damper force at time zero. MM is suspects that
-#     this can be improved but at the moment doesn't have the time to look into
-#     this in detail.
-#
-#     Blum et al. and the data from Monica almost contain enough information
-#     for the simulations. We have everything on a step-by-step basis except
-#     for the forward velocity and the height. The average forward velocity
-#     is reported in the paper so I'm taking that for the initial forward
-#     velocity. This is a bit undesiredable as the forward velocity varied a
-#     lot and so not every birds average angle of attack and stiffness is
-#     compatible with the average velocity
-#
-#     The apex height is not included at all and so here we solve for the
-#     height that yields a limit cycle. This is not always possible. See
-#     comments below for details. I'm going to ask Monica if this trajectory
-#     level information is available. It would be nice to have it, though we
-#     can make due without
-#     it.
-#
-#     Brief observations thus far:
-#       -Swing leg retraction & extension make a HUGE improvement during
-#        the step down trials.
-#       -The results are also quite sensitive to damping - too much or too
-#        little results in a fall. Thus far the nicest values for
-#        linear_normalized_damping_coefficient that I see are around 0.1.
-#
-#  Bird id: Step Type:  Comment
-#  1      : -10         MM cannot find a stable limit cycle.
-#  2      : -10         works, 3/4 trials end in success
-#  3      : -10         works, 2/4 trials succeed
-#  4      : -10         works, 4/4 trials succeed
-#  5      : -10         works, 3/4 trials succeed
-#
-# Step Type:
-#  -10: level running
-#  -1 : pre-drop
-#   0 : drop step
-#
-# Trial Type:
-#   Right now there are trials run over [0., -0.02, -0.04, -0.06] which is
-#   almost the same as used in the experiment [0., -0.04, -0.06]. Note that
-#   the script keeps the parameters: if you use a flat running step type (-10)
-#   only the data from these step types will be used to compute the parameters
-#   for the model, but all of the step-down experiments will be done. This is
-#   in contrast to the actual bird where these parameters vary.
-#
-#   What is being done in this script (as its configured) is closer to an
-#   experiment where the drop is a surprise.
-##
-id = 4
-stepType = -10  # -10 Flat running, -1 Before drop, 0 Drop, 1 After Drop
-dropHeight = 0.  # options [0, 4, 6] in cm
+#===============================================================================
+# Rarely should these variables be touched
+folderBlum2014 = "../../data/BlumVejdaniBirnJefferyHubickiHurstDaley2014"
+fileName       = "/GF_Drop_AllSteps_SIUnits"
 
-forwardVelocity = 2.84  # Average reported in paper. Trial data not available
+flag_readMATFile = False #This is slow, so the MAT file contents are pickled.
+                        #Once the pickle file exists use it instead
+
+#===============================================================================
+# WARNING: You should not have to adjust anything below. Experts only.
+if(flag_readMATFile):
+    dataMat = loadmat(folderBlum2014+fileName+".mat")
+    pklFileName = open(folderBlum2014+fileName+".pkl",'wb')
+    pickle.dump(dataMat, pklFileName)
+    pklFileName.close()
+
+pklFileName = open(folderBlum2014+fileName+".pkl",'rb')
+dataBlum2014SIUnits = pickle.load(pklFileName)
+pklFileName.close()
 
 
-# Go through all of the recorded steps and grab the average step parameters
-# for the specified individual and step type
-idFound = False
-mass = 0
+print('Selected:'+birdNo+' '+observation+' '+stepType)
+totalTrials  = np.shape(dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['aTD'])[0]
+
+print('Total recorded trails:',totalTrials)
+assert(stepNo < totalTrials and stepNo >= 0)
+
+#Go get all of the parameters necessary for the simulation:
+
+#Physical Parameters
 gravity = 9.81
-leg_length = 0
-for i in range(0, np.shape(data_norm_Blum14)[0]):
-    if(data_norm_Blum14[i, 0] == id):
-        mass = data_norm_Blum14[i, 2]
-        leg_length = data_norm_Blum14[i, 1]
-        idFound = True
-assert(idFound)
+m      = dataBlum2014SIUnits['Step'][birdNo]['m']
+L0     = dataBlum2014SIUnits['Step'][birdNo]['L0']
 
-normBW = mass*gravity
-normT = np.sqrt(leg_length/gravity)
+#Step Parameters
+yApex  = dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['yApex'][stepNo]
+vApex  = dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['vApex'][stepNo]
+LTD    = dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['LTD'][stepNo]
+LdotTD = dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['LdotTD'][stepNo]
+aTDDegrees  = dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['aTD'][stepNo]
+adotTDDegrees = dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['adotTD'][stepNo]
 
-angleOfAttackTDSum = 0.
-angleDotOfAttackNormTDSum = 0.
-legLengthNormTDSum = 0.
-legLengthDotNormTDSum = 0.
-legStiffnessNormTDSum = 0.
+aTD         = (aTDDegrees  - 90)*(np.pi/180)
+adotTD      = (   adotTDDegrees)*(np.pi/180)
 
-nSteps = 0.
+#Time series data: used to extract out an initial leg stiffness. The final 
+#leg stiffness used in simulation is solved by iteration as in Blum et al.
+#This data is stored as a list-of-lists. There is no easy way that I can find
+#to grab a single column, so I'm just copying it over element by element.
+ele = np.shape(dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['t'])[0]
 
-for i in range(0, np.shape(dataStepBlum2014)[0]):
-    dropErr = np.abs(dataStepBlum2014[i, 1]-dropHeight)
-    if(dataStepBlum2014[i, 0] == stepType
-       and dataStepBlum2014[i, 2] == id and dropErr < 0.001):
-        nSteps += 1.
-        angleOfAttackTDSum += dataStepBlum2014[i, 3]
-        angleDotOfAttackNormTDSum += dataStepBlum2014[i, 4]
-        legLengthNormTDSum += dataStepBlum2014[i, 5]
-        legLengthDotNormTDSum += dataStepBlum2014[i, 6]
-        legStiffnessNormTDSum += dataStepBlum2014[i, 8]
+timeSeries = np.zeros((ele,1))
+LSeries    = np.zeros((ele,1))
+fLegSeries = np.zeros((ele,1))
 
-assert(nSteps > 0.)
+for i in range(0,ele):
+    timeSeries[i,0] = dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['t'][i][stepNo]
+    LSeries[i,0]    = dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['LStance'][i][stepNo]
+    fLegSeries[i,0] = dataBlum2014SIUnits['Step'][birdNo][observation][stepType]['FLeg'][i][stepNo] 
 
-angleOfAttackDegreesTD = (angleOfAttackTDSum/nSteps)
-angleDotOfAttackDegreesTD = (1./(normT))*(angleDotOfAttackNormTDSum/nSteps)
-legLengthTD = leg_length*(legLengthNormTDSum/nSteps)
-legLengthDotTD = (leg_length/normT)*(legLengthDotNormTDSum/nSteps)
-legStiffnessTD = (normBW/leg_length)*(legStiffnessNormTDSum/nSteps)
+#Go get the index of toe-off
+fLow = np.max(fLegSeries)*0.01
+idxTD = 0
+idxT0 = 0
 
-angleOfAttackTD = (angleOfAttackDegreesTD - 90)*(np.pi/180)
-angleDotOfAttackTD = (angleDotOfAttackDegreesTD)*(np.pi/180)
+for i in range(np.shape(fLegSeries)[0]-1,1,-1):
+    dfL = fLegSeries[i-1,0]-fLow
+    dfR = fLegSeries[i,0]-fLow
+    if( dfL*dfR <= 0. and idxT0 == 0):
+        if(idxT0 == 0):
+            idxT0 = i
+        
+#The leg is shorter at toe-off than touch down. To get the leg compression we 
+# subtract the average leg length at 0 force from the minimum leg length during 
+# stance        
+meanLTD              = 0.5*(LSeries[idxTD,0]+LSeries[idxT0,0])
+legCompression       = np.min(LSeries) - meanLTD 
+maxLegForce          = np.max(fLegSeries)
+legStiffnessEstimate = -maxLegForce/legCompression 
 
-# Lin damping: 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
-p = {'mass': mass,                                  # kg
-     'stiffness': legStiffnessTD,                   # K: N/m
-     'spring_resting_length': legLengthTD,          # m
-     'gravity': gravity,                            # N/kg
-     'angle_of_attack': angleOfAttackTD,            # rad
+
+
+p = {'mass': m,                             # kg
+     'stiffness': legStiffnessEstimate,     # K : N/m
+     'spring_resting_length': LTD,          # m
+     'gravity': gravity,                    # N/kg
+     'angle_of_attack': aTD,                # rad
      'actuator_resting_length': 0.,                 # m
      'actuator_force': [],                   # * 2 x M matrix of time and force
      'actuator_force_period': 10,                   # * s
      'activation_delay': 0.0,         # * a delay for when to start activation
      'activation_amplification': 1.0,
-     'constant_normalized_damping': 0.75,           # * s: D/K: [N/m/s]/[N/m]
-     'linear_normalized_damping_coefficient': 0.1,  # * A: s/m: D/F: [N/m/s]/N:
-     'linear_minimum_normalized_damping': 0.01,     # *   1/A*(kg*N/kg):
-     'swing_velocity': angleDotOfAttackTD,       # rad/s (set by calculation)
-     'angle_of_attack_offset': 0,                # rad   (set by calculation)
-     'swing_extension_velocity': legLengthDotTD,    # m/s
-     'swing_leg_length_offset': 0}                 # m (set by calculation)
+     'constant_normalized_damping': 0.75,           # * s : D/K : [N/m/s]/[N/m]
+     'linear_normalized_damping_coefficient': 0.1,  # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
+     'linear_minimum_normalized_damping': 0.01,     # *   1/A*(kg*N/kg) :
+     'swing_velocity': adotTD,                      # rad/s (set by calculation)
+     'angle_of_attack_offset': 0,                   # rad   (set by calculation)
+     'swing_extension_velocity': LdotTD,            # m/s
+     'swing_leg_length_offset' : 0}                 # m (set by calculation) 
 ##
 # * Initialization: Slip & Daslip
 ##
@@ -206,10 +208,9 @@ p = {'mass': mass,                                  # kg
 #     8  wd      actuator-damper-element work     J
 #     9  h       floor height (normally fixed)    m
 
-heightTD = leg_length*np.cos(angleOfAttackTD)
 
-x0 = np.array([0, heightTD + 0.05,    # x_com , y_com
-               forwardVelocity, 0,             # vx_com, vy_com
+x0 = np.array([0, yApex,    # x_com , y_com
+               vApex, 0,             # vx_com, vy_com
                0,              0,              # x_f   , y_f
                p['actuator_resting_length'],    # l_a
                0, 0,                           # wa, wd
@@ -219,16 +220,18 @@ p['total_energy'] = model.compute_total_energy(x0, p)
 
 # * Solve for nominal open-loop trajectories
 
-heightSearchWidth = 0.025
+legStiffnessSearchWidth = p['stiffness']*0.5
 
-limit_cycle_options = {'search_initial_state': True,
-                       'state_index': 1,
-                       'state_search_width': heightSearchWidth,
-                       'search_parameter': False,
-                       'parameter_name': 'angle_of_attack',
-                       'parameter_search_width': np.pi*0.25}
+limit_cycle_options = {'search_initial_state' : False,
+                       'state_index'          : 0,
+                       'state_search_width'   : 0,
+                       'search_parameter'     : True,
+                       'parameter_name'       : 'stiffness',
+                       'parameter_search_width': legStiffnessSearchWidth}
 
+print(p['stiffness'],' N/m :Leg stiffness prior to fitting')
 x0, p = model.create_open_loop_trajectories(x0, p, limit_cycle_options)
+print(p['stiffness'],' N/m :Leg stiffness prior after fitting')
 p['x0'] = x0.copy()
 
 # * Set-up P maps for comutations
@@ -242,10 +245,10 @@ p_map.sa2xp = model.sa2xp_y_xdot_timedaoa
 p_map.xp2s = model.xp2s_y_xdot
 
 # * set up grids
-s_grid_height = np.linspace(0.1, 0.3, 61)  # 21)
-s_grid_velocity = np.linspace(0.5, 2.5, 61)  # 51)
+s_grid_height = np.linspace(0.1, 0.3, 11)  # 21)
+s_grid_velocity = np.linspace(1.5, 3.5, 11)  # 51)
 s_grid = (s_grid_height, s_grid_velocity)
-a_grid_aoa = np.linspace(10/180*np.pi, 70/180*np.pi, 61)
+a_grid_aoa = np.linspace(10/180*np.pi, 70/180*np.pi, 21)
 a_grid = (a_grid_aoa, )
 # a_grid_amp = np.linspace(0.8, 1.2, 5)
 # a_grid = (a_grid_aoa, a_grid_amp)
