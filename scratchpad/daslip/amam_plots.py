@@ -17,9 +17,9 @@ rc('text', usetex=True)
 sns.set_style('dark')
 sns.set_context('poster')
 
-FLAG_ALL_SM = False
+FLAG_ALL_SM = True
 FLAG_SM4 = False
-FLAG_TRAJS = True
+FLAG_TRAJS = False
 FLAG_DAMPING_2D = False
 FLAG_WATERFALL = False
 
@@ -121,30 +121,31 @@ if FLAG_ALL_SM:
 
     for idx in plot_these:
         extent = [data[idx]['grids']['states'][1][0],
-                data[idx]['grids']['states'][1][-1],
-                data[idx]['grids']['states'][0][0],
-                data[idx]['grids']['states'][0][-1]]
+                  data[idx]['grids']['states'][1][-1],
+                  data[idx]['grids']['states'][0][0],
+                  data[idx]['grids']['states'][0][-1]]
 
         plt.figure(idx)
-        plt.imshow(data[idx]['S_M'], origin='lower', extent=extent,
+        plt.imshow(data[idx]['S_M'], origin='lower', extent=extent, aspect='auto',
                 interpolation='bessel', vmin=0, vmax=vmax, cmap='viridis')
         # sns.heatmap(data[idx]['S_M'],
         #             vmin=0, vmax=vmax, cmap='viridis')
 
         plt.title(str(np.round(data[idx]['p']['linear_normalized_damping_coefficient'], decimals=2)))
-        X0 = [traj.y[:, 0] for traj in data[idx]['trajectories']]
-        XN = [traj.y[:, -1] for traj in data[idx]['trajectories']]
-        SN = [sys.xp2s_y_xdot(xn, data[idx]['p']) for xn in XN]
-        s_grid_shape = list(map(np.size, data[idx]['grids']['states']))
-        s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
-        SN_dig = [vibly.digitize_s(sn, data[idx]['grids']['states']) for sn in SN]
-        SNM = np.array([interp_measure(sbin, data[idx]['S_M'], data[idx]['grids']) for sbin in SN_dig])
-        # pick out only the ones inside the grid
-        ground_heights = [x[-1] for x in X0]
-        indices = np.arange(SNM.size)
-        SNp = np.array(SN).T
-        plt.scatter(SNp[1, indices[SNM>0.1]], SNp[0, indices[SNM>0.1]],
-                    facecolors='none', edgecolors=[0.8, 0.3, 0.3], s=20)
+        if False:
+            X0 = [traj.y[:, 0] for traj in data[idx]['trajectories']]
+            XN = [traj.y[:, -1] for traj in data[idx]['trajectories']]
+            SN = [sys.xp2s_y_xdot(xn, data[idx]['p']) for xn in XN]
+            s_grid_shape = list(map(np.size, data[idx]['grids']['states']))
+            s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
+            SN_dig = [vibly.digitize_s(sn, data[idx]['grids']['states']) for sn in SN]
+            SNM = np.array([interp_measure(sbin, data[idx]['S_M'], data[idx]['grids']) for sbin in SN_dig])
+            # pick out only the ones inside the grid
+            ground_heights = [x[-1] for x in X0]
+            indices = np.arange(SNM.size)
+            SNp = np.array(SN).T
+            plt.scatter(SNp[1, indices[SNM>0.1]], SNp[0, indices[SNM>0.1]],
+                        facecolors='none', edgecolors=[0.8, 0.3, 0.3], s=20)
 
     plt.show()
 
@@ -176,19 +177,22 @@ if FLAG_SM4:
         axes[gdx].imshow(data[idx]['S_M'], origin='lower', extent=extent,
                 interpolation='bessel', vmin=0, vmax=vmax, cmap='viridis')
         axes[gdx].title.set_text(str(np.round(data[idx]['p']['linear_normalized_damping_coefficient'], decimals=2)))
-        X0 = [traj.y[:, 0] for traj in data[idx]['trajectories']]
-        XN = [traj.y[:, -1] for traj in data[idx]['trajectories']]
-        SN = [sys.xp2s_y_xdot(xn, data[idx]['p']) for xn in XN]
-        s_grid_shape = list(map(np.size, data[idx]['grids']['states']))
-        s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
-        SN_dig = [vibly.digitize_s(sn, data[idx]['grids']['states']) for sn in SN]
-        SNM = np.array([interp_measure(sbin, data[idx]['S_M'], data[idx]['grids']) for sbin in SN_dig])
-        # pick out only the ones inside the grid
-        ground_heights = [x[-1] for x in X0]
-        indices = np.arange(SNM.size)
-        SNp = np.array(SN).T
-        axes[gdx].scatter(SNp[1, indices[SNM>0.1]], SNp[0, indices[SNM>0.1]],
-                facecolors='none', edgecolors=[0.8, 0.3, 0.3], s=20)
+        if False:
+            X0 = [traj.y[:, 0] for traj in data[idx]['trajectories']]
+            XN = [traj.y[:, -1] for traj in data[idx]['trajectories']]
+            SN = [sys.xp2s_y_xdot(xn, data[idx]['p']) for xn in XN]
+            s_grid_shape = list(map(np.size, data[idx]['grids']['states']))
+            s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
+            SN_dig = [vibly.digitize_s(sn, data[idx]['grids']['states']) for sn in SN]
+            SNM = np.array([interp_measure(sbin, data[idx]['S_M'], data[idx]['grids']) for sbin in SN_dig])
+            # pick out only the ones inside the grid
+            ground_heights = [x[-1] for x in X0]
+            indices = np.arange(SNM.size)
+            SNp = np.array(SN).T
+            axes[gdx].scatter(SNp[1, indices[SNM > 0.1]],
+                              SNp[0, indices[SNM > 0.1]],
+                              facecolors='none', edgecolors=[0.8, 0.3, 0.3],
+                              s=20)
         axes[gdx].set_xlabel("apex velocity")
         axes[gdx].set_ylabel("apex height")
 
