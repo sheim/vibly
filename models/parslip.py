@@ -293,8 +293,7 @@ def compute_total_energy(x, p):
         energy = (p['mass']/2*(x[2]**2+x[3]**2) +
                   p['gravity']*p['mass']*(x[1]) +
                   p['stiffness']/2*(spring_length -
-                  p['spring_resting_length'])
-                  ** 2)
+                                    p['spring_resting_length'])**2)
         return energy
 
     energy = np.zeros(x.shape[1])
@@ -303,8 +302,7 @@ def compute_total_energy(x, p):
         energy[idx] = (p['mass']/2*(x[2, idx]**2+x[3, idx]**2) +
                        p['gravity']*p['mass']*(x[1, idx]) +
                        p['stiffness']/2*(spring_length -
-                       p['spring_resting_length'])
-                       ** 2)
+                                         p['spring_resting_length'])**2)
 
     return energy
 
@@ -451,6 +449,13 @@ def mapSA2xp_energy_normalizedheight_aoa(state_action, p):
     return x, p
 
 
+def compute_spring_velocity(x, p):
+    beta = np.arctan2(x[5]-x[1], x[4]-x[0])  # aoa
+    delta = np.arctan2(x[3], x[2])
+    gamma = beta-delta  # + np.pi/2
+    return np.hypot(x[2], x[3])*np.cos(gamma)
+
+
 def compute_leg_forces(t, x, p):
     '''
     Computes the forces developed by the leg spring, and the damper-actuator
@@ -474,10 +479,11 @@ def compute_leg_forces(t, x, p):
     spring_compression = p['spring_resting_length'] - spring_length
 
     # TODO: check this
-    gamma = np.arctan2(x[6]-x[0], x[5]-x[1]) - np.arctan2(x[3], x[2]) + np.pi/2
-    r_dot = - np.hypot(x[2], x[3])*np.cos(gamma)
+    # gamma = np.arctan2(x[6]-x[0], x[5]-x[1]) - np.arctan2(x[3], x[2]) + np.pi/2
+    r_dot = compute_spring_velocity(x, p)
 
-    sd_force = p['stiffness']*(spring_compression)*(1 - p['damping']*r_dot)
+    sd_force = p['stiffness']*(spring_compression)*(1 + p['damping']*r_dot)
     # sd_force = p['stiffness']*spring_compression - p['damping']*r_dot
+    # sd_force = -p['damping']*r_dot
 
     return act_force+sd_force
