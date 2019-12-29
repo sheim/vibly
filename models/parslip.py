@@ -63,7 +63,6 @@ def step(x0, p, prev_sol=None):
     # go from damping ratio to dimensionless
     # damping * crit_damping / (m*g) = damping * 2*sqrt(k*m)/(m*g)
     DAMPING = p['damping']*2*np.sqrt(STIFFNESS/MASS)/GRAVITY
-    print(DAMPING)
     DELAY = p['activation_delay']  # can also be negative
     AMPLI = p['activation_amplification']
 
