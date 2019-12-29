@@ -60,13 +60,44 @@ def step(x0, p, prev_sol=None):
     SPRING_RESTING_LENGTH = p['spring_resting_length']
     STIFFNESS = p['stiffness']
     ACTUATOR_PERIOD = p['actuator_force_period']
-    DAMPING = p['damping']
+    # go from damping ratio to dimensionless
+    # damping * crit_damping / (m*g) = damping * 2*sqrt(k*m)/(m*g)
+    DAMPING = p['damping']*2*np.sqrt(STIFFNESS/MASS)/GRAVITY
+    print(DAMPING)
     DELAY = p['activation_delay']  # can also be negative
     AMPLI = p['activation_amplification']
 
     # @jit(nopython=True)
     def flight_dynamics(t, x):
         return np.array([x[2], x[3], 0, -GRAVITY, x[2], x[3], 0])
+
+
+    def compute_leg_forces(t, x, p):
+        '''
+        Computes the forces developed by the leg spring, and the damper-actuator
+        that is in series with the leg spring.
+        '''
+
+        # * actuator_force
+        if np.shape(p['actuator_force'])[0] > 0:
+            act_force = np.interp(t,
+                                p['actuator_force'][0, :]+DELAY,
+                                p['actuator_force'][1, :],  # force
+                                period=ACTUATOR_PERIOD)
+            act_force *= AMPLI
+        else:
+            act_force = 0
+            # print('no actuation')
+
+        # * spring-damper force
+        # alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
+        spring_compression = SPRING_RESTING_LENGTH-compute_spring_length(x, p)
+
+        r_dot = compute_spring_velocity(x, p)
+
+        sd_force = STIFFNESS*(spring_compression)*(1 + DAMPING*r_dot)
+
+        return act_force+sd_force
 
 #    @jit(nopython=True)
     def stance_dynamics(t, x):
@@ -231,45 +262,17 @@ def compute_spring_velocity(x, p):
     return np.hypot(x[2], x[3])*np.cos(gamma)
 
 
-def compute_leg_forces(t, x, p):
-    '''
-    Computes the forces developed by the leg spring, and the damper-actuator
-    that is in series with the leg spring.
-    '''
-
-    # * actuator_force
-    if np.shape(p['actuator_force'])[0] > 0:
-        act_force = np.interp(t,
-                              p['actuator_force'][0, :]+p['activation_delay'],
-                              p['actuator_force'][1, :],  # force
-                              period=p['actuator_force_period'])
-        act_force *= p['activation_amplification']
-    else:
-        act_force = 0
-        # print('no actuation')
-
-    # * spring-damper force
-    # alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
-    spring_length = compute_spring_length(x, p)
-    spring_compression = p['spring_resting_length'] - spring_length
-
-    # TODO: check this
-    r_dot = compute_spring_velocity(x, p)
-
-    sd_force = p['stiffness']*(spring_compression)*(1 + p['damping']*r_dot)
-
-    return act_force+sd_force
-
-
 def create_force_trajectory(step_sol, p):
     actuator_time_force = np.zeros(shape=(2, len(step_sol.t)))
+
+    DAMPING = p['damping']*2*np.sqrt(p['stiffness']/p['mass'])/p['gravity']
     for i in range(0, len(step_sol.t)):
         spring_length = slip.compute_spring_length(step_sol.y[:, i], p)
         spring_force = -p['stiffness']*(spring_length -
                                         p['spring_resting_length'])
         spring_velocity = compute_spring_velocity(step_sol.y[:, i], p)
         actuator_time_force[0, i] = step_sol.t[i]  # first column: time
-        actuator_time_force[1, i] = -spring_force*p['damping']*spring_velocity
+        actuator_time_force[1, i] = -spring_force*DAMPING*spring_velocity
         # force: -b*k*x*xdot: Hunt-Crossley model
     return actuator_time_force
 
