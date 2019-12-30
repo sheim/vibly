@@ -60,9 +60,7 @@ def step(x0, p, prev_sol=None):
     SPRING_RESTING_LENGTH = p['spring_resting_length']
     STIFFNESS = p['stiffness']
     ACTUATOR_PERIOD = p['actuator_force_period']
-    # go from damping ratio to dimensionless
-    # damping * crit_damping / (m*g) = damping * 2*sqrt(k*m)/(m*g)
-    DAMPING = p['damping']*2*np.sqrt(STIFFNESS/MASS)/GRAVITY
+    DAMPING = compute_damping_coefficient(p)
     DELAY = p['activation_delay']  # can also be negative
     AMPLI = p['activation_amplification']
 
@@ -70,11 +68,10 @@ def step(x0, p, prev_sol=None):
     def flight_dynamics(t, x):
         return np.array([x[2], x[3], 0, -GRAVITY, x[2], x[3], 0])
 
-
     def compute_leg_forces(t, x, p):
         '''
-        Computes the forces developed by the leg spring, and the damper-actuator
-        that is in series with the leg spring.
+        Computes the forces developed by the leg spring, and the damper
+        and actuator, all of which are parallel.
         '''
 
         # * actuator_force
@@ -86,14 +83,14 @@ def step(x0, p, prev_sol=None):
             act_force *= AMPLI
         else:
             act_force = 0
-            # print('no actuation')
 
         # * spring-damper force
-        # alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
+        # For numerical stability, we use a huntley-cross model
+        # see A COMPUTATIONALLY EFFICIENT MUSCLE MODEL (Millard & Delp 2012)
+        # For this, DAMPING * velocity should result in a dimensionless number
+
         spring_compression = SPRING_RESTING_LENGTH-compute_spring_length(x, p)
-
         r_dot = compute_spring_velocity(x, p)
-
         sd_force = STIFFNESS*(spring_compression)*(1 + DAMPING*r_dot)
 
         return act_force+sd_force
@@ -261,10 +258,30 @@ def compute_spring_velocity(x, p):
     return np.hypot(x[2], x[3])*np.cos(gamma)
 
 
+def compute_damping_coefficient(p):
+    '''
+    Compute a normalized damping coefficient from the damping ratio.
+    This coefficient should have units [s/m], since we are using the
+    hunt-crossley model, where total force of the spring-damper is
+    F = k*x*(1 + d*xdot)
+    We start from a damping ratio, and get the actual damping through critical
+    d_a = d_r * d_c = d_r * 2*sqrt(k*m), with units [kg/s].
+    We can normalize this either with stiffness and resting length:
+    d = d_a / (k * l0)
+    or with mass and gravity
+    d = d_a / (m * g)
+    '''
+    # * option 2 (normalize with mass and gravity)
+    # return p['damping']*2*np.sqrt(p['stiffness']/p['mass'])/p['gravity']
+    # * option 1 (normalize with stiffness and resting length)
+    return p['damping']*2*np.sqrt(p['mass']/p['stiffness'])/p['spring_resting_length']
+
+
 def create_force_trajectory(step_sol, p):
     actuator_time_force = np.zeros(shape=(2, len(step_sol.t)))
 
-    DAMPING = p['damping']*2*np.sqrt(p['stiffness']/p['mass'])/p['gravity']
+    # DAMPING = p['damping']*2*np.sqrt(p['stiffness']/p['mass'])/p['gravity']
+    DAMPING = compute_damping_coefficient(p)
     for i in range(0, len(step_sol.t)):
         spring_length = slip.compute_spring_length(step_sol.y[:, i], p)
         spring_force = -p['stiffness']*(spring_length -
