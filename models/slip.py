@@ -56,7 +56,7 @@ def step(x0, p, prev_sol=None):
     # unpacking constants for faster lookup
     GRAVITY = p['gravity']
     MASS = p['mass']
-    RESTING_LENGTH = p['spring_resting_length']
+    RESTING_LENGTH = p['resting_length']
     STIFFNESS = p['stiffness']
     MAX_TIME = 5
     LEG_LENGTH_OFFSET = p['actuator_resting_length']
@@ -212,7 +212,7 @@ def check_failure(x, fail_idx=(0, 1, 2)):
 
 
 def reset_leg(x, p):
-    leg_length = p['spring_resting_length'] + p['actuator_resting_length']
+    leg_length = p['resting_length'] + p['actuator_resting_length']
     x[4] = x[0] + np.sin(p['angle_of_attack'])*leg_length
     x[5] = x[1] - np.cos(p['angle_of_attack'])*leg_length
     return x
@@ -229,7 +229,7 @@ def compute_total_energy(x, p):
     return (p['mass']/2*(x[2]**2+x[3]**2) +
             p['gravity']*p['mass']*(x[1]) +
             p['stiffness']/2 *
-            (p['spring_resting_length']-spring_length)**2)
+            (p['resting_length']-spring_length)**2)
 
 
 def find_limit_cycle(x, p, options):

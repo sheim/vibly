@@ -2,26 +2,23 @@ from models import slip
 import numpy as np
 import matplotlib.pyplot as plt
 
-p = {'mass': 1.36, #80.0,
-     'stiffness':  600.3,#8200.0,
-     'spring_resting_length': 0.222,
+p = {'mass': 1.36,  # 80.0,
+     'stiffness':  600.3,  # 8200.0,
+     'resting_length': 0.222,
      'gravity': 9.81,
      'angle_of_attack': 0.5452,
      'actuator_resting_length': 0.0}  # offset of CoG to leg-start. Unimoprtant
 
 x0 = np.array([0,  # x position: forwards
-               0.,  # y position: upwards
+               0.2,  # y position: upwards
                2.6, 	# x velocity
                0,  # y velocity
                0,  # foot position x
                0,  # foot position y
                0])  # ground position y
 x0 = slip.reset_leg(x0, p)
-x0[1] = -x0[5]+0.005
-x0 = slip.reset_leg(x0, p)
 p['total_energy'] = slip.compute_total_energy(x0, p)
 sol = slip.step(x0, p)
-
 import plotting.animation
 plotting.animation.animation_visualisation(sol)
 

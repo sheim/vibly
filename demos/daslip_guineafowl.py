@@ -66,7 +66,7 @@ def get_step_trajectories(x0, p, ground_heights=None):
     '''
 
     if ground_heights is None:
-        total_leg_length = p['spring_resting_length']
+        total_leg_length = p['resting_length']
         total_leg_length += p['actuator_resting_length']
         ground_heights = np.linspace(0, -0.5*total_leg_length, 10)
     x0 = model.reset_leg(x0, p)
@@ -235,7 +235,7 @@ legStiffnessEstimate = -maxLegForce/legCompression
 
 p = {'mass': m,                             # kg
      'stiffness': legStiffnessEstimate,     # K : N/m
-     'spring_resting_length': LTD,          # m
+     'resting_length': LTD,          # m
      'gravity': gravity,                    # N/kg
      'angle_of_attack': aTD,                # rad
      'actuator_resting_length': 0.,                 # m
@@ -296,7 +296,7 @@ p['x0'] = x0.copy()
 if(flag_plotLegCompressionCycle == True):
     springForce = np.zeros((ele,1))
     springForceLimitCycle = np.zeros((ele,1))
-    slipL = (p['spring_resting_length']+p['actuator_resting_length'])
+    slipL = (p['resting_length']+p['actuator_resting_length'])
     for i in range(0,ele):
         if( LSeries[i,0] <=  meanLTD):
             springForce[i,0] = - legStiffnessEstimate*(LSeries[i,0]-meanLTD)
@@ -325,7 +325,7 @@ p_map.xp2s = model.xp2s_y_xdot
 
 # * set up range of heights for first step
 # at the moment, just doing 1 (0)
-total_leg_length = p['spring_resting_length'] + p['actuator_resting_length']
+total_leg_length = p['resting_length'] + p['actuator_resting_length']
 ground_heights = np.linspace(0.0, -0.06, 4)
 
 # * MM For now I'm not iterating over damping as the solution is

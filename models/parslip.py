@@ -57,7 +57,7 @@ def step(x0, p, prev_sol=None):
     # TODO: test what isn't being used
     GRAVITY = p['gravity']
     MASS = p['mass']
-    SPRING_RESTING_LENGTH = p['spring_resting_length']
+    SPRING_RESTING_LENGTH = p['resting_length']
     STIFFNESS = p['stiffness']
     ACTUATOR_PERIOD = p['actuator_force_period']
     DAMPING = compute_damping_coefficient(p)
@@ -274,7 +274,7 @@ def compute_damping_coefficient(p):
     # * option 2 (normalize with mass and gravity)
     # return p['damping']*2*np.sqrt(p['stiffness']/p['mass'])/p['gravity']
     # * option 1 (normalize with stiffness and resting length)
-    return p['damping']*2*np.sqrt(p['mass']/p['stiffness'])/p['spring_resting_length']
+    return p['damping']*2*np.sqrt(p['mass']/p['stiffness'])/p['resting_length']
 
 
 def create_force_trajectory(step_sol, p):
@@ -284,8 +284,7 @@ def create_force_trajectory(step_sol, p):
     DAMPING = compute_damping_coefficient(p)
     for i in range(0, len(step_sol.t)):
         spring_length = slip.compute_spring_length(step_sol.y[:, i], p)
-        spring_force = -p['stiffness']*(spring_length -
-                                        p['spring_resting_length'])
+        spring_force = -p['stiffness']*(spring_length-p['resting_length'])
         spring_velocity = compute_spring_velocity(step_sol.y[:, i], p)
         actuator_time_force[0, i] = step_sol.t[i]  # first column: time
         actuator_time_force[1, i] = -spring_force*DAMPING*spring_velocity
@@ -336,7 +335,7 @@ def create_open_loop_trajectories(x0, p, options):
 
 def reset_leg(x, p):
 
-    leg_length = p['spring_resting_length'] + p['actuator_resting_length']
+    leg_length = p['resting_length'] + p['actuator_resting_length']
     x[4] = x[0] + np.sin(p['angle_of_attack'])*leg_length
     x[5] = x[1] - np.cos(p['angle_of_attack'])*leg_length
 
@@ -349,8 +348,7 @@ def compute_total_energy(x, p):
         spring_length = compute_spring_length(x, p)
         energy = (p['mass']/2*(x[2]**2+x[3]**2) +
                   p['gravity']*p['mass']*(x[1]) +
-                  p['stiffness']/2*(spring_length -
-                                    p['spring_resting_length'])**2)
+                  p['stiffness']/2*(spring_length-p['resting_length'])**2)
         return energy
 
     energy = np.zeros(x.shape[1])
@@ -358,8 +356,7 @@ def compute_total_energy(x, p):
         spring_length = compute_spring_length(x[:, idx], p)
         energy[idx] = (p['mass']/2*(x[2, idx]**2+x[3, idx]**2) +
                        p['gravity']*p['mass']*(x[1, idx]) +
-                       p['stiffness']/2*(spring_length -
-                                         p['spring_resting_length'])**2)
+                       p['stiffness']/2*(spring_length-p['resting_length'])**2)
 
     return energy
 
@@ -381,7 +378,7 @@ def compute_total_energy(x, p):
 #         work_damper = state_traj[8, i]
 
 #         spring_energy = 0.5*p['stiffness']*(spring_length
-#                                             - p['spring_resting_length'])**2
+#                                             - p['resting_length'])**2
 
 #         pkwt[0, i] = p['mass']/2*(state_traj[2, i]**2+state_traj[3, i]**2)
 #         pkwt[1, i] = p['gravity']*p['mass']*(state_traj[1, i]) + spring_energy

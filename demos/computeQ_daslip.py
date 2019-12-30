@@ -8,7 +8,7 @@ import viability as vibly
 # Model parameters for both slip/daslip. Parameters only used by daslip are *
 p = {'mass': 80,                          # kg
      'stiffness': 8200.0,                 # K : N/m
-     'spring_resting_length': 0.9,        # m
+     'resting_length': 0.9,        # m
      'gravity': 9.81,                     # N/kg
      'angle_of_attack': 1/5*np.pi,        # rad
      'actuator_resting_length': 0.1,      # m

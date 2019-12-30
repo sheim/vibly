@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 from models import slip
 import viability as vibly
 
-p = {'mass': 80.0, 'stiffness': 8200.0, 'spring_resting_length': 1.0,
-     'gravity': 9.81, 'angle_of_attack': 1/5*np.pi,
+p = {'mass': 80.0, 'stiffness': 8200.0, 'resting_length': 1.0, 'gravity': 9.81,
+     'angle_of_attack': 1/5*np.pi,
      'actuator_resting_length': 0}
 x0 = np.array([0, 0.85, 5.5, 0, 0, 0, 0])
 x0 = slip.reset_leg(x0, p)

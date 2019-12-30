@@ -12,7 +12,7 @@ def get_step_trajectories(x0, p, ground_heights=None):
     '''
 
     if ground_heights is None:
-        total_leg_length = p['spring_resting_length']
+        total_leg_length = p['resting_length']
         total_leg_length += p['actuator_resting_length']
         ground_heights = np.linspace(0, -0.5*total_leg_length, 10)
     x0 = model.reset_leg(x0, p)
@@ -37,7 +37,7 @@ def get_step_trajectories(x0, p, ground_heights=None):
 
 p = {'mass': 80,                          # kg
      'stiffness': 8200.0,                 # K : N/m
-     'spring_resting_length': 0.9,        # m
+     'resting_length': 0.9,        # m
      'gravity': 9.81,                     # N/kg
      'angle_of_attack': 1/5*np.pi,        # rad
      'actuator_resting_length': 0.1,      # m
@@ -85,7 +85,7 @@ damping_values = tuple(np.round(np.linspace(0.3, 0.02, 1), 2))
 
 # * set up range of heights for first step
 # at the moment, just doing 1 (0)
-total_leg_length = p['spring_resting_length'] + p['actuator_resting_length']
+total_leg_length = p['resting_length'] + p['actuator_resting_length']
 ground_heights = np.linspace(0.0*total_leg_length,
                              -0.2*total_leg_length, 2)
 
