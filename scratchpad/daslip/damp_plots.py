@@ -2,7 +2,7 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-import models.daslip as sys
+import models.parslip as model
 import viability as vibly  # algorithms for brute-force viability
 import seaborn as sns
 from mpl_toolkits.mplot3d import Axes3D 
@@ -35,12 +35,12 @@ set_files = ['all_birds_0.01.pickle',
              'all_birds_0.15.pickle',
              'all_birds_0.2.pickle']
 
-traj_files = ['all_birds_0.01_trajs.pickle',
-              'all_birds_0.06_trajs.pickle',
-              'all_birds_0.1_trajs.pickle',
-              'all_birds_0.1_trajs.pickle',
-              'all_birds_0.15_trajs.pickle',
-              'all_birds_0.2_trajs.pickle']
+traj_files = ['all_birds_0.01_trajs2.pickle',
+              'all_birds_0.06_trajs2.pickle',
+              'all_birds_0.1_trajs2.pickle',
+              'all_birds_0.1_trajs2.pickle',
+              'all_birds_0.15_trajs2.pickle',
+              'all_birds_0.2_trajs2.pickle']
 
 data = list()
 trajecs = list()
@@ -57,7 +57,7 @@ for file_1, file_2 in zip(set_files, traj_files):
 # * compute measure after perturbation
 
 # XN = [traj.y[:, -1] for traj in data[idx]['trajectories']]
-# SN = [sys.xp2s_y_xdot(xn, data[idx]['p']) for xn in XN]
+# SN = [model.xp2s_y_xdot(xn, data[idx]['p']) for xn in XN]
 
 # * plot individual trajectories
 
@@ -115,13 +115,15 @@ if WATERFALL_PLOT:
 
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
-    plt_from = 0
-    plt_till = 4
-    daplot.waterfall_plot(fig, ax, X[:, plt_from:plt_till],
-                   Y[:, plt_from:plt_till],
-                   Z[:, plt_from:plt_till], line_width=4)
+    daplot.waterfall_plot(fig, ax, X, Y, Z, line_width=4)
+    # plt_from = 0
+    # plt_till = 4
+    # daplot.waterfall_plot(fig, ax, X[:, plt_from:plt_till],
+    #                Y[:, plt_from:plt_till],
+    #                Z[:, plt_from:plt_till], line_width=4)
     ax.set_xlabel('ground height')
-    ax.set_xlim3d(np.min(x[plt_from:plt_till]), np.max(x[plt_from:plt_till]))
+    # ax.set_xlim3d(np.min(x[plt_from:plt_till]), np.max(x[plt_from:plt_till]))
+    ax.set_xlim3d(np.min(x), np.max(x))
     ax.set_ylabel('normalized damping coefficient')
     ax.set_ylim3d(np.min(y), np.max(y))
     ax.set_zlabel('safety measure')
