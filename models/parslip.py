@@ -121,7 +121,7 @@ def step(x0, p, prev_sol=None):
         '''
         # x[1]- np.cos(p['angle_of_attack'])*SPRING_RESTING_LENGTH
         # (which is = x[5])
-        return x[5]  # final state is ground height
+        return x[5]-x[-1]  # final state is ground height
     touchdown_event.terminal = True  # no longer actually necessary...
     touchdown_event.direction = -1
 
