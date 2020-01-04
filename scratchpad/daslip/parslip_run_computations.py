@@ -56,10 +56,10 @@ def compute_viability(x0, p, bird_name, visualise=False):
     p_map.xp2s = model.xp2s_y_xdot
 
     # * set up grids
-    s_grid_height = np.linspace(0.1, 0.3, 81)  # 21)
-    s_grid_velocity = np.linspace(1.5, 3.5, 51)  # 51)
+    s_grid_height = np.linspace(0.1, 0.3, 31)  # 21)
+    s_grid_velocity = np.linspace(1.5, 3.5, 21)  # 51)
     s_grid = (s_grid_height, s_grid_velocity)
-    a_grid_aoa = np.linspace(10/180*np.pi, 70/180*np.pi, 61)
+    a_grid_aoa = np.linspace(10/180*np.pi, 70/180*np.pi, 31)
     a_grid = (a_grid_aoa, )
     # a_grid_amp = np.linspace(0.8, 1.2, 20)
     # a_grid = (a_grid_aoa, a_grid_amp)
@@ -87,11 +87,11 @@ def compute_viability(x0, p, bird_name, visualise=False):
     # * save data
     if not os.path.exists(bird_name):
         os.makedirs(bird_name)
-    filename = bird_name+'/'+bird_name+'_'+str(damping)+'.pickle'
+    filename = bird_name+'/'+bird_name+'_'+str(damping)
 
     data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
                  "Q_M": Q_M, "S_M": S_M, "p": p, "x0": x0}
-    outfile = open(filename, 'wb')
+    outfile = open(filename+'.pickle', 'wb')
     pickle.dump(data2save, outfile)
     outfile.close()
 
@@ -114,7 +114,7 @@ data = np.load('stiffness.npz')
 aTD = data['a_all'] - np.pi/2
 yApex = data['y_all']*LTD
 vApex = data['v_all']*np.sqrt(LTD*gravity)
-stiffness = 0.9*data['k_all']*m*gravity/LTD
+stiffness = data['k_all']*m*gravity/LTD
 
 p = {'mass': m,                             # kg
      'stiffness': stiffness,     # K : N/m
@@ -136,8 +136,8 @@ x0 = model.reset_leg(x0, p)
 p['total_energy'] = model.compute_total_energy(x0, p)
 
 # * Set up experiment parameters
-damping_vals = np.around(np.linspace(0.1, 1.0, 5), decimals=2)
-# damping_vals = np.array([0.5, 0.2, 0.1, 0.01, 0.0])
+# damping_vals = np.around(np.linspace(0.001, 0.4, 5), decimals=2)
+damping_vals = np.around(np.arange(0.005, 0.01, 0.0005)), decimals=4)
 step_down_max = -0.4*p['resting_length']
 step_up_max = 0.4*p['resting_length']
 perturbation_vals = np.around(np.linspace(step_down_max, step_up_max, 5),
@@ -146,10 +146,10 @@ perturbation_vals = np.around(np.linspace(step_down_max, step_up_max, 5),
 # * start
 t_total = TicToc()
 t_total.tic()
-
+bird_name = 'test'
 for damping in damping_vals:
     p['damping'] = damping
-    compute_viability(x0, p, 'all_birds', visualise=True)
+    compute_viability(x0, p, bird_name, visualise=True)
     trajectories = get_step_trajectories(x0, p, perturbation_vals)
     filename = bird_name+'/'+bird_name+'_'+str(damping)+'_trajs.pickle'
     data2save = {"trajectories": trajectories}
