@@ -103,8 +103,8 @@ def step(x0, p, prev_sol=None):
         xdotdot = -ldotdot*np.sin(alpha)
         ydotdot = ldotdot*np.cos(alpha) - GRAVITY
 
-        actuator_damping_coefficient = (p['constant_normalized_damping']
-                                        * p['stiffness'])
+        # actuator_damping_coefficient = (p['constant_normalized_damping']
+        #                                 * p['stiffness'])
         damping_min = (p['linear_normalized_damping_coefficient']
                        * p['mass']*p['gravity']
                        * p['linear_minimum_normalized_damping'])

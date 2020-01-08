@@ -50,7 +50,7 @@ def step(x0, p, prev_sol=None):
 
     # * nested functions - scroll down to step code * #
     # unpacking constants
-    MAX_TIME = 5
+    MAX_TIME = 1
 
     # assert(len(x0) == 10)
 
@@ -419,7 +419,7 @@ def sa2xp_y_xdot_aoa(state_action, p_def):
     p = p_def.copy()
     p['angle_of_attack'] = state_action[2]
     x = p['x0']
-    x[1] = state_action[0]  # TODO: reimplement with ground ehight
+    x[1] = state_action[0]  # TODO: reimplement with ground height
     x[2] = state_action[1]
     x = reset_leg(x, p).copy()
     return x, p
