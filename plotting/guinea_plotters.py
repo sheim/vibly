@@ -61,40 +61,31 @@ def plot_ground_perturbations(ax, trajectories, S_M, grids, p, v_threshold=0.1,
 
     # TODO redo this with trajectories colored by measure
 
-    # * get index of nominal trajectory, max step up/down
-    index0, max_up, max_down = get_perturbation_indices(trajectories)
-
     # * plot step-ups
-    mycmap = plt.get_cmap("Blues")
-    for up_dx in range(index0):
-        traj = trajectories[up_dx]
+    up_cmap = plt.get_cmap("Blues")
+    down_cmap = plt.get_cmap("Reds")
+    idx0 = -1
+    for idx in range(len(trajectories)):
+        traj = trajectories[idx]
         x = traj.y[:, -1]  # ground
         s = sys.xp2s_y_xdot(x, p)
         sbin = vibly.digitize_s(s, grids['states'])
         s_m = interp_measure(sbin, S_M, grids)
 
         if s_m > v_threshold:
-            col = mycmap(col_offset-np.abs(traj.y[-1, 0]))
+            if np.isclose(x[-1], 0):
+                # print afterwards, so it's on top of other circles
+                idx0 = idx
+                continue
+            elif x[-1] < 0:
+                col = down_cmap(col_offset-np.abs(x[-1]))
+            elif x[-1] > 0:
+                col = up_cmap(col_offset-np.abs(x[-1]))
             ax.plot(traj.y[0], traj.y[1], color=col)
-
-    # * plot step-downs
-    mycmap = plt.get_cmap("Reds")
-    for down_dx in range(index0+1, len(trajectories)):
-        traj = trajectories[down_dx]
-
-        x = traj.y[:, -1]
-        s = sys.xp2s_y_xdot(x, p)
-        sbin = vibly.digitize_s(s, grids['states'])
-        s_m = interp_measure(sbin, S_M, grids)
-
-        if s_m > 0.1:
-            col = mycmap(col_offset-np.abs(traj.y[-1, 0]))
-            ax.plot(traj.y[0], traj.y[1], color=col)
-
-    if index0 >= 0:
-        traj = trajectories[index0]
-        ax.plot(traj.y[0], traj.y[1], color='k')
-    plt.title(str(np.round(p['damping'], decimals=2)))
+        if idx0 > 0:
+            ax.plot(trajectories[idx0].y[0], trajectories[idx0].y[1],
+                    color='black')
+    plt.title(str(np.round(p['damping'], decimals=5)))
     # plt.title(str(np.round(p['linear_normalized_damping_coefficient'],
     #          decimals=2)))
     plt.xlabel('x position')
@@ -102,8 +93,10 @@ def plot_ground_perturbations(ax, trajectories, S_M, grids, p, v_threshold=0.1,
 
 
 # * Waterfall plot
-def compute_measure_postep(data, trajecs):
+def compute_measure_postep(data, trajecs, S_M = None):
 
+    if S_M is None:
+        S_M = data['S_M']
     # apex state after step
     XN = [traj.y[:, -1] for traj in trajecs]
     # state in low-dim state-space
@@ -111,7 +104,7 @@ def compute_measure_postep(data, trajecs):
     # digitalize, to bin index
     SN_dig = [vibly.digitize_s(sn, data['grids']['states']) for sn in SN]
     # measure of each point
-    SNM = [interp_measure(sbin, data['S_M'],
+    SNM = [interp_measure(sbin, S_M,
                                  data['grids']) for sbin in SN_dig]
 
     return SNM
@@ -166,8 +159,8 @@ def poincare_plot(fig, ax, data, vmax=1, trajectories=None, min_M = 0.0,
               grids['states'][0][-1]]
     # vmax = get_max_measure((data['S_M'] for data in data_list))
     ax.imshow(data['S_M'], origin='lower', extent=extent, aspect='auto',
-                interpolation='bessel', vmin=0, vmax=vmax, cmap='viridis')
-    plt.title(str(np.round(data['p']['damping'], decimals=3)))
+                interpolation='none', vmin=0, vmax=vmax, cmap='viridis')
+    plt.title(str(np.round(data['p']['damping'], decimals=5)))
 
     if trajectories is not None:
         # X0 = [traj.y[:, 0] for traj in trajectories]
@@ -192,61 +185,28 @@ def poincare_plot(fig, ax, data, vmax=1, trajectories=None, min_M = 0.0,
 
 
         # * plot each step at next step
-        mycmap = plt.get_cmap("Blues")
-        for up_dx in range(index0):
-            traj = trajectories[up_dx]
+        up_cmap = plt.get_cmap("Blues")
+        down_cmap = plt.get_cmap("Reds")
+        idx0 = -1
+        for idx in range(len(trajectories)):
+            traj = trajectories[idx]
             xn = traj.y[:, -1]  # state at next step
             sn = sys.xp2s_y_xdot(xn, data['p'])
             sbin = vibly.digitize_s(sn, grids['states'])
             s_m = interp_measure(sbin, data['S_M'], grids)
             if s_m > min_M:
-                col = mycmap(col_offset-np.abs(xn[-1]))
+                if np.isclose(xn[-1], 0):
+                    # print afterwards, so it's on top of other circles
+                    sn0 = sn.copy()
+                    idx0 = 1
+                    continue
+                elif xn[-1] < 0:
+                    col = down_cmap(col_offset-np.abs(xn[-1]))
+                elif xn[-1] > 0:
+                    col = up_cmap(col_offset-np.abs(xn[-1]))
+
                 ax.scatter(sn[1], sn[0],
                            facecolors='none', edgecolors=col, s=20)
-
-        mycmap = plt.get_cmap("Reds")
-        for down_dx in range(index0+1, len(trajectories)):
-            traj = trajectories[down_dx]
-            xn = traj.y[:, -1]  # state at next step
-            sn = sys.xp2s_y_xdot(xn, data['p'])
-            sbin = vibly.digitize_s(sn, grids['states'])
-            s_m = interp_measure(sbin, data['S_M'], grids)
-            if s_m > min_M:
-                col = mycmap(col_offset-np.abs(xn[-1]))
-                ax.scatter(sn[1], sn[0],
-                           facecolors='none', edgecolors=col, s=20)
-
-        if index0 >= 0:
-            traj = trajectories[index0]
-            xn = traj.y[:, -1]  # state at next step
-            sn = sys.xp2s_y_xdot(xn, data['p'])
-            sbin = vibly.digitize_s(sn, grids['states'])
-            s_m = interp_measure(sbin, data['S_M'], grids)
-            ax.scatter(sn[1], sn[0],
+        if idx0 > 0:
+            ax.scatter(sn0[1], sn0[0],
                        facecolors='none', edgecolors='black', s=20)
-        # mycmap = plt.get_cmap("Reds")
-        # for down_dx in range(index0+1, len(trajectories)):
-        #     traj = trajectories[down_dx]
-
-        #     x = traj.y[:, -1]
-        #     s = sys.xp2s_y_xdot(x, p)
-        #     sbin = vibly.digitize_s(s, grids['states'])
-        #     s_m = interp_measure(sbin, S_M, grids)
-
-        #     if s_m > 0.1:
-        #         col = mycmap(col_offset-np.abs(traj.y[-1, 0]))
-        #         ax.plot(traj.y[0], traj.y[1], color=col)
-
-        # if index0 >= 0:
-        #     traj = trajectories[index0]
-        #     ax.plot(traj.y[0], traj.y[1], color='k')
-        # if s_m > v_threshold:
-        #     col = mycmap(col_offset-np.abs(traj.y[-1, 0]))
-        #     ax.plot(traj.y[0], traj.y[1], color=col)
-
-        # for gdx, g in enumerate(ground_heights):
-        #     mycmap = plt.get_cmap("Blues")
-        #     ax.scatter(SNp[1, indices[SNM >= min_M]],
-        #                         SNp[0, indices[SNM >= min_M]],
-        #                         facecolors='none', edgecolors=[0.8, 0.3, 0.3],
-        #                         s=20)
