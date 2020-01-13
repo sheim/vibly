@@ -19,6 +19,19 @@ matplotlib.rc('font', **font)
 sns.set_style('dark')
 
 
+def add_title(p, prepend=''):
+    if 'damping' in p:
+        title_name = str(np.round(p['damping'], decimals=5))
+    elif 'linear_normalized_damping' in p:
+        title_name = str(np.round(p['linear_normalized_damping'], decimals=5))
+    elif 'linear_normalized_damping_coefficient' in p:
+        title_name = str(np.round(p['linear_normalized_damping_coefficient'],
+                         decimals=5))
+    else:
+        title_name = 'trial'
+    plt.title(prepend+title_name)
+
+
 def interp_measure(s_bin, S_M, grids):
     neighbor_idx = vibly.get_grid_indices(s_bin, grids['states'])
     measure = 0
@@ -85,13 +98,7 @@ def plot_ground_perturbations(ax, trajectories, S_M, grids, p, v_threshold=0.1,
         if idx0 > 0:
             ax.plot(trajectories[idx0].y[0], trajectories[idx0].y[1],
                     color='black')
-    if 'damping' in p:
-        title_name = str(np.round(p['damping'], decimals=5))
-    elif ' ' in p:
-        title_name = str(np.round(p['linear_normalized_damping'], decimals=5))
-    else:
-        title_name = 'trial'
-    plt.title(title_name)
+    add_title(p)
     plt.xlabel('x position')
     plt.ylabel('y position')
 
@@ -164,7 +171,7 @@ def poincare_plot(fig, ax, data, vmax=1, trajectories=None, min_M = 0.0,
     # vmax = get_max_measure((data['S_M'] for data in data_list))
     ax.imshow(data['S_M'], origin='lower', extent=extent, aspect='auto',
                 interpolation='none', vmin=0, vmax=vmax, cmap='viridis')
-    plt.title(str(np.round(data['p']['damping'], decimals=5)))
+    add_title(data['p'])
 
     if trajectories is not None:
         # X0 = [traj.y[:, 0] for traj in trajectories]
