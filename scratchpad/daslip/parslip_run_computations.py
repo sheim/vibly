@@ -51,18 +51,36 @@ def compute_viability(x0, p, bird_name, visualise=False):
     p_map.x = x0.copy()
 
     # * choose high-level represenation
-    # p_map.sa2xp = model.sa2xp_amp
-    p_map.sa2xp = model.sa2xp_y_xdot_timedaoa
+    p_map.sa2xp = model.sa2xp_amp
+    # p_map.sa2xp = model.sa2xp_y_xdot_timedaoa
     p_map.xp2s = model.xp2s_y_xdot
 
     # * set up grids
+<<<<<<< Updated upstream
     s_grid_height = np.linspace(0.15, 0.45, 61)  # 21)
     s_grid_velocity = np.linspace(1.5, 5.5, 81)  # 51)
+||||||| constructed merge base
+    s_grid_height = np.linspace(0.1, 0.3, 81)  # 21)
+    s_grid_velocity = np.linspace(1.5, 3.5, 51)  # 51)
+=======
+    s_grid_height = np.linspace(0.15, 0.45, 61)  # 21)
+    s_grid_velocity = np.linspace(1.5, 5.5, 101)  # 51)
+>>>>>>> Stashed changes
     s_grid = (s_grid_height, s_grid_velocity)
     a_grid_aoa = np.linspace(10/180*np.pi, 70/180*np.pi, 61)
+<<<<<<< Updated upstream
     a_grid = (a_grid_aoa, )
     # a_grid_amp = np.linspace(0.75, 1.25, 11)
     # a_grid = (a_grid_aoa, a_grid_amp)
+||||||| constructed merge base
+    a_grid = (a_grid_aoa, )
+    # a_grid_amp = np.linspace(0.8, 1.2, 20)
+    # a_grid = (a_grid_aoa, a_grid_amp)
+=======
+    # a_grid = (a_grid_aoa, )
+    a_grid_amp = np.linspace(0.75, 1.25, 11)
+    a_grid = (a_grid_aoa, a_grid_amp)
+>>>>>>> Stashed changes
 
     grids = {'states': s_grid, 'actions': a_grid}
 
@@ -140,12 +158,28 @@ x0 = model.reset_leg(x0, p)
 p['total_energy'] = model.compute_total_energy(x0, p)
 
 # * Set up experiment parameters
+<<<<<<< Updated upstream
 # damping_vals = np.around(np.arange(0.0225, 0.00001, -0.0025), decimals=4)
 damping_vals = np.array([0.5, 0.01])
 # step_down_max = -0.4*p['resting_length']
 # step_up_max = 0.4*p['resting_length']
 # perturbation_vals = np.around(np.linspace(step_down_max, step_up_max, 21),
 #                               decimals=2)
+||||||| constructed merge base
+damping_vals = np.around(np.linspace(0.1, 1.0, 5), decimals=2)
+# damping_vals = np.array([0.5, 0.2, 0.1, 0.01, 0.0])
+step_down_max = -0.4*p['resting_length']
+step_up_max = 0.4*p['resting_length']
+perturbation_vals = np.around(np.linspace(step_down_max, step_up_max, 5),
+                              decimals=2)
+=======
+damping_vals = np.around(np.arange(0.0225, 0.00001, -0.0025), decimals=4)
+# damping_vals = np.array([0.5, 0.2, 0.1, 0.01, 0.0])
+# step_down_max = -0.4*p['resting_length']
+# step_up_max = 0.4*p['resting_length']
+# perturbation_vals = np.around(np.linspace(step_down_max, step_up_max, 21),
+#                               decimals=2)
+>>>>>>> Stashed changes
 
 # * start
 t_total = TicToc()
