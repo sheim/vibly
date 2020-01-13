@@ -20,83 +20,77 @@ rc('text', usetex=True)
 sns.set_style('dark')
 sns.set_context('poster')
 
-# * Flags for which plots to generate
-
-FLAG_TRAJS = False
-WATERFALL_PLOT = False
-POINC_PLOT = True
-
 # * Load and partially parse data
 
-foldername = 'lowD/'
+set_files = ['human_aoa/human_aoa_0.01.pickle',
+'human_aoa/human_aoa_0.1.pickle',
+'human_aoa/human_aoa_0.5.pickle',
+'human_aoa/human_aoa_1.0.pickle',
+'human_aoa/human_aoa_3.0.pickle'
+]
 
-set_files = ['higher/higher_0.025.pickle',
-             'higher/higher_0.050.pickle',
-             'higher/higher_0.075.pickle',
-             'higher/higher_0.100.pickle',
-             'higher/higher_0.125.pickle',
-             'higher/higher_0.150.pickle',
-             'higher/higher_0.175.pickle',
-             'higher/higher_0.2.pickle',
-             'higher/higher_0.25.pickle',
-             'higher/higher_0.5.pickle',
-             'higher/higher_0.75.pickle',
-             'higher/higher_1.0.pickle',
-             'higher/higher_1.25.pickle',
-             'higher/higher_1.5.pickle',
-             'higher/higher_1.75.pickle',
-             'higher/higher_2.0.pickle',
-             'higher/higher_2.25.pickle',
-             'higher/higher_2.5.pickle',
-             'higher/higher_2.75.pickle',
-             'higher/higher_3.0.pickle',
-             'higher/higher_3.25.pickle',
-             'higher/higher_3.5.pickle']
+traj_files = ['human_aoa/human_aoa_0.01_trajs3.pickle',
+'human_aoa/human_aoa_0.1_trajs3.pickle',
+'human_aoa/human_aoa_0.5_trajs3.pickle',
+'human_aoa/human_aoa_1.0_trajs3.pickle',
+'human_aoa/human_aoa_3.0_trajs3.pickle'
+]
 
-traj_files = ['higher/higher_0.025_trajs2.pickle',
-              'higher/higher_0.050_trajs2.pickle',
-              'higher/higher_0.075_trajs2.pickle',
-              'higher/higher_0.100_trajs2.pickle',
-              'higher/higher_0.125_trajs2.pickle',
-              'higher/higher_0.150_trajs2.pickle',
-              'higher/higher_0.175_trajs2.pickle',
-              'higher/higher_0.2_trajs2.pickle',
-              'higher/higher_0.25_trajs2.pickle',
-              'higher/higher_0.5_trajs2.pickle',
-              'higher/higher_0.75_trajs2.pickle',
-              'higher/higher_1.0_trajs2.pickle',
-              'higher/higher_1.25_trajs2.pickle',
-              'higher/higher_1.5_trajs2.pickle',
-              'higher/higher_1.75_trajs2.pickle',
-              'higher/higher_2.0_trajs2.pickle',
-              'higher/higher_2.25_trajs2.pickle',
-              'higher/higher_2.5_trajs2.pickle',
-              'higher/higher_2.75_trajs2.pickle',
-              'higher/higher_3.0_trajs2.pickle',
-              'higher/higher_3.25_trajs2.pickle',
-              'higher/higher_3.5_trajs2.pickle']
+# set_files = ['higher/higher_0.0125.pickle',
+#              'higher/higher_0.015.pickle',
+#              'higher/higher_0.0175.pickle',
+#              'higher/higher_0.02.pickle',
+#              'higher/higher_0.0225.pickle',
+#              'higher/higher_0.025.pickle',
+#              'higher/higher_0.050.pickle',
+#              'higher/higher_0.075.pickle',
+#              'higher/higher_0.100.pickle',
+#              'higher/higher_0.125.pickle',
+#              'higher/higher_0.150.pickle',
+#              'higher/higher_0.175.pickle',
+#              'higher/higher_0.2.pickle',
+#              'higher/higher_0.25.pickle',
+#              'higher/higher_0.5.pickle',
+#              'higher/higher_0.75.pickle',
+#              'higher/higher_1.0.pickle',
+#              'higher/higher_1.25.pickle',
+#              'higher/higher_1.5.pickle',
+#              'higher/higher_1.75.pickle',
+#              'higher/higher_2.0.pickle',
+#              'higher/higher_2.25.pickle',
+#              'higher/higher_2.5.pickle',
+#              'higher/higher_2.75.pickle',
+#              'higher/higher_3.0.pickle',
+#              'higher/higher_3.25.pickle',
+#              'higher/higher_3.5.pickle']
 
-# set_files = ['test_0.005.pickle',
-# 'test_0.0065.pickle',
-# 'test_0.009.pickle',
-# 'test_0.0055.pickle',
-# 'test_0.008.pickle',
-# 'test_0.0095.pickle',
-# 'test_0.007.pickle',
-# 'test_0.0085.pickle',
-# 'test_0.006.pickle',
-# 'test_0.0075.pickle']
-
-# traj_files = ['test_0.005_trajs2.pickle',
-# 'test_0.0065_trajs2.pickle',
-# 'test_0.009_trajs2.pickle',
-# 'test_0.0055_trajs2.pickle',
-# 'test_0.008_trajs2.pickle',
-# 'test_0.0095_trajs2.pickle',
-# 'test_0.007_trajs2.pickle',
-# 'test_0.0085_trajs2.pickle',
-# 'test_0.006_trajs2.pickle',
-# 'test_0.0075_trajs2.pickle']
+# traj_files = ['higher/higher_0.0125_trajs2.pickle',
+#               'higher/higher_0.015_trajs2.pickle',
+#               'higher/higher_0.0175_trajs2.pickle',
+#               'higher/higher_0.02_trajs2.pickle',
+#               'higher/higher_0.0225_trajs2.pickle',
+#               'higher/higher_0.025_trajs2.pickle',
+#               'higher/higher_0.050_trajs2.pickle',
+#               'higher/higher_0.075_trajs2.pickle',
+#               'higher/higher_0.100_trajs2.pickle',
+#               'higher/higher_0.125_trajs2.pickle',
+#               'higher/higher_0.150_trajs2.pickle',
+#               'higher/higher_0.175_trajs2.pickle',
+#               'higher/higher_0.2_trajs2.pickle',
+#               'higher/higher_0.25_trajs2.pickle',
+#               'higher/higher_0.5_trajs2.pickle',
+#               'higher/higher_0.75_trajs2.pickle',
+#               'higher/higher_1.0_trajs2.pickle',
+#               'higher/higher_1.25_trajs2.pickle',
+#               'higher/higher_1.5_trajs2.pickle',
+#               'higher/higher_1.75_trajs2.pickle',
+#               'higher/higher_2.0_trajs2.pickle',
+#               'higher/higher_2.25_trajs2.pickle',
+#               'higher/higher_2.5_trajs2.pickle',
+#               'higher/higher_2.75_trajs2.pickle',
+#               'higher/higher_3.0_trajs2.pickle',
+#               'higher/higher_3.25_trajs2.pickle',
+#               'higher/higher_3.5_trajs2.pickle']
 
 data_list = list()
 trajec_list = list()
@@ -108,16 +102,18 @@ for file_1, file_2 in zip(set_files, traj_files):
     infile_1.close()
     infile_2.close()
 
+# * Flags for which plots to generate
 
-# * what to plot
+FLAG_TRAJS = True
+WATERFALL_PLOT = False
+POINC_PLOT = False
+ACTIVATION_PLOT = False
+
+# * which trials
+
 total_trials = len(data_list)
-# plot_these = [0, 5, 10, total_trials]
 plot_these = range(total_trials)
-
-# * compute measure after perturbation
-
-# XN = [traj.y[:, -1] for traj in data_list[idx]['trajectories']]
-# SN = [model.xp2s_y_xdot(xn, data_list[idx]['p']) for xn in XN]
+# plot_these = [0, 5, 10, total_trials-1]
 
 # * plot individual trajectories
 
@@ -144,7 +140,7 @@ if FLAG_TRAJS:
     # height_cmap = sns.diverging_palette(10, 220, l=90, s=99, as_cmap=True, center='dark')
     # sns.color_palette("RdBu")
     # plot_these = tuple(range(len(trajec_list)))
-    plot_these = (1, 2)
+    # plot_these = (1, 2)
     # trajectories = data_list[idx]['trajectories']
 
     for idx in plot_these:
@@ -153,10 +149,18 @@ if FLAG_TRAJS:
         daplot.plot_ground_perturbations(ax, trajec_list[idx],
                                          data_list[idx]['S_M'],
                                          data_list[idx]['grids'],
-                                         data_list[idx]['p'])
+                                         data_list[idx]['p'], v_threshold=0)
     plt.show()
 
 # * plot waterfalls
+
+def weighted_mean(A, axes, weights):
+    assert len(A.shape) == weights.size
+    V = A.copy()
+    for idx in axes:
+        V = np.mean(V, axis=0)*weights[idx]  # at each iteration, dim(V) -= 1
+    return V
+
 if WATERFALL_PLOT:
 
     # prepare data_list
@@ -171,6 +175,11 @@ if WATERFALL_PLOT:
     Z = np.zeros_like(X)
 
     for idx in range(len(data_list)):
+
+        # optionally, recompute S_M
+        # if True:
+
+
         SNM = daplot.compute_measure_postep(data_list[idx], trajec_list[idx])
         Z[idx, :] = np.array(SNM)
 
@@ -208,6 +217,15 @@ if POINC_PLOT:
         daplot.poincare_plot(fig, ax, data, vmax=vmax,
                              trajectories=trajec_list[i], min_M=0.0)
         # plt.show()
-        new_filename = set_files[i][0:len(set_files[i])-rem_string]+'.pdf'
+        new_filename = set_files[i][0:len(set_files[i])-rem_string]+'_withdelay.pdf'
         plt.savefig(new_filename, format='pdf')
         plt.close()
+
+if ACTIVATION_PLOT:
+    for d in data_list:
+        plt.plot(d['p']['actuator_force'][0],
+                 d['p']['actuator_force'][1]/(d['p']['mass']*d['p']['gravity']))
+    plt.xlabel('time [s]')
+    plt.ylabel('activation [bodyweight]')
+    plt.title('Open-loop activation, bird fit')
+    plt.show()

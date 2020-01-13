@@ -65,8 +65,8 @@ def step(x0, p, prev_sol=None):
     SWING_EXTENSION_VELOCITY = p['swing_extension_velocity']
     ACTUATOR_PERIOD = p['actuator_force_period']
     VISCOUS_DAMPING = p['constant_normalized_damping']*p['stiffness']
-    ACTIVE_DAMPING = p['linear_normalized_damping_coefficient']
-    MIN_DAMPING = (p['linear_normalized_damping_coefficient'] * p['mass']
+    ACTIVE_DAMPING = p['linear_normalized_damping']
+    MIN_DAMPING = (p['linear_normalized_damping'] * p['mass']
                    * p['gravity'] * p['linear_minimum_normalized_damping'])
     DELAY = p['activation_delay']  # can also be negative
     AMPLI = p['activation_amplification']
@@ -105,11 +105,11 @@ def step(x0, p, prev_sol=None):
 
         # actuator_damping_coefficient = (p['constant_normalized_damping']
         #                                 * p['stiffness'])
-        damping_min = (p['linear_normalized_damping_coefficient']
+        damping_min = (p['linear_normalized_damping']
                        * p['mass']*p['gravity']
                        * p['linear_minimum_normalized_damping'])
         damping_val = (actuator_force
-                       * p['linear_normalized_damping_coefficient'])
+                       * p['linear_normalized_damping'])
         actuator_damping_coefficient = np.maximum([damping_min],
                                                   [damping_val])[0]
 

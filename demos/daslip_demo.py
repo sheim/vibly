@@ -46,7 +46,7 @@ p = {'mass': 80,                          # kg
      'activation_delay': 0.0,  # * a delay for when to start activation
      'activation_amplification': 1.0,
      'constant_normalized_damping': 0.75,          # * s : D/K : [N/m/s]/[N/m]
-     'linear_normalized_damping_coefficient': 3.5,  # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
+     'linear_normalized_damping': 3.5,  # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
      'linear_minimum_normalized_damping': 0.05,    # *   1/A*(kg*N/kg) :
      'swing_velocity': 0,   # rad/s (set by calculation)
      'angle_of_attack_offset': 0,        # rad   (set by calculation)
@@ -90,7 +90,7 @@ ground_heights = np.linspace(0.0*total_leg_length,
                              -0.2*total_leg_length, 2)
 
 for lin_d in damping_values:
-    p['linear_normalized_damping_coefficient'] = lin_d
+    p['linear_normalized_damping'] = lin_d
     model.create_open_loop_trajectories(x0, p, limit_cycle_options)
     trajectories = get_step_trajectories(x0, p, ground_heights=ground_heights)
 

@@ -85,9 +85,13 @@ def plot_ground_perturbations(ax, trajectories, S_M, grids, p, v_threshold=0.1,
         if idx0 > 0:
             ax.plot(trajectories[idx0].y[0], trajectories[idx0].y[1],
                     color='black')
-    plt.title(str(np.round(p['damping'], decimals=5)))
-    # plt.title(str(np.round(p['linear_normalized_damping_coefficient'],
-    #          decimals=2)))
+    if 'damping' in p:
+        title_name = str(np.round(p['damping'], decimals=5))
+    elif ' ' in p:
+        title_name = str(np.round(p['linear_normalized_damping'], decimals=5))
+    else:
+        title_name = 'trial'
+    plt.title(title_name)
     plt.xlabel('x position')
     plt.ylabel('y position')
 

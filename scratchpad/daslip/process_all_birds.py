@@ -196,7 +196,7 @@ for step_data in it.product(bird_numbers, observations, stepTypes):
             'activation_delay': 0.0,         # * a delay for when to start activation
             'activation_amplification': 1.0,
             'constant_normalized_damping': 0.75,           # * s : D/K : [N/m/s]/[N/m]
-            'linear_normalized_damping_coefficient': 0.1,  # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
+            'linear_normalized_damping': 0.1,  # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
             'linear_minimum_normalized_damping': 0.01,     # *   1/A*(kg*N/kg) :
             'swing_velocity': adotTD,                      # rad/s (set by calculation)
             'angle_of_attack_offset': 0,                   # rad   (set by calculation)

@@ -131,7 +131,7 @@ if FLAG_ALL_SM:
         # sns.heatmap(data[idx]['S_M'],
         #             vmin=0, vmax=vmax, cmap='viridis')
 
-        plt.title(str(np.round(data[idx]['p']['linear_normalized_damping_coefficient'], decimals=2)))
+        plt.title(str(np.round(data[idx]['p']['linear_normalized_damping'], decimals=2)))
         if False:
             X0 = [traj.y[:, 0] for traj in data[idx]['trajectories']]
             XN = [traj.y[:, -1] for traj in data[idx]['trajectories']]
@@ -176,7 +176,7 @@ if FLAG_SM4:
         axes.append(plt.subplot(gs1[gdx]))
         axes[gdx].imshow(data[idx]['S_M'], origin='lower', extent=extent,
                 interpolation='bessel', vmin=0, vmax=vmax, cmap='viridis')
-        axes[gdx].title.set_text(str(np.round(data[idx]['p']['linear_normalized_damping_coefficient'], decimals=2)))
+        axes[gdx].title.set_text(str(np.round(data[idx]['p']['linear_normalized_damping'], decimals=2)))
         if False:
             X0 = [traj.y[:, 0] for traj in data[idx]['trajectories']]
             XN = [traj.y[:, -1] for traj in data[idx]['trajectories']]
@@ -260,7 +260,7 @@ if FLAG_DAMPING_2D:
         ground_heights = [x[-1] for x in X0]
         plt.plot(ground_heights[0:25], SNM[0:25])
 
-    leggenda = [str(data[idx]['p']['linear_normalized_damping_coefficient']) +
+    leggenda = [str(data[idx]['p']['linear_normalized_damping']) +
                 'damping coeff' for idx in plot_these]
 
     plt.legend(leggenda)
@@ -316,7 +316,7 @@ if FLAG_WATERFALL:
     # y: damping value
     # z: safety_measure
     x = ground_heights
-    y = np.array([d['p']['linear_normalized_damping_coefficient'] for d in data])
+    y = np.array([d['p']['linear_normalized_damping'] for d in data])
     X, Y = np.meshgrid(x, y)
     Z = np.zeros_like(X)
     for idx in range(len(data)):

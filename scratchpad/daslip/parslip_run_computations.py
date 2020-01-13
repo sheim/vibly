@@ -31,19 +31,19 @@ def compute_viability(x0, p, bird_name, visualise=False):
 
     # * Solve for nominal open-loop limit-cycle
 
-    legStiffnessSearchWidth = p['stiffness']*0.5
+    # legStiffnessSearchWidth = p['stiffness']*0.5
 
-    limit_cycle_options = {'search_initial_state': False,
-                           'state_index': 0,
-                           'state_search_width': 0,
-                           'search_parameter': True,
-                           'parameter_name': 'stiffness',
-                           'parameter_search_width': legStiffnessSearchWidth}
+    # limit_cycle_options = {'search_initial_state': False,
+    #                        'state_index': 0,
+    #                        'state_search_width': 0,
+    #                        'search_parameter': True,
+    #                        'parameter_name': 'stiffness',
+    #                        'parameter_search_width': legStiffnessSearchWidth}
 
-    print(p['stiffness'],' N/m :Leg stiffness prior to fitting')
-    x0, p = model.create_open_loop_trajectories(x0, p, limit_cycle_options)
-    print(p['stiffness'],' N/m :Leg stiffness prior after fitting')
-    p['x0'] = x0.copy()
+    # # print(p['stiffness'],' N/m :Leg stiffness prior to fitting')
+    # x0, p = model.create_open_loop_trajectories(x0, p, limit_cycle_options)
+    # # print(p['stiffness'],' N/m :Leg stiffness prior after fitting')
+    # p['x0'] = x0.copy()
 
     # * Set-up P maps for comutations
     p_map = model.poincare_map
@@ -56,12 +56,12 @@ def compute_viability(x0, p, bird_name, visualise=False):
     p_map.xp2s = model.xp2s_y_xdot
 
     # * set up grids
-    s_grid_height = np.linspace(0.1, 0.3, 31)  # 21)
-    s_grid_velocity = np.linspace(1.5, 3.5, 21)  # 51)
+    s_grid_height = np.linspace(0.15, 0.45, 61)  # 21)
+    s_grid_velocity = np.linspace(1.5, 5.5, 81)  # 51)
     s_grid = (s_grid_height, s_grid_velocity)
-    a_grid_aoa = np.linspace(10/180*np.pi, 70/180*np.pi, 31)
+    a_grid_aoa = np.linspace(10/180*np.pi, 70/180*np.pi, 61)
     a_grid = (a_grid_aoa, )
-    # a_grid_amp = np.linspace(0.8, 1.2, 20)
+    # a_grid_amp = np.linspace(0.75, 1.25, 11)
     # a_grid = (a_grid_aoa, a_grid_amp)
 
     grids = {'states': s_grid, 'actions': a_grid}
@@ -87,11 +87,11 @@ def compute_viability(x0, p, bird_name, visualise=False):
     # * save data
     if not os.path.exists(bird_name):
         os.makedirs(bird_name)
-    filename = bird_name+'/'+bird_name+'_'+str(damping)
+    filename = bird_name+'/'+bird_name+'_'+str(damping)+'.pickle'
 
     data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
                  "Q_M": Q_M, "S_M": S_M, "p": p, "x0": x0}
-    outfile = open(filename+'.pickle', 'wb')
+    outfile = open(filename, 'wb')
     pickle.dump(data2save, outfile)
     outfile.close()
 
@@ -107,18 +107,22 @@ def compute_viability(x0, p, bird_name, visualise=False):
 
 # * Set up parameters for average of all birds
 gravity = 9.81
-params = np.load('ref_params.npz')
-m = params['mass']
-LTD = params['spring_resting_length']
 data = np.load('stiffness.npz')
-aTD = data['a_all'] - np.pi/2
-yApex = data['y_all']*LTD
-vApex = data['v_all']*np.sqrt(LTD*gravity)
-stiffness = data['k_all']*m*gravity/LTD
+mass = 1.31  # [ 1.3667, 1.31, 1.23, 1.4198, 1.3]
+# resting_length = data['l_bird']
+# aTD = data['a_all'] - np.pi/2
+# yApex = data['y_all']*resting_length
+# vApex = data['v_all']*np.sqrt(resting_length*gravity)
+# stiffness = data['k_all']*m*gravity/resting_length
+resting_length = data['l_bird'][1]
+aTD = data['a_bird'][1] - np.pi/2
+yApex = data['y_bird'][1]*resting_length
+vApex = data['v_bird'][1]*np.sqrt(resting_length*gravity)
+stiffness = data['k_bird'][1]*mass*gravity/resting_length
 
-p = {'mass': m,                             # kg
+p = {'mass': mass,                             # kg
      'stiffness': stiffness,     # K : N/m
-     'resting_length': LTD,          # m
+     'resting_length': resting_length,          # m
      'gravity': gravity,                    # N/kg
      'angle_of_attack': aTD,                # rad
      'actuator_resting_length': 0.,                 # m
@@ -136,26 +140,37 @@ x0 = model.reset_leg(x0, p)
 p['total_energy'] = model.compute_total_energy(x0, p)
 
 # * Set up experiment parameters
-# damping_vals = np.around(np.linspace(0.001, 0.4, 5), decimals=2)
-damping_vals = np.around(np.arange(0.005, 0.01, 0.0005)), decimals=4)
-step_down_max = -0.4*p['resting_length']
-step_up_max = 0.4*p['resting_length']
-perturbation_vals = np.around(np.linspace(step_down_max, step_up_max, 5),
-                              decimals=2)
+# damping_vals = np.around(np.arange(0.0225, 0.00001, -0.0025), decimals=4)
+damping_vals = np.array([0.5, 0.01])
+# step_down_max = -0.4*p['resting_length']
+# step_up_max = 0.4*p['resting_length']
+# perturbation_vals = np.around(np.linspace(step_down_max, step_up_max, 21),
+#                               decimals=2)
 
 # * start
 t_total = TicToc()
 t_total.tic()
-bird_name = 'test'
+bird_name = 'higher'
+legStiffnessSearchWidth = p['stiffness']*0.5
+limit_cycle_options = {'search_initial_state': False,
+                        'state_index': 0,
+                        'state_search_width': 0,
+                        'search_parameter': True,
+                        'parameter_name': 'stiffness',
+                        'parameter_search_width': legStiffnessSearchWidth}
 for damping in damping_vals:
     p['damping'] = damping
+    # print(p['stiffness'],' N/m :Leg stiffness prior to fitting')
+    x0, p = model.create_open_loop_trajectories(x0, p, limit_cycle_options)
+    print(p['stiffness'],' N/m :Leg stiffness prior after fitting')
+    p['x0'] = x0.copy()
     compute_viability(x0, p, bird_name, visualise=True)
-    trajectories = get_step_trajectories(x0, p, perturbation_vals)
-    filename = bird_name+'/'+bird_name+'_'+str(damping)+'_trajs.pickle'
-    data2save = {"trajectories": trajectories}
-    outfile = open(filename, 'wb')
-    pickle.dump(data2save, outfile)
-    outfile.close()
+    # trajectories = get_step_trajectories(x0, p, perturbation_vals)
+    # filename = bird_name+'/'+bird_name+'_'+str(damping)+'_trajs.pickle'
+    # data2save = {"trajectories": trajectories}
+    # outfile = open(filename, 'wb')
+    # pickle.dump(data2save, outfile)
+    # outfile.close()
 
 t_total.toc()
 print("time elapsed for one set of damping values: " + str(t_total.elapsed/60))
@@ -164,9 +179,9 @@ print("time elapsed for one set of damping values: " + str(t_total.elapsed/60))
 
 # for bird_name in [2, ]:
 #     aTD = data['a_bird'][bird_name] - np.pi/2
-#     yApex = data['y_bird'][bird_name]*LTD
-#     vApex = data['v_bird'][bird_name]*np.sqrt(LTD*gravity)
-#     stiffness = data['k_bird'][bird_name]*m*gravity/LTD
+#     yApex = data['y_bird'][bird_name]*resting_length
+#     vApex = data['v_bird'][bird_name]*np.sqrt(resting_length*gravity)
+#     stiffness = data['k_bird'][bird_name]*m*gravity/resting_length
 #     x0[1] = yApex
 #     x0[2] = vApex
 #     p['mass'] = m

@@ -17,12 +17,12 @@ p = {'mass': 80,                          # kg
      'activation_delay': 0.0,  # * a delay for when to start activation
      'activation_amplification': 1.0,
      'constant_normalized_damping': 0.75,          # *    s : D/K : [N/m/s]/[N/m]
-     'linear_normalized_damping_coefficient': 3.5,  # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
+     'linear_normalized_damping': 3.5,  # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
      'linear_minimum_normalized_damping': 0.05,    # *   1/A*(kg*N/kg) :
      'swing_leg_norm_angular_velocity':  0,  # [1/s]/[m/s] (omega/(vx/lr))
      'swing_velocity': 0,   # rad/s (set by calculation)
      'angle_of_attack_offset': 0}        # rad   (set by calculation)
-# * linear_normalized_damping_coefficient:
+# * linear_normalized_damping:
 # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s (Kirch et al. Fig 12)
 
 x0 = np.array([0, 1.00, 5.5, 0, 0, 0, p['actuator_resting_length'], 0, 0, 0])
