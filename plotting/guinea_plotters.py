@@ -5,8 +5,9 @@ Plotting functions for damping project
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
-import models.parslip as sys
+# import matplotlib.gridspec as gridspec
+from mpl_toolkits.axes_grid1 import make_axes_locatable
+import models.daslip as sys
 import viability as vibly  # algorithms for brute-force viability
 import seaborn as sns
 import matplotlib.collections as collections
@@ -14,14 +15,17 @@ import matplotlib.collections as collections
 # rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
 # rc('text', usetex=True)
 matplotlib.rcParams['figure.figsize'] = 5.5, 7
+
 font = {'size': 8}
 matplotlib.rc('font', **font)
 sns.set_style('dark')
 
 
-def add_title(p, prepend=''):
+def add_title(p, prepend='', append=''):
     if 'damping' in p:
         title_name = str(np.round(p['damping'], decimals=5))
+    elif 'constant_normalized_damping' in p:
+        title_name = str(p['constant_normalized_damping'])  # *p['stiffness'])
     elif 'linear_normalized_damping' in p:
         title_name = str(np.round(p['linear_normalized_damping'], decimals=5))
     elif 'linear_normalized_damping_coefficient' in p:
@@ -29,7 +33,7 @@ def add_title(p, prepend=''):
                          decimals=5))
     else:
         title_name = 'trial'
-    plt.title(prepend+title_name)
+    plt.title(prepend+title_name+append)
 
 
 def interp_measure(s_bin, S_M, grids):
@@ -64,7 +68,8 @@ def get_perturbation_indices(trajectories):
     return index0, max_up, max_down
 
 def plot_ground_perturbations(ax, trajectories, S_M, grids, p, v_threshold=0.1,
-                         col_offset=0.65):
+                         col_offset=0.65, draw_ground=True, draw_LC=False,
+                         Q_M=None):
     '''
     Plot a series of trajectories, centered around level-ground as nominal
     inputs:
@@ -85,7 +90,7 @@ def plot_ground_perturbations(ax, trajectories, S_M, grids, p, v_threshold=0.1,
         sbin = vibly.digitize_s(s, grids['states'])
         s_m = interp_measure(sbin, S_M, grids)
 
-        if s_m > v_threshold:
+        if s_m >= v_threshold:
             if np.isclose(x[-1], 0):
                 # print afterwards, so it's on top of other circles
                 idx0 = idx
@@ -94,13 +99,33 @@ def plot_ground_perturbations(ax, trajectories, S_M, grids, p, v_threshold=0.1,
                 col = down_cmap(col_offset-np.abs(x[-1]))
             elif x[-1] > 0:
                 col = up_cmap(col_offset-np.abs(x[-1]))
-            ax.plot(traj.y[0], traj.y[1], color=col)
+            ax.plot(traj.y[0], traj.y[1], color=col, zorder=1)
+            # and plot ground
+            td_index = np.abs(traj.t - traj.t_events[1]).argmin()
+            to_index = np.abs(traj.t-traj.t_events[3]).argmin()
+            ax.plot(traj.y[0, td_index:to_index],
+                    traj.y[-1, td_index:to_index], color=col)
         if idx0 > 0:
-            ax.plot(trajectories[idx0].y[0], trajectories[idx0].y[1],
-                    color='black')
+            traj = trajectories[idx0]
+            ax.plot(traj.y[0], traj.y[1], color='black')
+            # td_index = np.abs(traj.t - traj.t_events[1]).argmin()
+            # to_index = np.abs(traj.t-traj.t_events[3]).argmin()
+            ax.plot(traj.y[0],
+                    traj.y[-1], color='black')
+
+
+    plt.axis('equal')
+
+    # add_title(p, prepend='Damping coefficient: ', append=r' $\frac{Ns}{m}') 
     add_title(p)
-    plt.xlabel('x position')
-    plt.ylabel('y position')
+    plt.xlabel(r'x position $[m]$')
+    plt.ylabel(r'y position $[m]$')
+
+# def draw_model(ax, x0, Q_V, S_M, p, v_threshold=0.0):
+#     # create range of viable foot-positions
+
+#     # draw body and leg, for default values
+#     # draw range of AoA
 
 
 # * Waterfall plot
@@ -125,7 +150,8 @@ def waterfall_plot(fig, ax, X, Y, Z,
                 color='viridis',
                 line_width=2):
     '''
-    Make a waterfall plot
+    Make a waterfall plot.
+    See https://stackoverflow.com/questions/46366461/matplotlib-3d-waterfall-plot-with-colored-heights
     Input:
         fig,ax : matplotlib figure and axes to populate
         Z : n,m numpy array. Must be a 2d array even if only one line should be plotted
@@ -148,9 +174,11 @@ def waterfall_plot(fig, ax, X, Y, Z,
         lc.set_array((Z[j, 1:] + Z[j, :-1])/2)
         lc.set_linewidth(line_width)  # set linewidth a little larger to see properly the colormap variation
         line = ax.add_collection3d(lc, zs=(Y[j, 1:]+Y[j, :-1])/2, zdir='y')  # add line to axes
-
-    fig.colorbar(lc)  # add colorbar, as the normalization is the same for all, it doesent matter which of the lc objects we use
-
+    ax.tick_params(axis='both', which='both', length=0)
+    # divider = make_axes_locatable(ax)
+    # cax = divider.append_axes('top', size="5%", pad=0.05)
+    # fig.colorbar(lc, cax=cax)  # add colorbar, as the normalization is the same for all, it doesent matter which of the lc objects we use
+    fig.colorbar(lc, shrink=0.45)
 
 def get_max_measure(SM_list):
     v_max = 0
