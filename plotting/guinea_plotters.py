@@ -69,7 +69,7 @@ def get_perturbation_indices(trajectories):
 
 def plot_ground_perturbations(ax, trajectories, S_M, grids, p, v_threshold=0.1,
                          col_offset=0.65, draw_ground=True, draw_LC=False,
-                         Q_M=None):
+                         Q_M=None, colormap=None, norm=1):
     '''
     Plot a series of trajectories, centered around level-ground as nominal
     inputs:
@@ -112,6 +112,42 @@ def plot_ground_perturbations(ax, trajectories, S_M, grids, p, v_threshold=0.1,
             # to_index = np.abs(traj.t-traj.t_events[3]).argmin()
             ax.plot(traj.y[0],
                     traj.y[-1], color='black')
+
+    if draw_LC:
+        if idx0 <= 0:
+            print("WARNING: no LC fond.")
+        x_next = trajectories[idx0].y[:,-1]
+        # plot pointmass
+        ax.scatter(x_next[0], x_next[1], s=300, color='black', zorder=2)
+        # plot leg
+        ax.plot([x_next[0], x_next[4]],
+                [x_next[1], x_next[5]], linewidth=3, color='black')
+        if Q_M is not None:
+            # pick out the correct slice
+            s_next = sys.xp2s_y_xdot(x_next, p)
+            s_bin = vibly.digitize_s(s_next, grids['states'])
+            A_slice = np.copy(Q_M[tuple(s_bin) + (slice(None),)])
+            viable_actions = grids['actions'][0][np.nonzero(A_slice)]
+            viable_action_M = A_slice[np.nonzero(A_slice)]
+            color = plt.cm.hsv(viable_action_M)
+            # create an array of foot-points
+            foot_x = np.zeros_like(viable_actions)
+            foot_y = np.zeros_like(viable_actions)
+            for i, a in np.ndenumerate(viable_actions):
+                p['angle_of_attack'] = a
+                xtemp = sys.reset_leg(x_next, p)
+                foot_x[i] = xtemp[4]
+                foot_y[i] = xtemp[5]
+            # now plot each segment
+            n = viable_actions.size
+            s = 2
+            # for i in range(0, n-s, s):
+            cmap = plt.get_cmap("viridis")
+            for i in range(foot_x.size):
+                ax.plot([x_next[0], foot_x[i]],
+                        [x_next[1], foot_y[i]], linewidth=2,
+                        color=cmap(norm(viable_action_M[i])))
+            # ax.plot(xf[0], xf[1], linewidth=2, color=color)
 
 
     plt.axis('equal')
@@ -179,6 +215,7 @@ def waterfall_plot(fig, ax, X, Y, Z,
     # cax = divider.append_axes('top', size="5%", pad=0.05)
     # fig.colorbar(lc, cax=cax)  # add colorbar, as the normalization is the same for all, it doesent matter which of the lc objects we use
     fig.colorbar(lc, shrink=0.45)
+
 
 def get_max_measure(SM_list):
     v_max = 0
