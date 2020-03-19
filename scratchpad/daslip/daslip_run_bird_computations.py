@@ -36,10 +36,10 @@ def compute_viability(x0, p, name, visualise=False):
     p_map.xp2s = model.xp2s_y_xdot
 
     # * set up grids
-    s_grid_height = np.linspace(0.1, 1.4, 131
-    s_grid_velocity = np.linspace(0.5, 7.5, 141)
+    s_grid_height = np.linspace(0.1, 1.4, 21)  # 131)
+    s_grid_velocity = np.linspace(0.5, 7.5, 21)  # 141)
     s_grid = (s_grid_height, s_grid_velocity)
-    a_grid_aoa = np.linspace(10/180*np.pi, 70/180*np.pi, 91)
+    a_grid_aoa = np.linspace(10/180*np.pi, 70/180*np.pi, 31)  # 91)
     a_grid = (a_grid_aoa, )
     # a_grid_amp = np.linspace(0.75, 1.25, 11)
     # a_grid = (a_grid_aoa, a_grid_amp)
