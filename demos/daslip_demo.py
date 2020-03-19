@@ -54,7 +54,13 @@ p = {'mass': 80,                          # kg
      'swing_leg_length_offset' : 0}                 # m (set by calculation) 
 # * Initialization: Slip & Daslip
 
-x0 = np.array([0, 1.00, 5.5, 0, 0, 0, p['actuator_resting_length'], 0, 0, 0])
+x0 = np.array([0, 1.00,  # x, y
+               5.5, 0,  # dx, dy
+               0, 0,  # x_foot, y_foot
+               p['actuator_resting_length'],  # l_da
+               0, 0,  # work (actuator, damper)
+               0])  # ground height
+
 x0 = model.reset_leg(x0, p)
 p['total_energy'] = model.compute_total_energy(x0, p)
 
@@ -101,7 +107,7 @@ for idx, traj in enumerate(trajectories):
 
 springDamperActuatorForces = list()
 for idx,traj in enumerate(trajectories):    
-    sda = model.compute_spring_damper_actuator_force(traj.t,traj.y, p)
+    sda = model.compute_leg_forces(traj.t,traj.y, p)
     #This function is only valid during stance, so zero out all the 
     #entries during the flight phase
     for j in range(sda.shape[1]):
@@ -123,7 +129,7 @@ plt.rc('font', family='serif')
 
 
 figBasic = plt.figure(figsize=(16,9))
-gsBasic = gridspec.GridSpec(2,3)
+gsBasic = gridspec.GridSpec(2, 3)
 
 maxHeight=0
 for idx, traj in enumerate(trajectories):
