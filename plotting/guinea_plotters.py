@@ -15,6 +15,9 @@ import matplotlib.collections as collections
 # rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
 # rc('text', usetex=True)
 matplotlib.rcParams['figure.figsize'] = 5.5, 7
+# make exportable for vector graphics
+matplotlib.rcParams['pdf.fonttype'] = 42
+matplotlib.rcParams['ps.fonttype'] = 42
 
 font = {'size': 8}
 matplotlib.rc('font', **font)
@@ -78,11 +81,14 @@ def plot_ground_perturbations(ax, trajectories, S_M, grids, p, v_threshold=0.1,
     '''
 
     # TODO redo this with trajectories colored by measure
-
+    print(" ")
     # * plot step-ups
     up_cmap = plt.get_cmap("Blues")
     down_cmap = plt.get_cmap("Reds")
     idx0 = -1
+    pert_min = 0
+    pert_max = 0
+    lc_viab = 0
     for idx in range(len(trajectories)):
         traj = trajectories[idx]
         x = traj.y[:, -1]  # ground
@@ -91,45 +97,56 @@ def plot_ground_perturbations(ax, trajectories, S_M, grids, p, v_threshold=0.1,
         s_m = interp_measure(sbin, S_M, grids)
 
         if s_m >= v_threshold:
-            if np.isclose(x[-1], 0):
+            if np.isclose(x[-1], 0):  # limit cycle
                 # print afterwards, so it's on top of other circles
                 idx0 = idx
+                # keep track of max viability at LC
+                lc_viab = s_m
                 continue
             elif x[-1] < 0:
                 col = down_cmap(col_offset-np.abs(x[-1]))
+                zod = 2
+                # keep track of min and max perturbations
+                if x[-1] < pert_min:
+                    pert_min = x[-1]
             elif x[-1] > 0:
                 col = up_cmap(col_offset-np.abs(x[-1]))
-            ax.plot(traj.y[0], traj.y[1], color=col, zorder=1)
+                zod = 1
+                if x[-1] > pert_max:
+                    pert_max = x[-1]
+            ax.plot(traj.y[0], traj.y[1], color=col, linewidth=2, zorder=zod)
             # and plot ground
             td_index = np.abs(traj.t - traj.t_events[1]).argmin()
             to_index = np.abs(traj.t-traj.t_events[3]).argmin()
             ax.plot(traj.y[0, td_index:to_index],
-                    traj.y[-1, td_index:to_index], color=col)
+                    traj.y[-1, td_index:to_index], color=col, linewidth=2)
         if idx0 > 0:
+            zod = 3
             traj = trajectories[idx0]
-            ax.plot(traj.y[0], traj.y[1], color='black')
-            # td_index = np.abs(traj.t - traj.t_events[1]).argmin()
-            # to_index = np.abs(traj.t-traj.t_events[3]).argmin()
-            ax.plot(traj.y[0],
-                    traj.y[-1], color='black')
+            ax.plot(traj.y[0], traj.y[1], linewidth=2.5, color='black', zorder=zod)
+            ax.plot(traj.y[0], traj.y[-1], color='black', zorder=zod)
+
+    print("Min perturbation: " + str(pert_min))
+    print("Max perturbation: " + str(pert_max))
+    print("Viability Measure at Limit Cycle: " + str(lc_viab))
 
     if draw_LC:
         if idx0 <= 0:
             print("WARNING: no LC fond.")
         x_next = trajectories[idx0].y[:,-1]
         # plot pointmass
-        ax.scatter(x_next[0], x_next[1], s=300, color='black', zorder=2)
+        ax.scatter(x_next[0], x_next[1], s=300, color='black', zorder=3)
         # plot leg
         ax.plot([x_next[0], x_next[4]],
-                [x_next[1], x_next[5]], linewidth=3, color='black')
+                [x_next[1], x_next[5]], linewidth=3, color='black', zorder=3)
         if Q_M is not None:
             # pick out the correct slice
             s_next = sys.xp2s_y_xdot(x_next, p)
-            s_bin = vibly.digitize_s(s_next, grids['states'])
-            A_slice = np.copy(Q_M[tuple(s_bin) + (slice(None),)])
+            sbin = vibly.digitize_s(s_next, grids['states'])
+            A_slice = np.copy(Q_M[tuple(sbin) + (slice(None),)])
             viable_actions = grids['actions'][0][np.nonzero(A_slice)]
             viable_action_M = A_slice[np.nonzero(A_slice)]
-            color = plt.cm.hsv(viable_action_M)
+            # color = plt.cm.hsv(viable_action_M)
             # create an array of foot-points
             foot_x = np.zeros_like(viable_actions)
             foot_y = np.zeros_like(viable_actions)
@@ -138,24 +155,26 @@ def plot_ground_perturbations(ax, trajectories, S_M, grids, p, v_threshold=0.1,
                 xtemp = sys.reset_leg(x_next, p)
                 foot_x[i] = xtemp[4]
                 foot_y[i] = xtemp[5]
-            # now plot each segment
-            n = viable_actions.size
-            s = 2
-            # for i in range(0, n-s, s):
             cmap = plt.get_cmap("viridis")
-            for i in range(foot_x.size):
-                ax.plot([x_next[0], foot_x[i]],
-                        [x_next[1], foot_y[i]], linewidth=2,
-                        color=cmap(norm(viable_action_M[i])))
+            color = cmap(norm(interp_measure(sbin, S_M, grids)))
+            ax.plot(foot_x, foot_y, zorder=2, color=color)
+            ax.plot([x_next[0], foot_x[0]], [x_next[1], foot_y[0]], zorder=2, color=color)
+            ax.plot([x_next[0], foot_x[-1]], [x_next[1], foot_y[-1]], zorder=2, color=color)
+            ax.grid=True
+            # now plot each segment
+            # for i in range(foot_x.size):
+            #     ax.plot([x_next[0], foot_x[i]],
+            #             [x_next[1], foot_y[i]], linewidth=2,
+            #             color=cmap(norm(viable_action_M[i])))
             # ax.plot(xf[0], xf[1], linewidth=2, color=color)
 
 
-    plt.axis('equal')
-
+    # plt.axis('equal')
+    # plt.ylim(-0.05, 0.3)
     # add_title(p, prepend='Damping coefficient: ', append=r' $\frac{Ns}{m}') 
     add_title(p)
-    plt.xlabel(r'x position $[m]$')
-    plt.ylabel(r'y position $[m]$')
+    # plt.xlabel(r'x position $[m]$')
+    # plt.ylabel(r'y position $[m]$')
 
 # def draw_model(ax, x0, Q_V, S_M, p, v_threshold=0.0):
 #     # create range of viable foot-positions
@@ -186,8 +205,8 @@ def waterfall_plot(fig, ax, X, Y, Z,
                 color='viridis',
                 line_width=2):
     '''
-    Make a waterfall plot.
-    See https://stackoverflow.com/questions/46366461/matplotlib-3d-waterfall-plot-with-colored-heights
+    Make a waterfall plot. Based on:
+    https://stackoverflow.com/questions/46366461/matplotlib-3d-waterfall-plot-with-colored-heights
     Input:
         fig,ax : matplotlib figure and axes to populate
         Z : n,m numpy array. Must be a 2d array even if only one line should be plotted
