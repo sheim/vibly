@@ -244,8 +244,8 @@ def check_failure(x):
         return True
     if np.isclose(x[1], 0):
         return True
-    if np.less_equal(x[2], 0):  # check for direction reversal
-        return True
+    # if np.less_equal(x[2], 0):  # check for direction reversal
+    #     return True
     # if x[2]>7.5:
     #     return True
     # elif x[1]<0.6:

@@ -36,10 +36,10 @@ def compute_viability(x0, p, name, visualise=False):
     p_map.xp2s = model.xp2s_y_xdot
 
     # * set up grids
-    s_grid_height = np.linspace(0.1, 1.4, 131)
-    s_grid_velocity = np.linspace(0.5, 7.5, 141)
+    s_grid_height = np.linspace(0.25, 1.25, 101)  # 21)
+    s_grid_velocity = np.linspace(2, 12, 111)  # 51)
     s_grid = (s_grid_height, s_grid_velocity)
-    a_grid_aoa = np.linspace(10/180*np.pi, 70/180*np.pi, 31)  # 91)
+    a_grid_aoa = np.linspace(10/180*np.pi, 70/180*np.pi, 61)
     a_grid = (a_grid_aoa, )
     # a_grid_amp = np.linspace(0.75, 1.25, 11)
     # a_grid = (a_grid_aoa, a_grid_amp)
@@ -87,37 +87,27 @@ def compute_viability(x0, p, name, visualise=False):
 
 
 # * Set up parameters for average of all birds
-bird_idx = 1
-gravity = 9.81
-data = np.load('stiffness.npz')
-mass_list = np.array([ 1.3667, 1.31, 1.23, 1.4198, 1.3])  # missing data
-mass = mass_list[bird_idx]
-resting_length = data['l_bird'][bird_idx]
-aTD = data['a_bird'][bird_idx] - np.pi/2
-yApex = data['y_bird'][bird_idx]*resting_length
-vApex = data['v_bird'][bird_idx]*np.sqrt(resting_length*gravity)
-stiffness = data['k_bird'][bird_idx]*mass*gravity/resting_length
 
-p = {'mass': mass,                          # kg
-     'stiffness': stiffness,                 # K : N/m
-     'resting_length': 0.9*resting_length,        # m
-     'gravity': gravity,                     # N/kg
+p = {'mass': 80,                          # kg
+     'stiffness': 7800.0,                 # K : N/m
+     'resting_length': 0.9,        # m
+     'gravity': 9.81,                     # N/kg
      'angle_of_attack': 1/5*np.pi,        # rad
-     'actuator_resting_length': 0.1*resting_length,      # m
+     'actuator_resting_length': 0.1,      # m
      'actuator_force': [],                # * 2 x M matrix of time and force
      'actuator_force_period': 10,         # * s
      'activation_delay': 0.0,  # * a delay for when to start activation
      'activation_amplification': 1.0,
      'constant_normalized_damping': 0.0,          # * s : D/K : [N/m/s]/[N/m]
      'linear_normalized_damping': 0.0,  # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
-     'linear_minimum_normalized_damping': 0.015,    # *   1/A*(kg*N/kg) :
+     'linear_minimum_normalized_damping': 0.05,    # *   1/A*(kg*N/kg) :
      'swing_velocity': 0,   # rad/s (set by calculation)
      'angle_of_attack_offset': 0,        # rad   (set by calculation)
      'swing_extension_velocity': 0,    # m/s
      'swing_leg_length_offset' : 0}                 # m (set by calculation) 
 
-x0 = np.array([0, yApex,    # x_com , y_com
-               vApex, 0,     # vx_com, vy_com
+x0 = np.array([0, 0.95,    # x_com , y_com
+               3.3, 0,     # vx_com, vy_com
                0, 0,         # x_f   , y_f
 	      p['actuator_resting_length'],  # actuator initial length
 		0, 0,  # work actuator, work damper
@@ -126,43 +116,32 @@ x0 = model.reset_leg(x0, p)
 p['total_energy'] = model.compute_total_energy(x0, p)
 
 # * Set up experiment parameters
-# damping_vals = np.around(np.arange(0.01, 0.00000001, -0.0025), decimals=4)
-damping_vals = np.concatenate((np.array([0.001, 0.005]),
-                               np.around(np.arange(0.01, 0.2, 0.01),
-                                         decimals=4)))
+damping_vals = np.around(np.arange(0.005, 0.3, 0.005), decimals=3)
+# damping_vals = np.array([0.5, 0.05])
 
 # * start
 t_total = TicToc()
 t_total.tic()
-name = 'fall'
-legStiffnessSearchWidth = p['stiffness']*0.5
-limit_cycle_options = {'search_initial_state': False,
+name = 'const_human_daslip'
+# legStiffnessSearchWidth = p['stiffness']*0.5
+limit_cycle_options = {'search_initial_state': True,
                         'state_index': 2,
                         'state_search_width': 2.0,
-                        'search_parameter': True,
+                        'search_parameter': False,
                         'parameter_name': 'stiffness',
-                        'parameter_search_width': legStiffnessSearchWidth}
+                        'parameter_search_width': 0}
 
 x0, p = model.create_open_loop_trajectories(x0, p, limit_cycle_options)
-print(p['stiffness'],' N/m :Leg stiffness prior after fitting')
-
-# save parameter fit
-if not os.path.exists(name):
-    os.makedirs(name)
-filename = name+'/'+name+'_parameter_fit'
-
-data2save = {"p": p, "x0": x0,
-             "limit_cycle_options":limit_cycle_options,
-             "damping_vals": damping_vals}
-outfile = open(filename+'.pickle', 'wb')
-pickle.dump(data2save, outfile)
-outfile.close()
+print("forward velocity with LC: "+str(x0[2]))
 
 for damping in damping_vals:
     p['constant_normalized_damping'] = damping
-    # p['linear_normalized_damping'] = damping
+    print("now computing: "+str(damping))
+    # print(p['stiffness'],' N/m :Leg stiffness prior to fitting')
+    # x0, p = model.create_open_loop_trajectories(x0, p, limit_cycle_options)
+    # print(p['stiffness'],' N/m :Leg stiffness prior after fitting')
     p['x0'] = x0.copy()
-    compute_viability(x0, p, name, visualise=False)
+    compute_viability(x0, p, name, visualise=True)
 
 t_total.toc()
 print("time elapsed for one set of damping values: " + str(t_total.elapsed/60))
