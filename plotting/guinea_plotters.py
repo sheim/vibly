@@ -6,6 +6,7 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 # import matplotlib.gridspec as gridspec
+
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import models.daslip as sys
 import viability as vibly  # algorithms for brute-force viability
@@ -71,7 +72,7 @@ def get_perturbation_indices(trajectories):
     return index0, max_up, max_down
 
 def plot_ground_perturbations(ax, trajectories, S_M, grids, p, v_threshold=0.1,
-                         col_offset=0.65, draw_ground=True, draw_LC=False,
+                         col_offset=0.65, col_norm=1.0, draw_ground=True, draw_LC=False,
                          Q_M=None, colormap=None, norm=1):
     '''
     Plot a series of trajectories, centered around level-ground as nominal
@@ -104,13 +105,15 @@ def plot_ground_perturbations(ax, trajectories, S_M, grids, p, v_threshold=0.1,
                 lc_viab = s_m
                 continue
             elif x[-1] < 0:
-                col = down_cmap(col_offset-np.abs(x[-1]))
+                col = down_cmap(col_offset-np.abs(x[-1])/col_norm)
+                # col = down_cmap(np.abs(x[-1])/col_norm)
                 zod = 2
                 # keep track of min and max perturbations
                 if x[-1] < pert_min:
                     pert_min = x[-1]
             elif x[-1] > 0:
-                col = up_cmap(col_offset-np.abs(x[-1]))
+                col = up_cmap(col_offset-np.abs(x[-1])/col_norm)
+                # col = up_cmap(np.abs(x[-1])/col_norm)
                 zod = 1
                 if x[-1] > pert_max:
                     pert_max = x[-1]
@@ -161,27 +164,12 @@ def plot_ground_perturbations(ax, trajectories, S_M, grids, p, v_threshold=0.1,
             ax.plot([x_next[0], foot_x[0]], [x_next[1], foot_y[0]], zorder=2, color=color)
             ax.plot([x_next[0], foot_x[-1]], [x_next[1], foot_y[-1]], zorder=2, color=color)
             ax.grid=True
-            # now plot each segment
-            # for i in range(foot_x.size):
-            #     ax.plot([x_next[0], foot_x[i]],
-            #             [x_next[1], foot_y[i]], linewidth=2,
-            #             color=cmap(norm(viable_action_M[i])))
-            # ax.plot(xf[0], xf[1], linewidth=2, color=color)
 
-
-    # plt.axis('equal')
-    # plt.ylim(-0.05, 0.3)
-    # add_title(p, prepend='Damping coefficient: ', append=r' $\frac{Ns}{m}') 
     add_title(p)
-    # plt.xlabel(r'x position $[m]$')
-    # plt.ylabel(r'y position $[m]$')
 
-# def draw_model(ax, x0, Q_V, S_M, p, v_threshold=0.0):
-#     # create range of viable foot-positions
-
-#     # draw body and leg, for default values
-#     # draw range of AoA
-
+    # plot colorbar
+    # fig.colorbar(matplotlib.cm.ScalarMappable(norm=norm, cmap=up_cmap),
+    #          cax=ax, orientation='horizontal')
 
 # * Waterfall plot
 def compute_measure_postep(data, trajecs, S_M = None):
@@ -245,7 +233,7 @@ def get_max_measure(SM_list):
 
 
 def poincare_plot(fig, ax, data, vmax=1, trajectories=None, min_M = 0.0,
-                  col_offset=0.65):
+                  col_offset=0.65, col_norm=1.0):
 
     grids = data['grids']
     extent = [grids['states'][1][0],
@@ -296,9 +284,9 @@ def poincare_plot(fig, ax, data, vmax=1, trajectories=None, min_M = 0.0,
                     idx0 = 1
                     continue
                 elif xn[-1] < 0:
-                    col = down_cmap(col_offset-np.abs(xn[-1]))
+                    col = down_cmap(col_offset-np.abs(xn[-1])/col_norm)
                 elif xn[-1] > 0:
-                    col = up_cmap(col_offset-np.abs(xn[-1]))
+                    col = up_cmap(col_offset-np.abs(xn[-1])/col_norm)
 
                 ax.scatter(sn[1], sn[0],
                            facecolors='none', edgecolors=col, s=20)
