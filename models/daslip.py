@@ -93,11 +93,11 @@ def step(x0, p, prev_sol=None):
     def stance_dynamics(t, x):
         # stance dynamics
         alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi/2.0
-        spring_damper_actuator_force = compute_leg_forces(t, x, p)
+        spring_damper_actuator_forces = compute_leg_forces(t, x, p)
 
-        spring_force = spring_damper_actuator_force[0]
-        actuator_damping_force = spring_damper_actuator_force[1]
-        actuator_force = spring_damper_actuator_force[2]
+        spring_force = spring_damper_actuator_forces[0]
+        actuator_damping_force = spring_damper_actuator_forces[1]
+        actuator_force = spring_damper_actuator_forces[2]
 
         ldotdot = spring_force/MASS
         xdotdot = -ldotdot*np.sin(alpha)
