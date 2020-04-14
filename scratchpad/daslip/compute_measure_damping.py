@@ -7,6 +7,7 @@ import viability as vibly
 import os
 import pickle
 
+
 def compute_viability(x0, p, name, visualise=False):
 
     # * Solve for nominal open-loop limit-cycle
@@ -36,10 +37,10 @@ def compute_viability(x0, p, name, visualise=False):
 
     # * set up grids for computing the viable set and measure
     # a denser grid will yield more precision, but also require more compute
-    s_grid_height = np.linspace(0.1, 1.4, 131)
-    s_grid_velocity = np.linspace(0.5, 7.5, 141)
+    s_grid_height = np.linspace(0.05, 0.5, 91)
+    s_grid_velocity = np.linspace(0, 10.0, 101)
     s_grid = (s_grid_height, s_grid_velocity)
-    a_grid_aoa = np.linspace(10/180*np.pi, 70/180*np.pi, 91)
+    a_grid_aoa = np.linspace(0/180*np.pi, 90/180*np.pi, 91)
     a_grid = (a_grid_aoa, )
 
     # if you use the representation `sa2xp_amp` (see above), the action grid
@@ -88,13 +89,20 @@ def compute_viability(x0, p, name, visualise=False):
         plt.close()
 
 
+# * load parameters
+infile = open('bird_parameters.pickle', 'rb')
+data = pickle.load(infile)
+infile.close()
+# choose bird fit (out of 5)
+bird_id = 0
+
 # * Set up parameters for average of a single bird
-p = {'mass': 1.31,  # kg
-     'stiffness': 748.7648416462149,  # K : N/m
-     'resting_length': 0.25211325904476056,  # m
+p = {'mass': data['mass'][bird_id],  # kg
+     'stiffness': data['stiffness'][bird_id],  # K : N/m
+     'resting_length': 0.9*data['virtual_leg'][bird_id],  # m
      'gravity': 9.81,  # N/kg
-     'angle_of_attack': 0.5307319798714443,  # rad
-     'actuator_resting_length': 0.02801258433830673,  # m
+     'angle_of_attack': data['aoa'][bird_id],  # rad
+     'actuator_resting_length': 0.1*data['virtual_leg'][bird_id],  # m
      'actuator_force': [],  # * 2 x M matrix of time and force
      'actuator_force_period': 10,  # * s
      'activation_delay': 0.0,  # * a delay for when to start activation
@@ -107,8 +115,8 @@ p = {'mass': 1.31,  # kg
      'swing_extension_velocity': 0,  # m/s
      'swing_leg_length_offset': 0}  # m (set by calculation) 
 
-x0 = np.array([0, 0.249369,  # x_com , y_com
-               3.30643233, 0,  # vx_com, vy_com
+x0 = np.array([0, data['y_apex'][bird_id],  # x_com , y_com
+               data['v_apex'][bird_id], 0,  # vx_com, vy_com
                0, 0,  # foot x, foot y (set below)
                p['actuator_resting_length'],  # actuator initial length
                0, 0,  # work actuator, work damper
