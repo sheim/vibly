@@ -50,6 +50,12 @@ def p_map(x, p):
     sol = integrate.solve_ivp(continuous_dynamics, t_span=[0, MAX_TIME], y0=x,
                               events=ceiling_event)
 
+    # ceiling_event sometime ends integration over CEILING, and sometimes
+    # under. This creates discretization problems with computing viability
+    # so let's manually cap it at the CEILING.
+    if sol.y[:, -1] > CEILING:
+        sol.y[:, -1] = CEILING
+
     # * we return the final
     return sol.y[:, -1], check_failure(sol.y[:, -1], p)
 
