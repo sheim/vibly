@@ -1,9 +1,11 @@
-# compute viability of a system
-
 import itertools as it
 import numpy as np
 
+'''
+Tools for computing the viable set (in state-action space) and viability kernel (in state space) of a dynamical system. Note, all methods appended with `_2D` are specific to 2D systems and deprecated. They are left here since they are a lot easier to read, in case you're interested in understanding what the code is doing.
 
+For all practical use, refer to the N-D versions.
+'''
 def compute_Q_2D(s_grid, a_grid, p_map):
     ''' Compute the transition map of a system with 1D state and 1D action
     NOTES
@@ -143,7 +145,8 @@ def digitize_s(s, s_grid, shape=None, to_bin=True):
         return np.ravel_multi_index(s_idx, shape)
 
 
-def compute_Q_map(grids, p_map, verbose=0, check_grid=False, keep_coords=False):
+def compute_Q_map(grids, p_map, verbose=0, check_grid=False,
+                  keep_coords=False):
     ''' Compute the transition map of a system
     NOTES
     - s_grid and a_grid have to be iterable lists of lists
@@ -180,6 +183,10 @@ def compute_Q_map(grids, p_map, verbose=0, check_grid=False, keep_coords=False):
                 print('.', end=' ')
 
         x, p = p_map.sa2xp(state_action, p_map.p)
+
+        if x[0] == 1.5:
+            if p['thrust'] == 0.55:
+                print('hello')
         x_next, failed = p_map(x, p)
 
         s_next = p_map.xp2s(x_next, p)
@@ -323,26 +330,19 @@ def get_grid_indices(bin_idx, s_grid):
     from a bin index (unraveled), get surrounding grid indices, and also check
     if you're on the grid edge. Returns a list of tuples
     '''
-    dims = len(s_grid)
-    # s_grid_shape = list(map(np.size, s_grid))
-    # s_bin_shape = tuple(dim+1 for dim in s_grid_shape)
-    grid_indices = list()
 
+    # if outside the left-most or right-most side of grid, mark as outside
     for dim_idx, grid in enumerate(s_grid):
-        # if outside the left-most or right-most side of grid, mark as outside
         # TODO handle this nicely, and still return neighboring grid indices
         if bin_idx[dim_idx] == 0:
-            return grid_indices
+            return list()
         elif bin_idx[dim_idx] >= grid.size:
-            return grid_indices
+            return list()
 
-    # unravel
-    base_indices = it.repeat(bin_idx, 2**dims)
-    index_offsets = it.product([0, -1], repeat=2)
-    for base, offset in zip(base_indices, index_offsets):
-        grid_indices.append(tuple(x + y for x, y in zip(base, offset)))
+    # get all neighboring grid coordinates
+    grid_coords = list(it.product(*[(x-1, x) for x in bin_idx]))
 
-    return grid_indices
+    return grid_coords
 
 
 def map_S2Q(Q_map, S_M, s_grid, Q_V=None, Q_on_grid=None):
