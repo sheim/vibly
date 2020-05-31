@@ -2,7 +2,7 @@ import models.daslip as model
 import numpy as np
 import matplotlib.pyplot as plt
 import pickle
-from ttictoc import TicToc
+from ttictoc import tictoc
 import viability as vibly
 import os
 import pickle
@@ -50,13 +50,9 @@ def compute_viability(x0, p, name, visualise=False):
 
     grids = {'states': s_grid, 'actions': a_grid}
 
-    # * compute
-    t = TicToc()
-    t.tic()
     # * compute transition matrix and boolean matrix of failures
     Q_map, Q_F = vibly.parcompute_Q_map(grids, p_map, verbose=1)
-    t.toc()
-    print("time elapsed " + str(t.elapsed/60))
+
     # * compute viable sets
     Q_V, S_V = vibly.compute_QV(Q_map, grids)
     # * compute the measure in state-space
@@ -90,19 +86,19 @@ def compute_viability(x0, p, name, visualise=False):
 
 
 # * load parameters
-infile = open('bird_parameters.pickle', 'rb')
+infile = open('guineafowl_fit.pickle', 'rb')
 data = pickle.load(infile)
 infile.close()
 # choose bird fit (out of 5)
 bird_id = 0
 
 # * Set up parameters for average of a single bird
-p = {'mass': data['mass'][bird_id],  # kg
-     'stiffness': data['stiffness'][bird_id],  # K : N/m
-     'resting_length': 0.9*data['virtual_leg'][bird_id],  # m
+p = {'mass': data[bird_id]['mass'],  # kg
+     'stiffness': 650,  # K : N/m  just a guess, this will be fit
+     'resting_length': 0.9*data[bird_id]['virtual_leg_length'],  # m
      'gravity': 9.81,  # N/kg
-     'angle_of_attack': data['aoa'][bird_id],  # rad
-     'actuator_resting_length': 0.1*data['virtual_leg'][bird_id],  # m
+     'angle_of_attack': data[bird_id]['angle_of_attack'],  # rad
+     'actuator_resting_length': 0.1*data[bird_id]['virtual_leg_length'],  # m
      'actuator_force': [],  # * 2 x M matrix of time and force
      'actuator_force_period': 10,  # * s
      'activation_delay': 0.0,  # * a delay for when to start activation
@@ -115,8 +111,8 @@ p = {'mass': data['mass'][bird_id],  # kg
      'swing_extension_velocity': 0,  # m/s
      'swing_leg_length_offset': 0}  # m (set by calculation) 
 
-x0 = np.array([0, data['y_apex'][bird_id],  # x_com , y_com
-               data['v_apex'][bird_id], 0,  # vx_com, vy_com
+x0 = np.array([0, data[bird_id]['height'],  # x_com , y_com
+               data[bird_id]['velocity'], 0,  # vx_com, vy_com
                0, 0,  # foot x, foot y (set below)
                p['actuator_resting_length'],  # actuator initial length
                0, 0,  # work actuator, work damper
@@ -131,9 +127,8 @@ p['total_energy'] = model.compute_total_energy(x0, p)
 damping_vals = [0.1, ]
 
 # * start computation
-t_total = TicToc()
-t_total.tic()
-name = 'TEST'  # name folder and files to save data
+tictoc.tic()
+name = 'guineafowl'  # name folder and files to save data
 
 # * find spring stiffness that results in limit cycle motion
 legStiffnessSearchWidth = p['stiffness']*0.5
@@ -169,5 +164,5 @@ for damping in damping_vals:
     p['x0'] = x0.copy()
     compute_viability(x0, p, name, visualise=True)
 
-t_total.toc()
-print("time elapsed for one set of damping values: " + str(t_total.elapsed/60))
+time_elapsed = tictoc.toc()
+print("time elapsed for one set of damping values: " + str(time_elapsed/60))
