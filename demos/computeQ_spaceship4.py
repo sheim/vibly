@@ -65,13 +65,13 @@ Q_M = vibly.map_S2Q(Q_map, S_M, s_grid, Q_V=Q_V, Q_on_grid=Q_on_grid)
 ###############################################################################
 # * save data as pickle
 ###############################################################################
-import pickle
-filename = '../data/dynamics/spaceship4_map.pickle'
-data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
-             "Q_M": Q_M, "S_M": S_M, "p": p, "x0": x0}
-outfile = open(filename, 'wb')
-pickle.dump(data2save, outfile)
-outfile.close()
+# import pickle
+# filename = '../data/dynamics/spaceship4_map.pickle'
+# data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
+#              "Q_M": Q_M, "S_M": S_M, "p": p, "x0": x0}
+# outfile = open(filename, 'wb')
+# pickle.dump(data2save, outfile)
+# outfile.close()
 # to load this data, do:
 # infile = open(filename, 'rb')
 # data = pickle.load(infile)

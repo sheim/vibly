@@ -5,28 +5,46 @@ import models.daslip as model
 import viability as vibly
 
 # * First, solve for the operating point to get an open-loop force traj
-# Model parameters for both slip/daslip. Parameters only used by daslip are *
+
 p = {'mass': 80,  # kg
-     'stiffness': 8200.0,  # K : N/m
+     'stiffness': 8200,  # K : N/m  just a guess, this will be fit
      'resting_length': 0.9,  # m
-     'gravity': 9.81,  # m/s^2
+     'gravity': 9.81,  # N/kg
      'angle_of_attack': 1/5*np.pi,  # rad
      'actuator_resting_length': 0.1,  # m
-     'actuator_force': [],  # 2 x M matrix of time and force
-     'actuator_force_period': 10,  # s
-     'activation_delay': 0.0,  # a delay for when to start activation
-     'activation_amplification': 1.0,
-     'constant_normalized_damping': 0.75,  # s : D/K : [N/m/s]/[N/m]
-     'linear_normalized_damping_coefficient': 3.5,  # A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
-     'linear_minimum_normalized_damping': 0.05,  # 1/A*(kg*N/kg) :
-     'swing_leg_norm_angular_velocity':  0,  # [1/s]/[m/s] (omega/(vx/lr))
+     'actuator_force': [],  # * 2 x M matrix of time and force
+     'actuator_force_period': 10,  # * s
+     'activation_delay': 0.0,  # * a delay for when to start activation
+     'activation_amplification': 1.0,  # 1 for no amplification
+     'constant_normalized_damping': 0.75,  # * s : D/K : [N/m/s]/[N/m]
+     'linear_normalized_damping': 3.5,  # * A: s/m : D/F : [N/m/s]/N
+     'linear_minimum_normalized_damping': 0.05,  # for numerical stability)
      'swing_velocity': 0,  # rad/s (set by calculation)
-     'angle_of_attack_offset': 0}  # rad   (set by calculation)
+     'angle_of_attack_offset': 0,  # rad   (set by calculation)
+     'swing_extension_velocity': 0,  # m/s
+     'swing_leg_length_offset': 0}  # m (set by calculation)
 
-x0 = np.array([0, 1.00, 5.5, 0, 0, 0, p['actuator_resting_length'], 0, 0, 0])
+x0 = np.array([0, 1.00,  # x_com , y_com
+               5.5, 0,  # vx_com, vy_com
+               0, 0,  # foot x, foot y (set below)
+               p['actuator_resting_length'],  # actuator initial length
+               0, 0,  # work actuator, work damper
+               0])  # ground height h
+
 x0 = model.reset_leg(x0, p)
 p['total_energy'] = model.compute_total_energy(x0, p)
-x0, p = model.create_open_loop_trajectories(x0, p)
+legStiffnessSearchWidth = p['stiffness']*0.5
+limit_cycle_options = {'search_initial_state': False,
+                       'state_index': 2,  # not used
+                       'state_search_width': 2.0,  # not used
+                       'search_parameter': True,
+                       'parameter_name': 'stiffness',
+                       'parameter_search_width': legStiffnessSearchWidth}
+
+print(p['stiffness'], ' N/m :Leg stiffness prior to fitting')
+x0, p = model.create_open_loop_trajectories(x0, p, limit_cycle_options)
+print(p['stiffness'], ' N/m :Leg stiffness after fitting')
+
 p['x0'] = x0
 # initialize default x0_daslip
 p_map = model.poincare_map
