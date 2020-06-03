@@ -220,7 +220,7 @@ if TRAJ_PLOTS:
                                          Q_M=data_list[idx]['Q_M'],
                                          norm=norm)
         # name = 'trajectories_'+str(idx)
-        # plt.savefig(name, format='eps')
+        plt.xlim(-0.02, 0.75)
         plt.ylim(-0.075, 0.25)
         plt.xlabel(r'x position leg lengths $\ell_0$')
         plt.ylabel(r'y position leg lengths $\ell_0$')
@@ -232,9 +232,9 @@ if TRAJ_PLOTS:
         # ax.yticks(my_yticks)
         # ax.ylabels(my_ytick_labels)
         # plt.show()
-        # rem_string = len('.pickle')
-        # new_filename = set_files[idx][0:len(set_files[idx])-rem_string]+'.pdf'
-        # plt.savefig(new_filename, format='pdf')
+        rem_string = len('.pickle')
+        new_filename = set_files[idx][0:len(set_files[idx])-rem_string]+'.pdf'
+        plt.savefig(new_filename, format='pdf')
         plt.close()
 
 
