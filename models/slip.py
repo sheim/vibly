@@ -279,7 +279,7 @@ def find_limit_cycle(x, p, options):
     # Somewhat hacky, very specific to AoA
     if not feasible(x, p):
         # if we're searching for AOAs, start from a feasible one
-        if p_key_name is 'angle_of_attack':
+        if p_key_name == 'angle_of_attack':
             # starting infeasible
             # assuming we're looking for an aoa
             for aoa in np.linspace(p['angle_of_attack'], np.pi/2, 9):
