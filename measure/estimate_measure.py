@@ -126,7 +126,7 @@ class MeasureEstimation:
                                            noise_var=0.001)
 
         if load and Path(load).exists():
-            gps = np.load(load)
+            gps = np.load(load, allow_pickle=True)
 
             gp_prior.update_model(False)  # do not call the underlying expensive algebra on load
             gp_prior.initialize_parameter()  # Initialize the parameters (connect the parameters up)
