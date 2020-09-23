@@ -1,11 +1,11 @@
-name: slippy
+name: vibly
 channels:
   - defaults
   - conda-forge
 dependencies:
-  - python=3.6.8
-  - numpy=1.16.2
-  - scipy=1.2.1
+  - python=3.8
+  - numpy=1.18.4
+  - scipy=1.5.1
   - GPy=1.9.8
   - matplotlib=3.0.3
   - joblib

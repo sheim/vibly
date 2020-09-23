@@ -1,6 +1,6 @@
-dynamics_model_path = './data/dynamics/'
-gp_model_path = './data/gp_model/'
-results_path = './results/'
+dynamics_model_path = '../../data/dynamics/'
+gp_model_path = '../../data/gp_model/'
+results_path = '../../results/'
 
 
 # import demos.measure_learning.hovership_default as experiment
