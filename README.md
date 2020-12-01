@@ -49,17 +49,18 @@ The `viability` package contains:
 - `project_Q2S`: Apply an operator (default is an orthogonal projection) from state-action space to state space. Used to compute measures.
 - `map_S2Q`: maps values of each state to state-action space. Used for mapping measures from state space to state-action space.
 
+## Reproduce CoRL safe learning study <a name="learning"/>
+
+You will need to first regenerate the ground-truth data used for comparison, by running `demos/computeQ_hovership.py` and `demos/computeQ_slip.py`.  
+Then, select and run an experiment by running `run_learning_examples.py` in `demos/measure_learning/`. The experiment details, including algorithm hyper-parameters and initialization, are defined in the experiment file, e.g. `demos/measure_learning/hovership_default.py`.  
+The learning algorithm is split between `measure/active_sampling`, which includes sampling strategy, and `measure/estimate_measure`, which handles everything dealing with the measure in different spaces. If you're looking to use the measure for a different learning approach, you probably want to look into the `active_sampling.py` file.
+
+## Reproduce RSBL damping study <a name="damping"/>
+The code to reproduce the results from the paper are in `/demos/damping_study/`. You can run `compute_measure_damping.py`, which will generate all the data needed; however, this can take a _long_ time (~20 hours on a 24-core desktop). If you just want to inspect the results, all the pre-computed data (and code) can be downloaded from [Dryad](https://doi.org/10.5061/dryad.44j0zpcbj). We encourage you to use this code, which may have improvements/bugfixes, and simply copy/paste the dataset from `data/guineafowl` into the `data` folder.
+
 ## Create your own dynamics
 
 You can easily add your own models in the `models` package. The `viability` code does expect a few helper functions which need to be implemented as well. We recommend using the `hovership.py` example as a template, as it is simple and heavily commented. For examples of simulating a more complex system, see the `slip.py` model.
-
-## Use for Safe Learning <a name="learning"/>
-
-Select and run an experiment by running `run_learning_examples.py` in `demos/measure_learning/`. The experiment details, including algorithm hyper-parameters and initialization, are defined in the experiment file, e.g. `demos/measure_learning/hovership_default.py`.  
-The learning algorithm is split between `measure/active_sampling`, which includes sampling strategy, and `measure/estimate_measure`, which handles everything dealing with the measure in different spaces. If you're looking to use the measure for a different learning approach, you probably want to look into the `active_sampling.py` file.
-
-## Reproduce damping study <a name="damping"/>
-The code to reproduce the results from the paper are in `/demos/damping_study/`. You can run `compute_measure_damping.py`, which will generate all the data needed; however, this can take a _long_ time (~20 hours on a 24-core desktop). If you just want to inspect the results, all the pre-computed data (and code) can be downloaded from [Dryad](https://doi.org/10.5061/dryad.44j0zpcbj). We encourage you to use this code, which may have improvements/bugfixes, and simply copy/paste the dataset from `data/guineafowl` into the `data` folder.
 
 ## Contact
 
