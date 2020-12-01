@@ -13,6 +13,10 @@ import os
 # * adjust the number of damping values, and in particular the grid sizes.
 
 if __name__ == '__main__':
+
+    print("WARNING: Computing this data from scratch can take a LONG time (~20 hours on a 24-core machine). We have pre-computed the data for the Guinea Fowl parameter fit (used in 'A Little Damping goes a Long Way' in RSBL), which can be found here: https://doi.org/10.5061/dryad.44j0zpcbj.")
+    print("We encourage you to use this code, which may have improvements/bugfixes, and simply copy/paste the dataset from `data/guineafowl` into the `data` folder.")
+
     def compute_viability(x0, p, name, visualise=False):
 
         # * Solve for nominal open-loop limit-cycle

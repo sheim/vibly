@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 import models.daslip as sys
 import viability as vibly  # algorithms for brute-force viability
-import seaborn as sns
 import matplotlib.collections as collections
 
 # rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
@@ -22,7 +21,10 @@ matplotlib.rcParams['ps.fonttype'] = 42
 
 font = {'size': 8}
 matplotlib.rc('font', **font)
-sns.set_style('dark')
+
+
+# import seaborn as sns
+# sns.set_style('dark')
 
 
 def add_title(p, prepend='', append=''):

@@ -8,23 +8,17 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import models.daslip as model
 import viability as vibly  # algorithms for brute-force viability
-import seaborn as sns
 from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import rcParams
 from scipy.signal import savgol_filter
-
 import plotting.guinea_plotters as daplot
-
 import pickle
 
-# rc('font', **{'family':'sans-serif','sans-serif':['Helvetica']})
-# ## for Palatino and other serif fonts use:
-# #rc('font',**{'family':'serif','serif':['Palatino']})
-# rc('text', usetex=True)
-
+# install and uncomment seaborn for pretty plots.
+# import seaborn as sns
 # sns.set_style('dark', {'axes.grid': False})
-sns.set_style("whitegrid", {'axes.grid' : False})
-sns.set_context("paper", font_scale=2.5)
+# sns.set_style("whitegrid", {'axes.grid' : False})
+# sns.set_context("paper", font_scale=2.5)
 
 
 # * Load and partially parse data
@@ -75,13 +69,18 @@ traj_files = ['../../data/guineafowl/guineafowl_0.0010_trajs.pickle',
 
 data_list = list()
 trajec_list = list()
-for file_1, file_2 in zip(set_files, traj_files):
-    infile_1 = open(file_1, 'rb')
-    infile_2 = open(file_2, 'rb')
-    data_list.append(pickle.load(infile_1))
-    trajec_list.append(pickle.load(infile_2)['trajectories'])
-    infile_1.close()
-    infile_2.close()
+try:
+    for file_1, file_2 in zip(set_files, traj_files):
+        infile_1 = open(file_1, 'rb')
+        infile_2 = open(file_2, 'rb')
+        data_list.append(pickle.load(infile_1))
+        trajec_list.append(pickle.load(infile_2)['trajectories'])
+        infile_1.close()
+        infile_2.close()
+except FileNotFoundError:
+    print("ERROR: data not found.")
+    print("Make sure the paths to the files is correct (relative to where you're running the code from), and that the files exist.")
+    print("If you haven't computed files yourself (which takes a LONG time), you can download them from: https://doi.org/10.5061/dryad.44j0zpcbj. We encourage you to use this code, which may have improvements/bugfixes, and simply copy/paste the dataset from `data/guineafowl` into the `data` folder.")
 
 # * Flags for which plots to generate
 
