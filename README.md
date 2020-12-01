@@ -1,12 +1,12 @@
 # Vibly: viability in state-action space
 
-A Python framework for working with viable sets in state-action space, and can be used for _safe learning_ and for evaluating the effect of morphology on robustness and stability. This code accompanies the following papers:
+A Python framework for working with viable sets in state-action space, learning safety constraints, and for evaluating the effect of morphology on robustness and stability. This code accompanies the following papers:
 
-1. [**A Learnable Safety Measure**](https://arxiv.org/abs/1910.02835) Steve Heim, Alexander von Rohr, Sebastian Trimpe, Alexander Badri-Spröwitz, _Conference on Robot Learning_ 2019. Paper-specific examples in `demos/measure_learning/`.
+1. [**A Learnable Safety Measure**](https://arxiv.org/abs/1910.02835) Steve Heim, Alexander von Rohr, Sebastian Trimpe, Alexander Badri-Spröwitz, _Conference on Robot Learning_ 2019. Paper-specific examples in `demos/measure_learning/`. [Code examples](#learning)
 
 2. [**Beyond Basins of Attraction: Quantifying Robustness of Natural Dynamics**](https://arxiv.org/abs/1806.08081) Steve Heim and Alexander Badri-Spröwitz _IEEE Transaction on Robotics_ 2019. Note: This code implements the core algorithm for the paper, but does not reproduce all results and figures. The Arxiv version contains fewer typos and is recommended.
 
-3. [**A Little Damping Goes a Long Way: a simulation study of how damping influences task-level stability in running**](https://royalsocietypublishing.org/doi/10.1098/rsbl.2020.0467) Steve Heim, Matthew Millard, Charlotte Le Mouel, Alexander Badri-Spröwitz _Royal Society Biology Letters_ 2020. Paper-specific examples in `demos/damping_study/`.
+3. [**A Little Damping Goes a Long Way: a simulation study of how damping influences task-level stability in running**](https://royalsocietypublishing.org/doi/10.1098/rsbl.2020.0467) Steve Heim, Matthew Millard, Charlotte Le Mouel, Alexander Badri-Spröwitz _Royal Society Biology Letters_ 2020. Paper-specific examples in `demos/damping_study/`. [Code examples](#damping)
 
 <!-- ## What is viability in state-action space?
 
@@ -53,10 +53,13 @@ The `viability` package contains:
 
 You can easily add your own models in the `models` package. The `viability` code does expect a few helper functions which need to be implemented as well. We recommend using the `hovership.py` example as a template, as it is simple and heavily commented. For examples of simulating a more complex system, see the `slip.py` model.
 
-## Use for Safe Learning
+## Use for Safe Learning <a name="learning"/>
 
 Select and run an experiment by running `run_learning_examples.py` in `demos/measure_learning/`. The experiment details, including algorithm hyper-parameters and initialization, are defined in the experiment file, e.g. `demos/measure_learning/hovership_default.py`.  
 The learning algorithm is split between `measure/active_sampling`, which includes sampling strategy, and `measure/estimate_measure`, which handles everything dealing with the measure in different spaces. If you're looking to use the measure for a different learning approach, you probably want to look into the `active_sampling.py` file.
+
+## Reproduce damping study <a name="damping"/>
+The code to reproduce the results from the paper are in `/demos/damping_study/`. You can run `compute_measure_damping.py`, which will generate all the data needed; however, this can take a _long_ time (~20 hours on a 24-core desktop). If you just want to inspect the results, all the pre-computed data (and code) can be downloaded from [Dryad](https://doi.org/10.5061/dryad.44j0zpcbj). We encourage you to use this code, which may have improvements/bugfixes, and simply copy/paste the dataset from `data/guineafowl` into the `data` folder.
 
 ## Contact
 
