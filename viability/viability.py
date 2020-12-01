@@ -184,9 +184,6 @@ def compute_Q_map(grids, p_map, verbose=0, check_grid=False,
 
         x, p = p_map.sa2xp(state_action, p_map.p)
 
-        if x[0] == 1.5:
-            if p['thrust'] == 0.55:
-                print('hello')
         x_next, failed = p_map(x, p)
 
         s_next = p_map.xp2s(x_next, p)

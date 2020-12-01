@@ -64,10 +64,20 @@ if __name__ == '__main__':
     # * save data as pickle
     ###########################################################################
     import pickle
-    filename = '../data/dynamics/hover_map.pickle'
+    import os
+
+    filename = 'hover_map.pickle'
+    # if we are in the vibly root folder:
+    if os.path.exists('data'):
+        path_to_file = 'data/dynamics/'
+    else:  # else we assume this is being run from the /demos folder.
+        path_to_file = '../data/dynamics/'
+    if not os.path.exists(path_to_file):
+        os.makedirs(path_to_file)
+
     data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
                 "Q_M": Q_M, "S_M": S_M, "p": p, "x0": x0}
-    outfile = open(filename, 'wb')
+    outfile = open(path_to_file+filename, 'wb')
     pickle.dump(data2save, outfile)
     outfile.close()
     # to load this data, do:

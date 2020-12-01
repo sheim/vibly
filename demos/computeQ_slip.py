@@ -30,23 +30,32 @@ if __name__ == '__main__':
     Q_M = vibly.map_S2Q(Q_map, S_M, s_grid, Q_V=Q_V)
 
     ###########################################################################
-    # save data as pickle
+    # * save data as pickle
     ###########################################################################
-    # import pickle
+    import pickle
+    import os
 
-    # filename = '../data/dynamics/slip_map' + '.pickle'
-    # data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
-    #              "Q_M": Q_M, "S_M": S_M, "p": p, "x0": x0}
-    # outfile = open(filename, 'wb')
-    # pickle.dump(data2save, outfile)
-    # outfile.close()
+    filename = 'slip_map.pickle'
+
+    if os.path.exists('data'):  # if we are in the vibly root folder:
+        path_to_file = 'data/dynamics/'
+    else:  # else we assume this is being run from the /demos folder.
+        path_to_file = '../data/dynamics/'
+    if not os.path.exists(path_to_file):
+        os.makedirs(path_to_file)
+
+    data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
+                "Q_M": Q_M, "S_M": S_M, "p": p, "x0": x0}
+    outfile = open(path_to_file+filename, 'wb')
+    pickle.dump(data2save, outfile)
+    outfile.close()
     # to load this data, do:
     # infile = open(filename, 'rb')
     # data = pickle.load(infile)
     # infile.close()
 
     ###########################################################################
-    # basic visualization
+    # * basic visualization
     ###########################################################################
 
     plt.imshow(Q_map, origin='lower')
