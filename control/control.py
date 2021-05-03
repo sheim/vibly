@@ -54,7 +54,7 @@ def Q_value_iteration(Q_map, grids, reward_functions, gamma,
     a_grid = grids['actions']
     n_states = len(s_grid)
 
-    for it in range(max_iter):
+    for iteration in range(max_iter):
 
         # iterate over each q
         max_change = 0.0  # for stopping
@@ -71,20 +71,18 @@ def Q_value_iteration(Q_map, grids, reward_functions, gamma,
             # if reward >= 0:
                 # print("hello")
             grid_indices = get_grid_indices(bin_idx, s_grid)
-            if not grid_indices:  # ! HACK: this only happens at edges.
-                print("grid empty, bad thing happened with bin ", bin_idx)
             # average bin value by neighboring q-values from grid
             bin_value = 0.0
             for g in grid_indices:
                 bin_value += Q_values[g].max()/len(grid_indices)
 
-            # keep track fo changes, for stopping condition
+            # keep track fo changes, for stopping condit    ion
             diff = np.abs(Q_values[qdx] - reward - gamma*bin_value)
             if (diff > max_change):
                 max_change = diff
             Q_values[qdx] = reward + gamma*bin_value
         if max_change < stopping_threshold:
-            print("Stopped early after ", it, " iterations.")
+            print("Stopped early after ", iteration, " iterations.")
             break
     print("max change in value: ", max_change)
     return Q_values
