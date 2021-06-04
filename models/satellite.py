@@ -53,7 +53,7 @@ def check_failure(x, p):
     '''
     Check if a state is in the failure set.
     '''
-    if x[0] > p['radio_range']:  # out of comms range
+    if x[0] >= p['radio_range']:  # out of comms range
         # print("satellite lost")
         return True
     elif x[0] <= p['radius']: # earth radius  # hits the ground

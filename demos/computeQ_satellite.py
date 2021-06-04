@@ -5,8 +5,8 @@ from models.satellite import p_map
 import viability as vibly  # algorithms for brute-force viability
 from ttictoc import tictoc
 
-# * here we choose the parameters to use
-# * we also put in a place-holder action (thrust)
+# ! for detailed comments, see `computeQ_hovership.py`
+
 if __name__ == '__main__':
     # * Planet Make Believe
     p = {'n_states': 2,
@@ -21,40 +21,28 @@ if __name__ == '__main__':
          }
     x0 =np.array([9.5, 0.0])
 
-    # * For convenience, helper functions, a default parameter dict and initial
-    # * condition are attached to the transition map.
+    # * standard helper functions
     p_map.p = p
     p_map.x = x0
     p_map.sa2xp = sys.sa2xp
     p_map.xp2s = sys.xp2s
 
-    # * determine the bounds and resolution of your grids
-    # * note, the s_grid is a tuple of grids, such that each dimension can have
-    # * different resolution, and we do not need to initialize the entire array
-    # s_grid = (np.linspace(1.0, 15.0 , 281), np.linspace(-5.0, 7.0, 241))
-    # a_grid = (np.linspace(-1, 1, 101),)
-
-    # ! test grids
-    # s_grid = (np.linspace(0.0, 16.0 , 21), np.linspace(-5.0, 7.0, 21))
-    # a_grid = (np.linspace(-1, 1, 3),)
+    # * grid used for TAC submission
+    s_grid = (np.linspace(0.5, 15.5 , 301), np.linspace(-5.0, 7.0, 241))
+    a_grid = (np.linspace(-1, 1, 11),)
 
     grids = {'states': s_grid, 'actions': a_grid}
 
     tictoc.tic()
-    Q_map, Q_F, Q_coords = vibly.parcompute_Q_map(grids, p_map, verbose=1, keep_coords=True)
+    Q_map, Q_F, Q_coords = vibly.parcompute_Q_mapC(grids, p_map, verbose=1, check_grid=False, keep_coords=True)
     # Q_map, Q_F, Q_on_grid = vibly.compute_Q_map(grids, p_map, check_grid=True)
 
     # * compute_QV computes the viable set and viability kernel
-    Q_V, S_V = vibly.compute_QV(Q_map, grids, ~Q_F)
-
-    # * project_Q2S takens a projection of the viable set onto state-space
-    # * for the computing the measure, you can use either `np.mean` or `np.sum`
-    # * as the projection operator
+    Q_V, S_V = vibly.compute_QV(Q_map, grids, ~Q_F,
+                        Q_on_grid=np.ones(Q_map.shape, dtype=bool))
+    # * compute measures (not necessary for TAC), but usedful as ground truth
     S_M = vibly.project_Q2S(Q_V, grids, proj_opt=np.mean)
-    # * map_S2Q maps the measure back into state-action space using the gridded
-    # * transition map
     Q_M = vibly.map_S2Q(Q_map, S_M, s_grid, Q_V=Q_V)
-
     time_elapsed = tictoc.toc()
     print("time elapsed (minutes): "
           + str(time_elapsed/60.0))
@@ -65,7 +53,7 @@ if __name__ == '__main__':
     import pickle
     import os
 
-    filename = 'test_satellite.pickle'
+    filename = 'closed_satellite11.pickle'
     # if we are in the vibly root folder:
     if os.path.exists('data'):
         path_to_file = 'data/dynamics/'
@@ -92,7 +80,4 @@ if __name__ == '__main__':
     ax = fig.add_subplot(111)
     ax.imshow(S_M, origin='lower', extent=extent, aspect='auto',
               interpolation='none', cmap='viridis')
-    # plt.imshow(np.transpose(S_M), origin='lower')  # visualize the S-safety measure
     plt.show()
-    # plt.imshow(Q_V) # visualize the viable set
-    # plt.show()
