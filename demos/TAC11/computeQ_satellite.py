@@ -57,8 +57,8 @@ if __name__ == '__main__':
     # if we are in the vibly root folder:
     if os.path.exists('data'):
         path_to_file = 'data/dynamics/'
-    else:  # else we assume this is being run from the /demos folder.
-        path_to_file = '../data/dynamics/'
+    else:  # else we assume this is being run from the /demos/TAC11 folder.
+        path_to_file = '../../data/dynamics/'
     if not os.path.exists(path_to_file):
         os.makedirs(path_to_file)
 
