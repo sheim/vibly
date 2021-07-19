@@ -1,38 +1,5 @@
 import numpy as np
-import itertools as it
-import viability as vibly
-
-def get_grid_indices(bin_idx, s_grid):
-    '''
-    from a bin index (unraveled), get surrounding grid indices, and also check
-    if you're on the grid edge. Returns a list of tuples
-    '''
-
-    # if outside the left-most or right-most side of grid, mark as outside
-    # for dim_idx, grid in enumerate(s_grid):
-    #     # TODO handle this nicely, and still return neighboring grid indices
-    #     if bin_idx[dim_idx] == 0:
-    #         return list()
-    #     elif bin_idx[dim_idx] >= grid.size:
-    #         return list()
-
-    # get all neighboring grid coordinates
-    # grid_coords = list(it.product(*[(x-1, x) for x in bin_idx]))
-    # keepers = list()
-    # for coord in grid_coords:
-    #     for idx, x in np.ndenumerate(coord):
-    #         if x<0 or x>s_grid[idx].size:
-    #             keepers.append(coord)
-    grid_coords = list()
-    for neighbor in it.product(*[(x-1, x) for x in bin_idx]):
-        # check if neighbor is out of bounds
-        for idx, x in enumerate(neighbor):
-            if x<0 or x>=s_grid[idx].size:
-                break
-        else:  # if for loop completes
-            grid_coords.append(neighbor)
-
-    return grid_coords
+from viability import get_grid_indices, project_Q2S
 
 def Q_value_iteration(Q_map, grids, reward_functions, gamma, Q_on_grid=None,
                       stopping_threshold=1e-5, max_iter=1000, output_R=False,
@@ -113,7 +80,7 @@ def Q_value_iteration(Q_map, grids, reward_functions, gamma, Q_on_grid=None,
         # iterate over each q
         for iteration in range(max_iter):
             max_change = 0.0  # for stopping
-            X_val = vibly.project_Q2S(Q_values, grids, proj_opt=np.max)
+            X_val = project_Q2S(Q_values, grids, proj_opt=np.max)
             X_val = X_val.flatten()
             for qdx, next_s in np.ndenumerate(Q_map):
                 # average bin value by neighboring q-values from grid
