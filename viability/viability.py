@@ -324,20 +324,18 @@ def is_outside(s, s_grid, S_V, already_binned=True, on_grid=False):
 
 def get_grid_indices(bin_idx, s_grid):
     '''
-    from a bin index (unraveled), get surrounding grid indices, and also check
-    if you're on the grid edge. Returns a list of tuples
+    from a bin index (unraveled), get surrounding grid indices. Returns a list
+    of tuples.
     '''
 
-    # if outside the left-most or right-most side of grid, mark as outside
-    for dim_idx, grid in enumerate(s_grid):
-        # TODO handle this nicely, and still return neighboring grid indices
-        if bin_idx[dim_idx] == 0:
-            return list()
-        elif bin_idx[dim_idx] >= grid.size:
-            return list()
-
-    # get all neighboring grid coordinates
-    grid_coords = list(it.product(*[(x-1, x) for x in bin_idx]))
+    grid_coords = list()
+    for neighbor in it.product(*[(x-1, x) for x in bin_idx]):
+        # check if neighbor is out of bounds
+        for idx, x in enumerate(neighbor):
+            if x<0 or x>=s_grid[idx].size:
+                break
+        else:  # if for loop completes (not out of bounds)
+            grid_coords.append(neighbor)
 
     return grid_coords
 
