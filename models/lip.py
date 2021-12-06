@@ -28,56 +28,55 @@ def p_map(x, p):
     # HEIGHT = p['height']
 
     # * analytical solution
-
-    # v1_squared = v0**2 - Xst**2 + 2*v0*Xst + 2*v0*Xst*np.sinh(Tst)
-    # if v1_squared<0:  # moved backwards
-    #     return x, True
-    # elif v0*np.sinh(Tst) >= p['max_step']:  # stance leg hits limit
-    #     print("stretching stance leg")
-    #     return x, True
-    # elif v0*np.sinh(Tst) <= Xst - p['max_step']:  # next step too far
-    #     print("next step too far")
-    #     return x, True
-    # elif v0*np.sinh(Tst) >= Xst:  # always step ahead of CoG
-    #     print("stepping backwards")
-    #     return x, True
-    # else:
-    #     return np.sqrt(v1_squared), False
-    # TODO constraint on velocity at step transition... to make sure you actually reach the next mid-stance...?
+    v1_squared = v0**2 - Xst**2 + 2*v0*Xst + 2*v0*Xst*np.sinh(Tst)
+    if v1_squared<0:  # does not reach next midstance
+        return x, True
+    elif v0*np.sinh(Tst) >= p['max_step']:  # stance leg hits limit
+        # print("stretching stance leg")
+        return x, True
+    elif v0*np.sinh(Tst) <= Xst - p['max_step']:  # next step too far
+        # print("next step too far")
+        return x, True
+    elif v0*np.sinh(Tst) >= Xst:  # always step ahead of CoG
+        # print("stepping backwards")
+        return x, True
+    else:
+        return np.sqrt(v1_squared), False
+    # TODO constraint on velocity at step transition... to make sure you actually reach the next mid-stance...? implicitly included in checking that v1_squared is non-negative
 
 
     # * Numerical implementation
-    def continuous_dynamics(t, x):
-        return np.array(x[1], x[0])
+    # def continuous_dynamics(t, x):
+    #     return np.array(x[1], x[0])
 
-    # simulate till touch-down
-    x0 = x.copy()
-    dt = 0.01
-    for t in np.arange(start=0, stop=Tst, step=dt):
-        x0 += dt*x0[::-1]  # x0[0] += x0[1], x0[1] += x0[0]
+    # # simulate till touch-down
+    # x0 = x.copy()
+    # dt = 0.01
+    # for t in np.arange(start=0, stop=Tst, step=dt):
+    #     x0 += dt*x0[::-1]  # x0[0] += x0[1], x0[1] += x0[0]
 
-    # check constraints
-    if x0[0] >= p['max_step']: # stance leg over-stretched
-        return x, True
-    elif x0[0] >= Xst:  # stepping backwards
-        return x, True
-    elif Xst - x0[0] >= p['max_step']:  # trying to step too far
-        return x, True
+    # # check constraints
+    # if x0[0] >= p['max_step']: # stance leg over-stretched
+    #     return x, True
+    # elif x0[0] >= Xst:  # stepping backwards
+    #     return x, True
+    # elif Xst - x0[0] >= p['max_step']:  # trying to step too far
+    #     return x, True
 
-    # coordinate-switch
-    x0[0] = x0[0] - Xst
+    # # coordinate-switch
+    # x0[0] = x0[0] - Xst
 
-    # simulate till hip reaches stance-foot
-    dt = 0.0001 # HACK do proper crossing event
-    for t in np.arange(start=0, stop=5.0, step=dt):
-        x0 += dt*x0[::-1]  # x0[0] += x0[1], x0[1] += x0[0]
-        if x0[0]>=0.0:
-            # print("REACHED")
-            break
-    else:  # did not reach mid-stance for toooo long
-        return x, True
+    # # simulate till hip reaches stance-foot
+    # dt = 0.0001 # HACK do proper crossing event
+    # for t in np.arange(start=0, stop=5.0, step=dt):
+    #     x0 += dt*x0[::-1]  # x0[0] += x0[1], x0[1] += x0[0]
+    #     if x0[0]>=0.0:
+    #         # print("REACHED")
+    #         break
+    # else:  # did not reach mid-stance for toooo long
+    #     return x, True
     
-    return x, False
+    # return x, False
 
 
 # def check_failure(x, p):

@@ -1,6 +1,6 @@
 numpy==1.18.4
 scipy==1.5.1
-matplotlib==3.0.3
+matplotlib==3.4.2
 joblib
 ttictoc
 # GPy==1.9.8

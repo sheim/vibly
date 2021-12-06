@@ -32,9 +32,9 @@ if __name__ == '__main__':
     # s_grid = (np.linspace(1.0, 5., 31),) # 151),)
     # a_grid = (np.linspace(0.1, 5., 26), # 251),  # timing
     #           np.linspace(0.1, 1.5, 16)) # 151))  # location
-    s_grid = (np.linspace(0.0, 0.8, 41),)
-    a_grid = (np.linspace(0.0, 5, 51),  # timing
-              np.linspace(0.0, 1.5, 76))  # location
+    s_grid = (np.linspace(0.0, 1.5, 301),)
+    a_grid = (np.linspace(0.0, 5.5, 551),  # timing
+              np.linspace(0.0, 2, 401))  # location
 
     # * for convenience, both grids are placed in a dictionary
     grids = {'states': s_grid, 'actions': a_grid}
