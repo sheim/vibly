@@ -8,7 +8,8 @@ import matplotlib.gridspec as gridspec
 from matplotlib.colors import ListedColormap, BoundaryNorm
 from matplotlib import rc
 rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
-rc('text', usetex=True)
+# set to true for nicer plots. Defaults to false for compatability
+rc('text', usetex=False)
 matplotlib.rcParams['figure.figsize'] = 5.5, 7
 
 font = {'size': 8}

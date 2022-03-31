@@ -6,7 +6,7 @@ p = {'mass': 1.36,  # 80.0,
      'stiffness':  600.3,  # 8200.0,
      'resting_length': 0.222,
      'gravity': 9.81,
-     'angle_of_attack': 0.5452,
+     'angle_of_attack': 0.7,
      'actuator_resting_length': 0.0}  # offset of CoG to leg-start. Unimoprtant
 
 x0 = np.array([0,  # x position: forwards
@@ -19,8 +19,8 @@ x0 = np.array([0,  # x position: forwards
 x0 = slip.reset_leg(x0, p)
 p['total_energy'] = slip.compute_total_energy(x0, p)
 sol = slip.step(x0, p)
-import plotting.animation
-plotting.animation.animation_visualisation(sol)
+# import plotting.animation  # ! bugged!
+# plotting.animation.animation_visualisation(sol)
 
 # * The arguments you can pass to the function are:
 # slow = 10       		: scales the animation relative to real time, default 10

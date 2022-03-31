@@ -8,13 +8,13 @@ colors = ['k', 'b', 'g']
 ## sol.t 		: series of time-points at which the solution was calculated
 ## sol.y 		: simulation results, size 6 x times
 ## sol.t_events	: list of the times of 7 events:
-# - fall during flight
-# - touchdown
-# - fall during stance
-# - lift-off
-# - reversal during stance
-# - apex during flight
-# - fall during flight
+# - 0: fall during flight
+# - 1: touchdown
+# - 2: fall during stance
+# - 3: lift-off
+# - 4: reversal during stance
+# - 5: fall during flight
+# - 6: apex during flight
 ### If the event did not occur than the array is empty.
 
 def com_visualisation(sol, leg_visibility=0.5, colors=colors, size=100, Ground=False):
@@ -85,17 +85,17 @@ def com_visualisation(sol, leg_visibility=0.5, colors=colors, size=100, Ground=F
 					color = colors[2], alpha = leg_visibility)
 
 			### Flight phase
-			if len(t_events[5]) == 0: # no apex
+			if len(t_events[6]) == 0: # no apex
 				## Time of failure
-				if len(t_events[6]) == 0: # no fall
+				if len(t_events[5]) == 0: # no fall
 					print('No apex but no fall during flight')
 				else:
-					failure = t_events[6][0]
+					failure = t_events[5][0]
 					fail_index = np.argmax(times > failure)
 					plt.plot(x_com[lift_index-1:fail_index],y_com[lift_index-1:fail_index], color = colors[2])
 					plt.scatter(x_com[fail_index -1],y_com[fail_index-1], color = 'r', s = size)
 			else:
-				apex = t_events[5][0]
+				apex = t_events[6][0]
 				if times[-1] > apex:
 					apex_index = np.argmax(times > apex)
 				else:
@@ -126,9 +126,9 @@ def full_visualisation(sol, colors = colors, foot = False):
 	t_events = sol.t_events
 	labels = ['touchdown','liftoff','apex']
 	# If the trial was not a failure:
-	if len(t_events[1]) > 0 and len(t_events[3]) > 0 and len(t_events[5]) > 0:
+	if len(t_events[1]) > 0 and len(t_events[3]) > 0 and len(t_events[6]) > 0:
 
-		events 	= [t_events[1][0],t_events[3][0],t_events[5][0]]
+		events 	= [t_events[1][0],t_events[3][0],t_events[6][0]]
 		indices = [0]
 		for e in range(3):
 			indices.append(np.argmax(times >= events[e]))

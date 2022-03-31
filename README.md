@@ -13,7 +13,7 @@ A Python framework for working with viable sets in state-action space, learning 
 A dynamical system is in a _viable_ state if there exist control inputs that allow it to avoid a set of _failure states_ forever. The _viability kernel_ is the set of all viable states. We extend this notion into state-action space, and define sets of viability-maintaining state-action pairs, or _viable sets_, which allows certain insights. -->
 
 ## Installation
-We recommend using a virtual environment. Note, `GPy` is only required for the safe learning examples, and can be safely removed from the requirements. To install from your terminal with
+We recommend using a virtual environment. Note, `GPy` is only required for the safe learning examples, and can be safely removed from the requirements. Install from your terminal with
 
 PyEnv + PipEnv (recommended):  
 `pipenv install -r requirements.txt`  
