@@ -1,6 +1,7 @@
-numpy==1.18.4
-scipy==1.5.1
-matplotlib==3.0.3
+GPy>=1.9.8, <=1.10.0
+latex  # needed for some plotting (if not yet installed)
+numpy>=1.18.4, <=1.22.3
+scipy>=1.5.1, <=1.8.0
+matplotlib>=3.0.3, <=3.5.1
 joblib
 ttictoc
-# GPy==1.9.8

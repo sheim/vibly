@@ -96,7 +96,7 @@ def sa2xp(state_action, p):
     '''
     x = np.atleast_1d(state_action[:p['n_states']])
     p_new = p.copy()
-    p_new['thrust'] = np.atleast_1d(state_action[p['n_states']:])
+    p_new['thrust'] = state_action[p['n_states']:][0]  # keeping scalar
     return x.flatten(), p_new
 
 # * we also need to provide a function to go back from the continuous-time
