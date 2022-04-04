@@ -29,7 +29,12 @@ def p_map(x, p):
 
     # * analytical solution
     v1_squared = v0**2 - Xst**2 + 2*v0*Xst + 2*v0*Xst*np.sinh(Tst)
+    # print(v0)
+    # if v0>=1.0:
+    #     print("hello")
+
     if v1_squared<0:  # does not reach next midstance
+        # print("Does not reach mid-stance")
         return x, True
     elif v0*np.sinh(Tst) >= p['max_step']:  # stance leg hits limit
         # print("stretching stance leg")
@@ -67,7 +72,7 @@ def p_map(x, p):
     # x0[0] = x0[0] - Xst
 
     # # simulate till hip reaches stance-foot
-    # dt = 0.0001 # HACK do proper crossing event
+    # dt = 0.0001  # HACK do proper crossing event
     # for t in np.arange(start=0, stop=5.0, step=dt):
     #     x0 += dt*x0[::-1]  # x0[0] += x0[1], x0[1] += x0[0]
     #     if x0[0]>=0.0:
