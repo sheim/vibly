@@ -8,6 +8,7 @@ def feasible(x, p):
     check if state is at all feasible (body/foot underground)
     returns a boolean
     '''
+    change = 0
     if x[5] < 0 or x[1] < 0:
         return False
     return True
