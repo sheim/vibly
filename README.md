@@ -25,8 +25,11 @@ pip:
 `pip install -e .`
 
 
-conda (not extensively tested):  
-`conda env create -f vibly.yml`
+conda:  
+`conda create -n vibly python=3.9`
+`conda activate vibly`
+then follow the same instructions as for pip:
+`pip install -r requirements.txt && pip install -e .`
 
 You should now be able to run all examples in `demos/`, and import packages as following:
 ```python 
