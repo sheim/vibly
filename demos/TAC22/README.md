@@ -2,11 +2,32 @@
 
 Code to reproduce figures from _Safe Value Functions_, and other reward-shaping cases.
 
-## Continuous Space Example
+## Installation
 
-Please fill this in :)
+General installation instructions are on the [main page of this repo](https://github.com/sheim/vibly/tree/TAC22).
+We provide here a summary with conda:
+```
+conda create -n vibly python=3.9
+conda activate vibly 
+pip install -r requirements.txt && pip install -e .
+```
 
-## Discretized Numerical Examples
+Before running these commands, you may remove the GPy dependency of the file `requirements.txt`; it is unused in this part of the project.
+
+## Usage
+
+### Continuous-time Example
+
+To reproduce Figure 2 from the article, simply run:
+```
+conda activate vibly
+cd continuous_time && python main.py && cd ..
+```
+This will create three PDF files in the folder `continuous_time` with names following the pattern `CONTINUOUS_TIME_[TAU]_[Tf].pdf`. 
+Here, `[TAU]` and `[Tf]` correspond respectively to the values of $\tau$ and $T_f$ used to plot V_p (top plot of Figure 2).
+You can change these parameters freely by editing the last lines of the file `continuous_time/main.py`.
+
+### Discretized Numerical Examples
 
 We illustrate the effects of reward shaping on a simple 2-dimensional system, loosely modeled as an orbiting satellite.
 The system dynamics are
