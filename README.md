@@ -15,7 +15,13 @@ A dynamical system is in a _viable_ state if there exist control inputs that all
 ## Installation
 We recommend using a virtual environment. Note, `GPy` is only required for the safe learning examples, and can be safely removed from the requirements. Install from your terminal with
 
-PyEnv + PipEnv (recommended):  
+conda (recommended):  
+`conda create -n vibly python=3.9`
+`conda activate vibly`
+then follow the same instructions as for pip:
+`pip install -r requirements.txt && pip install -e .`
+
+PyEnv + PipEnv:  
 `pipenv install -r requirements.txt`  
 `pipenv install -e .`
 
@@ -23,13 +29,6 @@ PyEnv + PipEnv (recommended):
 pip:  
 `pip install -r requirements.txt`  
 `pip install -e .`
-
-
-conda:  
-`conda create -n vibly python=3.9`
-`conda activate vibly`
-then follow the same instructions as for pip:
-`pip install -r requirements.txt && pip install -e .`
 
 You should now be able to run all examples in `demos/`, and import packages as following:
 ```python 
