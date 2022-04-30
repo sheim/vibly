@@ -101,8 +101,8 @@ def plot_for_tau(chosen_tau=1., chosen_Tf=1., plot_only_top=False):
 		ax0.plot(x, value[i_chosen_tau, i_p, :], label=lab)
 
 	ax0.set_yscale('symlog', linthresh= 0.1, subs=[2, 3, 4, 5, 6, 7, 8, 9])
-	ax0.axhline(alpha_inf, linestyle='dashed', linewidth=.5, color=(0,0,0))
-	ax0.axhline(alpha_sup, linestyle='dashed', linewidth=.5, color=(0,0,0))
+	ax0.axhline(alpha_inf, linestyle='dashed', linewidth=.5, color=(0, 0, 0))
+	ax0.axhline(alpha_sup, linestyle='dashed', linewidth=.5, color=(0, 0, 0))
 	ax0.legend(loc='lower right')
 	ax0.set_xlabel(r'$x$')
 	ax0.set_ylabel(r'$V_p(x) - 1$')

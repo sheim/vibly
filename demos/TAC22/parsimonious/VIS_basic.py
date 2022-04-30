@@ -38,27 +38,6 @@ def parsimonious_reward(s, a):
     else:
         return 0.
 
-s0_weight = 1/(grids['states'][0][-1] - grids['states'][0][0])
-s1_weight = 1/(grids['states'][1][-1] - grids['states'][1][0])
-def target(s, a):
-    d = np.hypot(s0_weight*(s[0]-10.), s1_weight*s[1])
-    if d <= 0.05:
-        return 1.
-    else:
-        return 0.
-
-actuator_penalty = 1.0
-def actuator_cost(s, a):
-    return -actuator_penalty*a[0]**2
-
-def proxy_penalty_speed(s, a):
-    if s[1] >= -2. and s[1] <= 2:
-        reward = 0.
-    else:
-        reward = -1.
-    return reward
-
-failure_penalty = 1.0
 def penalty(s, a):
     if s[0] >= p['radio_range']:
         return -failure_penalty
@@ -68,22 +47,14 @@ def penalty(s, a):
         return 0.
 
 reward_functions = (parsimonious_reward, penalty)
-savename = './negproxy'
-# savename = './closed21/orti/TEST'
-# reward_schemes = ((target,),
-#                   (penalty,))
+savename = './parsimonious'
 
 ###########################################################################
 # * save data as pickle
 ###########################################################################
 
-mymap = vplot.get_vmap()
-# mynorm = colors.CenteredNorm()
-
 failure_penalties = [0., 1.]
-# failure_penalties = np.arange(2., 10., 1.)
-# failure_penalties = np.arange(131., 140., 1.)
-# for rdx, reward_functions in enumerate(reward_schemes):
+
 Q_value = None
 for failure_penalty in failure_penalties:
     tictoc.tic()
@@ -91,7 +62,7 @@ for failure_penalty in failure_penalties:
         Q_value *= failure_penalty
     Q_value, R_value = control.Q_value_iteration(Q_map, grids,
                             reward_functions, 0.6, Q_on_grid=Q_on_grid,
-                            stopping_threshold=1e-6, max_iter=1000,
+                            stopping_threshold=1e-7, max_iter=1000,
                             output_R=True, Q_values=Q_value)
     X_value = vibly.project_Q2S(Q_value, grids, proj_opt=np.max)
 
@@ -107,7 +78,8 @@ for failure_penalty in failure_penalties:
     outfile.close()
 
 
-    # * plot
+    # * run information
+
     print("============")
     print("PENALTY: ", failure_penalty)
     print("Min viable value: ", X_value[XV].min())
@@ -118,12 +90,9 @@ for failure_penalty in failure_penalties:
         print("Outside XV0 max value: ", X_value[~XV0].max())
     print("Size of XV0: ", XV0.astype(int).sum())
 
-    # viability_threshold = X_value[XV].min()
+    # * basic plots (for better plots, use the dedicated script)
 
-    # mynorm = colors.CenteredNorm()
-    # mymap = plt.get_cmap('bwr_r')
-    # shrunk_cmap = vplot.shiftedColorMap(mymap, start=0.2, midpoint=0.5, stop=0.8, name='shrunk')
-
+    mymap = vplot.get_vmap()
     extent = [grids['states'][1][0],
             grids['states'][1][-1],
             grids['states'][0][0],

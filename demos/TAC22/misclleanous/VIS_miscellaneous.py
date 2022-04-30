@@ -8,13 +8,10 @@ import plotting.value_plotters as vplot
 import pickle
 import os
 
-# * here we choose the parameters to use
-# * we also put in a place-holder
-#  action (thrust)
+# * load data
 
 pathname = '../../../data/dynamics/'
 basename = 'closed_satellite11'
-# basename = 'test_satellite'
 filename = pathname+basename
 infile = open(filename+'.pickle', 'rb')
 data = pickle.load(infile)
@@ -31,6 +28,8 @@ p = data["p"]
 Q_on_grid = np.ones(Q_map.shape, dtype=bool)
 
 XV = S_M>0.0
+
+# * set up reward functions you want
 
 good_lb_position = p["geocentric_radius"]*0.9
 good_ub_position = p["geocentric_radius"]*1.1
@@ -49,8 +48,8 @@ actuator_penalty = 1.0
 def actuator_cost(s, a):
     return 1-actuator_penalty*a[0]**2
 
-
-l2_boost = 5.
+# l2-distance to center
+l2_boost = 5. # just shifts so that min values aren't too low (nicer plots)
 s0_weight = 1/(grids['states'][0][-1] - grids['states'][0][0])
 s1_weight = 1/(grids['states'][1][-1] - grids['states'][1][0])
 def smooth_l2(s, a):
@@ -58,13 +57,12 @@ def smooth_l2(s, a):
     r = np.hypot(s0_weight*(s[0]-s0), s1_weight*s[1])
     return -r**2+ l2_boost
 
-def independent_l2(s, a):
-    return -s0_weight*(s[0]-s0)**2 - s1_weight*s[1]**2 + l2_boost
-
+# set up 3 spots that give a set reward/penalty
 def wacky(s, a):
-
+    # 2 places outside viability kernel, with positive reward!
     r1 = np.hypot(s0_weight*(s[0]-5.), s1_weight*(s[1]+3.))
     r2 = np.hypot(s0_weight*(s[0]-10.), s1_weight*(s[1]-3.))
+     # eq. point is now penalized
     r3 = np.hypot(s0_weight*(s[0]-10.), s1_weight*s[1])
     reward = 0.
     if r1<=0.05:
@@ -72,10 +70,10 @@ def wacky(s, a):
     if r2<= 0.1:
         reward += 3.
     if r3<= 0.05:
-        reward += 1.
-
+        reward += -1.
     return reward
-def L2wacky(s, a):
+
+def L2_wacky(s, a):
 
     r1 = np.hypot(s0_weight*(s[0]-5.), s1_weight*(s[1]+3.))
     r2 = np.hypot(s0_weight*(s[0]-10.), s1_weight*(s[1]-4.))
@@ -83,10 +81,9 @@ def L2wacky(s, a):
     reward = 0.
     reward += 2*np.exp2(-25*r1**2) +  2*np.exp2(-25*r2**2) 
     # reward += np.exp2(-50*r3**2)
-
     return reward
 
-def L2diverge(s, a):
+def L2_diverge(s, a):
     r = np.hypot(s0_weight*(s[0]-10.), s1_weight*s[1])
     return np.exp2(-r**2)
 
@@ -99,11 +96,8 @@ def penalty(s, a):
     else:
         return 0.
 
-reward_functions = (L2diverge, actuator_cost, penalty)
+reward_functions = (L2_diverge, actuator_cost, penalty)
 savename = './wacker'
-# savename = './closed21/orti/TEST'
-# reward_schemes = ((target,),
-#                   (penalty,))
 
 ###########################################################################
 # * save data as pickle
@@ -114,8 +108,8 @@ mymap = vplot.get_vmap()
 
 # failure_penalties = [1e6, 1e9]
 # failure_penalties = [100.,]
-# failure_penalties = [0, 1., 10., 1e2, 500., 1e3]
-failure_penalties = np.arange(20., 100., 1.)
+failure_penalties = [0, 10., 100, 500.]
+# failure_penalties = np.arange(20., 100., 1.)
 
 
 # for rdx, reward_functions in enumerate(reward_schemes):
@@ -141,7 +135,6 @@ for failure_penalty in failure_penalties:
     pickle.dump(data2save, outfile)
     outfile.close()
 
-
     # * plot
     print("============")
     print("PENALTY: ", failure_penalty)
@@ -152,12 +145,6 @@ for failure_penalty in failure_penalties:
     if np.any(~XV0):
         print("Outside XV0 max value: ", X_value[~XV0].max())
     print("Size of XV0: ", XV0.astype(int).sum())
-
-    # viability_threshold = X_value[XV].min()
-
-    # mynorm = colors.CenteredNorm()
-    # mymap = plt.get_cmap('bwr_r')
-    # shrunk_cmap = vplot.shiftedColorMap(mymap, start=0.2, midpoint=0.5, stop=0.8, name='shrunk')
 
     extent = [grids['states'][1][0],
             grids['states'][1][-1],
@@ -183,7 +170,3 @@ for failure_penalty in failure_penalties:
 
     print("******************")
     print("******************")
-    # plt.imshow(np.transpose(S_M), origin='lower')  # visualize the S-safety measure
-    # plt.show()
-    # plt.imshow(Q_V) # visualize the viable set
-    # plt.show()

@@ -19,8 +19,7 @@ pagewide = 7.16
 # * Load data
 
 
-filenames = [#"negproxy0.pickle",
-             "negproxy3.pickle",
+filenames = ["negproxy1.pickle",
              "negproxy136.pickle"]
 
 # filenames = ["negproxy0.pickle",

@@ -119,7 +119,7 @@ def value_function(ax, X_value, grids,
     if XV is not None:
         ax.contour(grids['states'][1], grids['states'][0], XV.astype(float),
                     colors=ground_truth_color, levels=[0.,], extend='both',
-                    linewidths=2.5, alpha=0.75)
+                    linewidths=1.5, alpha=0.75)
 
     return pc
 

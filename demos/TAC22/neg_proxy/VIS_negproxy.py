@@ -82,9 +82,7 @@ savename = './negproxy'
 
 mymap = vplot.get_vmap()
 
-# failure_penalties = [10., 20., 30., 40.]
-failure_penalties = np.arange(2., 10., 1.)
-# failure_penalties = np.arange(131., 140., 1.)
+failure_penalties = [1., 136.]
 # for rdx, reward_functions in enumerate(reward_schemes):
 Q_value = None
 for failure_penalty in failure_penalties:

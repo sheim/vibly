@@ -43,20 +43,12 @@ def penalty(s, a):
 
 reward_functions = (penalty,)
 savename = './viability'
-# savename = './closed21/orti/TEST'
-# reward_schemes = ((target,),
-#                   (penalty,))
 
 ###########################################################################
 # * save data as pickle
 ###########################################################################
 
-mymap = vplot.get_vmap()
-# mynorm = colors.CenteredNorm()
-
-failure_penalties = [0., 1., 1e3]
-# failure_penalties = [200., 300., 400., 500., 600., 700., 800., 900.]
-# failure_penalties = np.arange(111., 119., 1.)
+failure_penalties = [1.,]
 
 # for rdx, reward_functions in enumerate(reward_schemes):
 Q_value = None
@@ -93,12 +85,9 @@ for failure_penalty in failure_penalties:
         print("Outside XV0 max value: ", X_value[~XV0].max())
     print("Size of XV0: ", XV0.astype(int).sum())
 
-    # viability_threshold = X_value[XV].min()
+    # * basic plots (for better plots, use the dedicated script)
 
-    # mynorm = colors.CenteredNorm()
-    # mymap = plt.get_cmap('bwr_r')
-    # shrunk_cmap = vplot.shiftedColorMap(mymap, start=0.2, midpoint=0.5, stop=0.8, name='shrunk')
-
+    mymap = vplot.get_vmap()
     extent = [grids['states'][1][0],
             grids['states'][1][-1],
             grids['states'][0][0],
@@ -123,7 +112,3 @@ for failure_penalty in failure_penalties:
 
     print("******************")
     print("******************")
-    # plt.imshow(np.transpose(S_M), origin='lower')  # visualize the S-safety measure
-    # plt.show()
-    # plt.imshow(Q_V) # visualize the viable set
-    # plt.show()

@@ -4,9 +4,6 @@ import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import viability as vibly  # algorithms for brute-force viability
-# from mpl_toolkits.mplot3d import Axes3D
-# from matplotlib import rcParams
-# from scipy.signal import savgol_filter
 import pickle
 import os
 import matplotlib.collections as collections
@@ -19,13 +16,8 @@ pagewide = 7.16
 # * Load data
 
 
-filenames = [#"negproxy0.pickle",
-             "negproxy3.pickle",   
+filenames = ["negproxy1.pickle",   
              "negproxy136.pickle"]
-
-# filenames = ["negproxy0.pickle",
-#             "shaping/L2arti_penalty_10.pickle",
-#             "shaping/L2arti_penalty_50.pickle"]
 
 data_list = list()
 
@@ -38,28 +30,21 @@ except FileNotFoundError:
     print("ERROR: data not found.")
 
 # * unpack invariants
-# Q_value = data["Q_value"]
 R_value = data_list[0]["R_value"]
 grids = data_list[0]["grids"]
-# Q_map = data["Q_map"]
 S_M = data_list[0]["S_M"]
 
 # * Ground Truth XV
 XV = S_M > 0.0
-# Xv2 = vibly.project_Q2S(data_list[1]["Q_value"], grids, proj_opt=np.max)
-# alpha = Q_v2[XV].min() # viability threshold
 alpha = -4.535  # rounded
 
 mynorm = colors.TwoSlopeNorm(vmin=-100, vcenter=alpha, vmax=0.)
-# mynorm = colors.CenteredNorm()
 mymap = vplot.get_vmap(0)
 extent = [grids['states'][1][0],
         grids['states'][1][-1],
         grids['states'][0][0],
         grids['states'][0][-1]]
 
-# these_values = [0, 3, 5, -3, -2, -1]
-# these_values = range(len(data_list))
 fig, ax = plt.subplots(figsize=(colwide, 3/6*colwide),
                           constrained_layout=True)
 
@@ -104,5 +89,5 @@ for pdx, data in enumerate(data_list):
                 spacing='proportional', ticks=lvls, shrink=0.8)
     ax.set_xlabel("$x_2$")
     ax.set_ylabel("$x_1$")
-    plt.savefig('Tnegproxy_Vp_'+str(pdx)+'.pdf', format='pdf')
+    plt.savefig('negproxy_V'+str(pdx)+'.pdf', format='pdf')
 plt.close()

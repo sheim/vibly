@@ -9,9 +9,6 @@ import matplotlib.cbook as cbook
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import viability as vibly  # algorithms for brute-force viability
-# from mpl_toolkits.mplot3d import Axes3D
-# from matplotlib import rcParams
-# from scipy.signal import savgol_filter
 import pickle
 import os
 import matplotlib.collections as collections
@@ -19,20 +16,13 @@ import matplotlib.collections as collections
 import plotting.value_plotters as vplot
 colwide = 3.5
 pagewide = 7.16
-# import seaborn as sns
-# sns.set_theme(style="darkgrid")
 
 # ! p* at 111
 # * Load data
 alpha = 0.
 
-filenames = [#"posproxy0.pickle",
-             "posproxy1.pickle",
+filenames = ["posproxy1.pickle",
              "posproxy111.pickle"]
-
-# filenames = ["posproxy0.pickle",
-#             "shaping/L2arti_penalty_10.pickle",
-#             "shaping/L2arti_penalty_50.pickle"]
 
 data_list = list()
 
@@ -45,25 +35,20 @@ except FileNotFoundError:
     print("ERROR: data not found.")
 
 # * unpack invariants
-# Q_value = data["Q_value"]
 R_value = data_list[0]["R_value"]
 grids = data_list[0]["grids"]
-# Q_map = data["Q_map"]
 S_M = data_list[0]["S_M"]
 
 # * Ground Truth XV
 XV = S_M > 0.0
 
 mynorm = colors.TwoSlopeNorm(vmin=-100, vcenter=0.0, vmax=2.5)
-# mynorm = colors.CenteredNorm()
 mymap = vplot.get_vmap(0)
 extent = [grids['states'][1][0],
         grids['states'][1][-1],
         grids['states'][0][0],
         grids['states'][0][-1]]
 
-# these_values = [0, 3, 5, -3, -2, -1]
-# these_values = range(len(data_list))
 num_plots = len(data_list)+1
 fig, axs = plt.subplots(num_plots, 1, figsize = (colwide, 16/10*colwide))
 
