@@ -55,7 +55,7 @@ def vp(x, tau, p, L, Tf, v):
 	return V, x_viable, x_unviable
 
 
-def plot_for_tau(chosen_tau=1., chosen_Tf=1.):
+def plot_for_tau(chosen_tau=1., chosen_Tf=1., plot_only_top=False):
 	"""
 	Input:
 		chosen_tau: float: the discount rate used to plot the value function (top plot)
@@ -89,12 +89,17 @@ def plot_for_tau(chosen_tau=1., chosen_Tf=1.):
 	## Plotting ##
 	##############
 
-	fig = plt.figure(figsize=(8, 10), constrained_layout=True)
-	gs = gridspec.GridSpec(3, 1, figure=fig)
+	if plot_only_top:
+		fig = plt.figure(figsize=(8, 3.3), constrained_layout=True)
+		gs = gridspec.GridSpec(1, 1, figure=fig)
+	else:
+		fig = plt.figure(figsize=(8, 10), constrained_layout=True)
+		gs = gridspec.GridSpec(3, 1, figure=fig)
 	ax0 = fig.add_subplot(gs[0, 0])
 	for i_p in range(p.shape[1]):
-		lab = r'$p > p^*$' if i_p == IND_P_SUP_PSTAR else r'$p = p^*$' if i_p == IND_PSTAR else r'$p < p^*$'
+		lab = r'$p = 2\cdot p^\star$' if i_p == IND_P_SUP_PSTAR else r'$p = p^\star$' if i_p == IND_PSTAR else r'$p = 0$'
 		ax0.plot(x, value[i_chosen_tau, i_p, :], label=lab)
+
 	ax0.set_yscale('symlog', linthresh= 0.1, subs=[2, 3, 4, 5, 6, 7, 8, 9])
 	ax0.axhline(alpha_inf, linestyle='dashed', linewidth=.5, color=(0,0,0))
 	ax0.axhline(alpha_sup, linestyle='dashed', linewidth=.5, color=(0,0,0))
@@ -108,29 +113,29 @@ def plot_for_tau(chosen_tau=1., chosen_Tf=1.):
 	ax0.text(0.02, alpha_inf, r'$\alpha_{\mathrm{inf}}-1$', color="black", transform=trans, ha="left", va="bottom")
 	ax0.text(0.02, alpha_sup, r'$\alpha_{\mathrm{sup}}-1$', color="black", transform=trans, ha="left", va="bottom")
 
-	ax1 = fig.add_subplot(gs[1, 0])
-	ax1.plot(tau, pstar, label=r'$p^*(\tau)$')
-	ax1.plot(tau, -inf_xv_for_pstar, alpha=0.5, label=r'$-\inf_{\mathcal{X}_V}V$')
-	ax1.plot(tau, np.exp(chosen_Tf/tau), alpha=0.5, label=r'$\exp\left(\frac{T_f}{\tau}\right)$')
-	ax1.set_xlabel(r'$\tau$')
-	ax1.set_ylabel(r'$p^*(\tau)$')
-	# Plot the arrow
-	M = max(pstar.max(), (-inf_xv_for_pstar).max(), np.exp(chosen_Tf/tau).max())
-	m = min(pstar.min(), (-inf_xv_for_pstar).min(), np.exp(chosen_Tf/tau).min())
-	ax1.annotate("",
-				xy=(tau[i_chosen_tau], pstar[i_chosen_tau]), xycoords='data',
-				xytext=(tau[i_chosen_tau], M+ (M-m)*.14), textcoords='data',
-				arrowprops=dict(arrowstyle="<-",
-								connectionstyle="arc3", color='gray', lw=.5, linestyle='dashed'),
-				)
-	ax1.legend(loc='upper right')
+	if not plot_only_top:
+		ax1 = fig.add_subplot(gs[1, 0])
+		ax1.plot(tau, pstar, label=r'$p^*(\tau)$')
+		ax1.plot(tau, -inf_xv_for_pstar, alpha=0.5, label=r'$-\inf_{\mathcal{X}_V}V$')
+		ax1.plot(tau, np.exp(chosen_Tf/tau), alpha=0.5, label=r'$\exp\left(\frac{T_f}{\tau}\right)$')
+		ax1.set_xlabel(r'$\tau$')
+		ax1.set_ylabel(r'$p^*(\tau)$')
+		# Plot the arrow
+		M = max(pstar.max(), (-inf_xv_for_pstar).max(), np.exp(chosen_Tf/tau).max())
+		m = min(pstar.min(), (-inf_xv_for_pstar).min(), np.exp(chosen_Tf/tau).min())
+		ax1.annotate("",
+					xy=(tau[i_chosen_tau], pstar[i_chosen_tau]), xycoords='data',
+					xytext=(tau[i_chosen_tau], M+ (M-m)*.14), textcoords='data',
+					arrowprops=dict(arrowstyle="<-",
+									connectionstyle="arc3", color='gray', lw=.5, linestyle='dashed'),
+					)
+		ax1.legend(loc='upper right')
 
-	ax2 = fig.add_subplot(gs[2, 0])
-	ax2.semilogy(Tf, pstar_Tf)
-	ax2.set_xlabel(r'$T_f$')
-	ax2.set_ylabel(r'$p^*(T_f)$')
+		ax2 = fig.add_subplot(gs[2, 0])
+		ax2.semilogy(Tf, pstar_Tf)
+		ax2.set_xlabel(r'$T_f$')
+		ax2.set_ylabel(r'$p^*(T_f)$')
 
-	# plt.show()
 	plt.savefig(f'CONTINUOUS_TIME_{chosen_tau}_{chosen_Tf}.pdf', format='pdf', dpi=300)
 
 
@@ -138,6 +143,8 @@ def plot_for_tau(chosen_tau=1., chosen_Tf=1.):
 # Change this line to plot the value function for a different value of tau/Tf in the top plot
 # Supported values are should be respectively in [0.4, 20] and (0, 5)
 # The value function can be computed outside of these bounds, but the plots may look weird
-plot_for_tau(chosen_tau=.5, chosen_Tf=1.)
-plot_for_tau(chosen_tau=1., chosen_Tf=1.)
-plot_for_tau(chosen_tau=4., chosen_Tf=1.)
+PLOT_ONLY_TOP = False 
+plot_for_tau(chosen_tau=.5, chosen_Tf=1., plot_only_top=PLOT_ONLY_TOP)
+plot_for_tau(chosen_tau=1., chosen_Tf=1., plot_only_top=PLOT_ONLY_TOP)
+plot_for_tau(chosen_tau=2., chosen_Tf=1., plot_only_top=PLOT_ONLY_TOP)
+plot_for_tau(chosen_tau=4., chosen_Tf=1., plot_only_top=PLOT_ONLY_TOP)
