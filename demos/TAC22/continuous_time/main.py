@@ -27,8 +27,8 @@ def vp(x, tau, p, L, Tf, v):
 		v: float
 	Output:
 		V: np.ndarray of shape (T, P, N)
-		x_viable: np.ndarray of the points in x that are viable
-		x_unviable: np.ndarray of the points in x that are unviable
+		x_viable: np.ndarray of booleans; the points in x that are viable
+		x_unviable: np.ndarray of booleans; the points in x that are unviable
 	"""
 	# tau is a 1D array
 	# p is a 2D array: tau.shape[0] x number of penalties / tau
@@ -55,7 +55,7 @@ def vp(x, tau, p, L, Tf, v):
 	return V, x_viable, x_unviable
 
 
-def plot_for_tau(chosen_tau=1., chosen_Tf=1., plot_only_top=False):
+def plot_for_tau(chosen_tau=1., chosen_Tf=1., plot_only_top=False, plot_x_star=False):
 	"""
 	Input:
 		chosen_tau: float: the discount rate used to plot the value function (top plot)
@@ -69,6 +69,7 @@ def plot_for_tau(chosen_tau=1., chosen_Tf=1., plot_only_top=False):
 	pstar, inf_xv_for_pstar = compute_pstar(tau, L, chosen_Tf, v) # pstar as a function of tau (top and middle plots)
 	pstar_Tf, _ = compute_pstar(tau[i_chosen_tau], L, Tf, v) # pstar as a function of Tf (bottom plot)
 
+	IND_P_0 = 0
 	IND_PSTAR = 1
 	IND_P_SUP_PSTAR = 2
 	p = np.vstack((0*pstar, 1.*pstar, 2*pstar)).T # The penalties used in the top plot are 0, pstar, and 2*pstar
@@ -81,7 +82,9 @@ def plot_for_tau(chosen_tau=1., chosen_Tf=1., plot_only_top=False):
 	assert np.isclose(value[:, IND_PSTAR, x_viable], value[:, IND_P_SUP_PSTAR, x_viable]).all(), \
 		"The values in the viability kernel for p = p* and for p = 2 p* are different"
 
-
+	i_x_star = value[i_chosen_tau, IND_P_0, x_viable].argmin()
+	x_star = x[x_viable][i_x_star]
+	v_x_star = value[i_chosen_tau, IND_P_0, x_viable][i_x_star]
 	alpha_inf = value[i_chosen_tau, IND_P_SUP_PSTAR, x_unviable].max()
 	alpha_sup = value[i_chosen_tau, IND_P_SUP_PSTAR, x_viable].min()
 
@@ -101,13 +104,20 @@ def plot_for_tau(chosen_tau=1., chosen_Tf=1., plot_only_top=False):
 		ax0.plot(x, value[i_chosen_tau, i_p, :], label=lab)
 
 	ax0.set_yscale('symlog', linthresh= 0.1, subs=[2, 3, 4, 5, 6, 7, 8, 9])
-	ax0.axhline(alpha_inf, linestyle='dashed', linewidth=.5, color=(0, 0, 0))
-	ax0.axhline(alpha_sup, linestyle='dashed', linewidth=.5, color=(0, 0, 0))
-	ax0.legend(loc='lower right')
+	ax0.axhline(alpha_inf, linestyle='dashed', linewidth=.5, color=(0,0,0))
+	ax0.axhline(alpha_sup, linestyle='dashed', linewidth=.5, color=(0,0,0))
+	if plot_x_star:
+		ax0.axvline(x=x_star, linestyle='dashed', linewidth=.5, color='red')
+		# Adding the x axis label of x^\star
+		trans = transforms.blended_transform_factory(
+			ax0.get_xticklabels()[0].get_transform(), ax0.transData
+		)
+		ax0.text(x_star, v_x_star, s=r'$x^\star$', color="red", transform=trans, ha="left", va="bottom")
+
+	ax0.legend(loc='best')
 	ax0.set_xlabel(r'$x$')
 	ax0.set_ylabel(r'$V_p(x) - 1$')
 	## Adding the y axis labels of alpha inf and sup
-	# From Github
 	trans = transforms.blended_transform_factory(
 		ax0.get_yticklabels()[0].get_transform(), ax0.transData)
 	ax0.text(0.02, alpha_inf, r'$\alpha_{\mathrm{inf}}-1$', color="black", transform=trans, ha="left", va="bottom")
@@ -129,7 +139,7 @@ def plot_for_tau(chosen_tau=1., chosen_Tf=1., plot_only_top=False):
 					arrowprops=dict(arrowstyle="<-",
 									connectionstyle="arc3", color='gray', lw=.5, linestyle='dashed'),
 					)
-		ax1.legend(loc='upper right')
+		ax1.legend(loc='best')
 
 		ax2 = fig.add_subplot(gs[2, 0])
 		ax2.semilogy(Tf, pstar_Tf)
@@ -144,7 +154,8 @@ def plot_for_tau(chosen_tau=1., chosen_Tf=1., plot_only_top=False):
 # Supported values are should be respectively in [0.4, 20] and (0, 5)
 # The value function can be computed outside of these bounds, but the plots may look weird
 PLOT_ONLY_TOP = False 
-plot_for_tau(chosen_tau=.5, chosen_Tf=1., plot_only_top=PLOT_ONLY_TOP)
-plot_for_tau(chosen_tau=1., chosen_Tf=1., plot_only_top=PLOT_ONLY_TOP)
-plot_for_tau(chosen_tau=2., chosen_Tf=1., plot_only_top=PLOT_ONLY_TOP)
-plot_for_tau(chosen_tau=4., chosen_Tf=1., plot_only_top=PLOT_ONLY_TOP)
+PLOT_X_STAR = True
+plot_for_tau(chosen_tau=.5, chosen_Tf=1., plot_only_top=PLOT_ONLY_TOP, plot_x_star=PLOT_X_STAR)
+plot_for_tau(chosen_tau=1., chosen_Tf=1., plot_only_top=PLOT_ONLY_TOP, plot_x_star=PLOT_X_STAR)
+plot_for_tau(chosen_tau=2., chosen_Tf=1., plot_only_top=PLOT_ONLY_TOP, plot_x_star=PLOT_X_STAR)
+plot_for_tau(chosen_tau=4., chosen_Tf=1., plot_only_top=PLOT_ONLY_TOP, plot_x_star=PLOT_X_STAR)
