@@ -10,3 +10,5 @@ from .viability import is_outside
 from .viability import parcompute_Q_map
 from .viability import parcompute_Q_mapC
 from .viability import digitize_s
+
+from .viability import get_state_from_ravel

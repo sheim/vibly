@@ -94,8 +94,8 @@ def shiftedColorMap(cmap, start=0, midpoint=0.5, stop=1.0, name='shiftedcmap'):
 ground_truth_color = "gold"
 
 
-def value_function(ax, X_value, grids,
-                   XV=None, cont_lvls=10, mynorm=None, mymap=None,viability_threshold=None):
+def value_function(ax, X_value, grids, XV=None, cont_lvls=10, mynorm=None,
+                   mymap=None, viability_threshold=None):
 
     if mynorm is None:
         mynorm = colors.CenteredNorm()
@@ -150,8 +150,8 @@ def reward_function(ax, RX_value, grids,
         # ax.contour(grids['states'][1], grids['states'][0], XV.astype(float),
         #             colors=ground_truth_color, levels105=[0.,], extend='both')
 
-    for c in cs0.collections:
-        c.set_edgecolor("face")
+        for c in cs0.collections:
+            c.set_edgecolor("face")
 
 
     # plt.setp(ax.get_xticklabels(), visible=False)
