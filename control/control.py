@@ -55,8 +55,7 @@ def Q_value_iteration(Q_map, grids, reward_functions, gamma, Q_on_grid=None,
                 bin_value = neighbor_option([Q_values[g].max()
                                             for g in grid_indices])
 
-
-                # keep track fo changes, for stopping condit    ion
+                # keep track of changes, for stopping condit    ion
                 diff = np.abs(Q_values[qdx] - R_values[qdx] - gamma*bin_value)
                 if (diff > max_change):
                     max_change = diff
@@ -99,6 +98,60 @@ def Q_value_iteration(Q_map, grids, reward_functions, gamma, Q_on_grid=None,
                 print("Stopped early after ", iteration, " iterations.")
                 break
         print("max change in value: ", max_change)
+
+    if output_R:
+        return Q_values, R_values
+    else:
+        return Q_values
+
+
+def QValue_Iteration(Q_map, grids, reward_functions, gamma,
+                      stopping_threshold=1e-5, max_iter=1000, output_R=False,
+                      Q_values=None):
+    """
+    A better (faster!) implementation, with fewer for-loops.
+    Less options for now (hence keeping both for a while).
+    Assumes reward function take three arguments: (s, a, s').
+    """
+
+    if Q_values is None:
+        Q_values = np.zeros_like(Q_map, dtype=float)
+    else:
+        assert (Q_values.shape == Q_map.shape), "initial_guess is bad"
+
+    s_grid = grids['states']
+    a_grid = grids['actions']
+    n_states = len(s_grid)
+    s_grid_shape = list(map(np.size, grids['states']))
+
+    # * build the initial state array Q0 and reward array R
+
+    # can be pre-computed one time
+    R_values = np.zeros_like(Q_map, dtype=float)
+    for qdx, next_sdx in np.ndenumerate(Q_map):
+        # pass transition through each reward function
+        reward = 0.0
+        s = [grid[qdx[i]] for i, grid in enumerate(s_grid)]
+        a = [grid[qdx[n_states + i]] for i, grid in enumerate(a_grid)]
+        next_sdx = np.unravel_index(next_sdx, s_grid_shape)
+        next_s = [grid[next_sdx[i]] for i, grid in enumerate(s_grid)]
+        for rfunc in reward_functions:
+            reward += rfunc(s, a, next_s)
+        R_values[qdx] = reward
+    # iterate over each q
+    for iteration in range(max_iter):
+        max_change = 0.0  # for stopping
+        X_val = project_Q2S(Q_values, grids, proj_opt=np.max)
+        # X_val = X_val.flatten()
+
+        # * value V(s_next)
+        Values_next = X_val.flatten()[Q_map.flatten()].reshape(Q_map.shape)
+        Q_values_new = R_values + gamma*Values_next
+        if np.max(np.abs(Q_values-Q_values_new)) < stopping_threshold:
+            print("Stopped early after ", iteration, " iterations.")
+            Q_values = Q_values_new  # might as well still update
+            break
+        Q_values = Q_values_new
 
     if output_R:
         return Q_values, R_values
