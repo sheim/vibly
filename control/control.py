@@ -107,12 +107,15 @@ def Q_value_iteration(Q_map, grids, reward_functions, gamma, Q_on_grid=None,
 
 def QValue_Iteration(Q_map, grids, reward_functions, gamma,
                       stopping_threshold=1e-5, max_iter=1000, output_R=False,
-                      Q_values=None):
+                      Q_values=None, learning_rate=1):
     """
     A better (faster!) implementation, with fewer for-loops.
     Less options for now (hence keeping both for a while).
     Assumes reward function take three arguments: (s, a, s').
     """
+
+    assert(learning_rate > 0.), "learning rate must be between (0, 1]"
+    assert(learning_rate <= 1.), "learning rate must be between (0, 1]"
 
     if Q_values is None:
         Q_values = np.zeros_like(Q_map, dtype=float)
@@ -146,13 +149,15 @@ def QValue_Iteration(Q_map, grids, reward_functions, gamma,
 
         # * value V(s_next)
         Values_next = X_val.flatten()[Q_map.flatten()].reshape(Q_map.shape)
-        Q_values_new = R_values + gamma*Values_next
-        if np.max(np.abs(Q_values-Q_values_new)) < stopping_threshold:
+        delta_Q = R_values + gamma*Values_next - Q_values
+        if np.max(np.abs(delta_Q)) < stopping_threshold:
             print("Stopped early after ", iteration, " iterations.")
-            Q_values = Q_values_new  # might as well still update
+            Q_values += learning_rate*delta_Q  # might as well still update
             break
-        Q_values = Q_values_new
-
+        Q_values += learning_rate*delta_Q
+    else:
+        print("Finished using all", max_iter, "iterations.")
+    print("tol = ", np.max(np.abs(delta_Q)))
     if output_R:
         return Q_values, R_values
     else:
