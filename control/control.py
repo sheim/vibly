@@ -134,8 +134,8 @@ def QValue_Iteration(Q_map, grids, reward_functions, gamma,
     for qdx, next_sdx in np.ndenumerate(Q_map):
         # pass transition through each reward function
         reward = 0.0
-        s = [grid[qdx[i]] for i, grid in enumerate(s_grid)]
-        a = [grid[qdx[n_states + i]] for i, grid in enumerate(a_grid)]
+        s = np.array([grid[qdx[i]] for i, grid in enumerate(s_grid)])
+        a = np.array([grid[qdx[n_states+i]] for i, grid in enumerate(a_grid)])
         next_sdx = np.unravel_index(next_sdx, s_grid_shape)
         next_s = [grid[next_sdx[i]] for i, grid in enumerate(s_grid)]
         for rfunc in reward_functions:

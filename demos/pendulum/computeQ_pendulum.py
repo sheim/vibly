@@ -9,7 +9,7 @@ from ttictoc import tictoc
 # * we also put in a place-holder action (thrust)
 if __name__ == '__main__':
     p = {'n_states': 2,
-         'mass': 0.8,
+         'mass': 1.,
          'gravity': 1,
          'length': 1.,
          'torque': 0.,
