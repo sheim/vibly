@@ -5,16 +5,17 @@ from matplotlib import gridspec
 
 # * helper functions
 
+
 def get_step_trajectories(x0, p, ground_heights=None):
-    '''
+    """
     helper function to apply a battery of ground-height perturbations.
     returns a list of trajectories.
-    '''
+    """
 
     if ground_heights is None:
-        total_leg_length = p['resting_length']
-        total_leg_length += p['actuator_resting_length']
-        ground_heights = np.linspace(0, -0.5*total_leg_length, 10)
+        total_leg_length = p["resting_length"]
+        total_leg_length += p["actuator_resting_length"]
+        ground_heights = np.linspace(0, -0.5 * total_leg_length, 10)
     x0 = model.reset_leg(x0, p)
     trajectories = list()
     for height in ground_heights:
@@ -35,45 +36,57 @@ def get_step_trajectories(x0, p, ground_heights=None):
 # * renamed
 # swing_leg_angular_velcoity --> swing_velocity
 
-p = {'mass': 80,                          # kg
-     'stiffness': 8200.0,                 # K : N/m
-     'resting_length': 0.9,        # m
-     'gravity': 9.81,                     # N/kg
-     'angle_of_attack': 1/5*np.pi,        # rad
-     'actuator_resting_length': 0.1,      # m
-     'actuator_force': [],                # * 2 x M matrix of time and force
-     'actuator_force_period': 10,         # * s
-     'activation_delay': 0.0,  # * a delay for when to start activation
-     'activation_amplification': 1.0,
-     'constant_normalized_damping': 0.75,          # * s : D/K : [N/m/s]/[N/m]
-     'linear_normalized_damping': 3.5,  # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
-     'linear_minimum_normalized_damping': 0.05,    # *   1/A*(kg*N/kg) :
-     'swing_velocity': 0,   # rad/s (set by calculation)
-     'angle_of_attack_offset': 0,        # rad   (set by calculation)
-     'swing_extension_velocity': 0,    # m/s
-     'swing_leg_length_offset' : 0}                 # m (set by calculation) 
+p = {
+    "mass": 80,  # kg
+    "stiffness": 8200.0,  # K : N/m
+    "resting_length": 0.9,  # m
+    "gravity": 9.81,  # N/kg
+    "angle_of_attack": 1 / 5 * np.pi,  # rad
+    "actuator_resting_length": 0.1,  # m
+    "actuator_force": [],  # * 2 x M matrix of time and force
+    "actuator_force_period": 10,  # * s
+    "activation_delay": 0.0,  # * a delay for when to start activation
+    "activation_amplification": 1.0,
+    "constant_normalized_damping": 0.75,  # * s : D/K : [N/m/s]/[N/m]
+    "linear_normalized_damping": 3.5,  # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
+    "linear_minimum_normalized_damping": 0.05,  # *   1/A*(kg*N/kg) :
+    "swing_velocity": 0,  # rad/s (set by calculation)
+    "angle_of_attack_offset": 0,  # rad   (set by calculation)
+    "swing_extension_velocity": 0,  # m/s
+    "swing_leg_length_offset": 0,
+}  # m (set by calculation)
 # * Initialization: Slip & Daslip
 
-x0 = np.array([0, 1.00,  # x, y
-               5.5, 0,  # dx, dy
-               0, 0,  # x_foot, y_foot
-               p['actuator_resting_length'],  # l_da
-               0, 0,  # work (actuator, damper)
-               0])  # ground height
+x0 = np.array(
+    [
+        0,
+        1.00,  # x, y
+        5.5,
+        0,  # dx, dy
+        0,
+        0,  # x_foot, y_foot
+        p["actuator_resting_length"],  # l_da
+        0,
+        0,  # work (actuator, damper)
+        0,
+    ]
+)  # ground height
 
 x0 = model.reset_leg(x0, p)
-p['total_energy'] = model.compute_total_energy(x0, p)
+p["total_energy"] = model.compute_total_energy(x0, p)
 
-limit_cycle_options = {'search_initial_state' : False,
-                       'state_index'          : 1,
-                       'state_search_width'   : 0.5,
-                       'search_parameter'     : True,
-                       'parameter_name'       : 'angle_of_attack',
-                       'parameter_search_width': np.pi*0.25}
+limit_cycle_options = {
+    "search_initial_state": False,
+    "state_index": 1,
+    "state_search_width": 0.5,
+    "search_parameter": True,
+    "parameter_name": "angle_of_attack",
+    "parameter_search_width": np.pi * 0.25,
+}
 
 # * Solve for nominal open-loop trajectories
 x0, p = model.create_open_loop_trajectories(x0, p, limit_cycle_options)
-p['x0'] = x0.copy()
+p["x0"] = x0.copy()
 
 # * Set-up P maps for comutations
 p_map = model.poincare_map
@@ -91,154 +104,168 @@ damping_values = tuple(np.round(np.linspace(0.3, 0.02, 1), 2))
 
 # * set up range of heights for first step
 # at the moment, just doing 1 (0)
-total_leg_length = p['resting_length'] + p['actuator_resting_length']
-ground_heights = np.linspace(0.0*total_leg_length,
-                             -0.2*total_leg_length, 2)
+total_leg_length = p["resting_length"] + p["actuator_resting_length"]
+ground_heights = np.linspace(0.0 * total_leg_length, -0.2 * total_leg_length, 2)
 
 for lin_d in damping_values:
-    p['linear_normalized_damping'] = lin_d
+    p["linear_normalized_damping"] = lin_d
     model.create_open_loop_trajectories(x0, p, limit_cycle_options)
     trajectories = get_step_trajectories(x0, p, ground_heights=ground_heights)
 
 energetics = list()
-for idx, traj in enumerate(trajectories):    
+for idx, traj in enumerate(trajectories):
     energy = model.compute_potential_kinetic_work_total(traj.y, p)
     energetics.append(energy)
 
 springDamperActuatorForces = list()
-for idx,traj in enumerate(trajectories):    
-    sda = model.compute_leg_forces(traj.t,traj.y, p)
-    #This function is only valid during stance, so zero out all the 
-    #entries during the flight phase
+for idx, traj in enumerate(trajectories):
+    sda = model.compute_leg_forces(traj.t, traj.y, p)
+    # This function is only valid during stance, so zero out all the
+    # entries during the flight phase
     for j in range(sda.shape[1]):
-        if(traj.t[j] <= traj.t_events[1] or traj.t[j] >= traj.t_events[3]):
-            sda[0,j] = 0.
-            sda[1,j] = 0.
-            sda[2,j] = 0.
+        if traj.t[j] <= traj.t_events[1] or traj.t[j] >= traj.t_events[3]:
+            sda[0, j] = 0.0
+            sda[1, j] = 0.0
+            sda[2, j] = 0.0
     springDamperActuatorForces.append(sda)
 
 legLength = list()
-for ids,traj in enumerate(trajectories):
+for ids, traj in enumerate(trajectories):
     legLen = model.compute_leg_length(traj.y)
     legLength.append(legLen)
 
 # * basic plot
 # Tex rendering slows the plots down, but good for final pub quality plots
 # plt.rc('text', usetex=True)
-plt.rc('font', family='serif')
+plt.rc("font", family="serif")
 
 
-figBasic = plt.figure(figsize=(16,9))
+figBasic = plt.figure(figsize=(16, 9))
 gsBasic = gridspec.GridSpec(2, 3)
 
-maxHeight=0
+maxHeight = 0
 for idx, traj in enumerate(trajectories):
-    if(max(traj.y[1])>maxHeight):
+    if max(traj.y[1]) > maxHeight:
         maxHeight = max(traj.y[1])
 
-maxKineticEnergy=0
-maxPotentialEnergy=0
+maxKineticEnergy = 0
+maxPotentialEnergy = 0
 
 for idx, pkwt in enumerate(energetics):
-    if(max(pkwt[0])>maxKineticEnergy):
+    if max(pkwt[0]) > maxKineticEnergy:
         maxKineticEnergy = max(pkwt[0])
-    if(max(pkwt[1])>maxPotentialEnergy):
+    if max(pkwt[1]) > maxPotentialEnergy:
         maxPotentialEnergy = max(pkwt[1])
 
 
-
-color0 = np.array([   0,   0,   0]) #Nominal
-color1 = np.array([   1,   0,   0]) #Largest height perturbation
-colorPlot = np.array([0,0,0])
+color0 = np.array([0, 0, 0])  # Nominal
+color1 = np.array([1, 0, 0])  # Largest height perturbation
+colorPlot = np.array([0, 0, 0])
 
 axCoM = plt.subplot(gsBasic[0])
 for idx, traj in enumerate(trajectories):
-    n01 = float(max(idx,0))/max(float(len(trajectories)-1),1)
-    colorPlot = color0*(1-n01) + color1*(n01)
-    axCoM.plot(traj.y[0], traj.y[1],
-            color=(colorPlot[0],colorPlot[1],colorPlot[2]),
-            label=ground_heights[idx])
-    plt.ylim((0,maxHeight))
-    plt.xlabel('X (m)')
-    plt.ylabel('Y (m)')
-    plt.title('CoM Trajectory')
-axCoM.spines['top'].set_visible(False)
-axCoM.spines['right'].set_visible(False)
-plt.legend(loc='upper left')
+    n01 = float(max(idx, 0)) / max(float(len(trajectories) - 1), 1)
+    colorPlot = color0 * (1 - n01) + color1 * (n01)
+    axCoM.plot(
+        traj.y[0],
+        traj.y[1],
+        color=(colorPlot[0], colorPlot[1], colorPlot[2]),
+        label=ground_heights[idx],
+    )
+    plt.ylim((0, maxHeight))
+    plt.xlabel("X (m)")
+    plt.ylabel("Y (m)")
+    plt.title("CoM Trajectory")
+axCoM.spines["top"].set_visible(False)
+axCoM.spines["right"].set_visible(False)
+plt.legend(loc="upper left")
 
 
 axAF = plt.subplot(gsBasic[1])
 for idx, sda in enumerate(springDamperActuatorForces):
-    n01 = float(max(idx,0))/max(float(len(trajectories)-1),1)
-    colorPlot = color0*(1-n01) + color1*(n01)
+    n01 = float(max(idx, 0)) / max(float(len(trajectories) - 1), 1)
+    colorPlot = color0 * (1 - n01) + color1 * (n01)
     traj = trajectories[idx]
-    axAF.plot(traj.t, sda[2],
-            color=(colorPlot[0],colorPlot[1],colorPlot[2]),
-            label=ground_heights[idx])
-    plt.xlabel('Time (s)')
-    plt.ylabel('Force (N)')
-    plt.title('Actuator Forces')
-axAF.spines['top'].set_visible(False)
-axAF.spines['right'].set_visible(False)
+    axAF.plot(
+        traj.t,
+        sda[2],
+        color=(colorPlot[0], colorPlot[1], colorPlot[2]),
+        label=ground_heights[idx],
+    )
+    plt.xlabel("Time (s)")
+    plt.ylabel("Force (N)")
+    plt.title("Actuator Forces")
+axAF.spines["top"].set_visible(False)
+axAF.spines["right"].set_visible(False)
 
 axDF = plt.subplot(gsBasic[2])
 for idx, sda in enumerate(springDamperActuatorForces):
-    n01 = float(max(idx,0))/max(float(len(trajectories)-1),1)
-    colorPlot = color0*(1-n01) + color1*(n01)
+    n01 = float(max(idx, 0)) / max(float(len(trajectories) - 1), 1)
+    colorPlot = color0 * (1 - n01) + color1 * (n01)
     traj = trajectories[idx]
-    axDF.plot(traj.t, sda[1],
-            color=(colorPlot[0],colorPlot[1],colorPlot[2]),
-            label=ground_heights[idx])
-    plt.xlabel('Time (s)')
-    plt.ylabel('Force (N)')
-    plt.title('Damping Forces')
-axDF.spines['top'].set_visible(False)
-axDF.spines['right'].set_visible(False)
+    axDF.plot(
+        traj.t,
+        sda[1],
+        color=(colorPlot[0], colorPlot[1], colorPlot[2]),
+        label=ground_heights[idx],
+    )
+    plt.xlabel("Time (s)")
+    plt.ylabel("Force (N)")
+    plt.title("Damping Forces")
+axDF.spines["top"].set_visible(False)
+axDF.spines["right"].set_visible(False)
 
 axLL = plt.subplot(gsBasic[3])
 for idx, ll in enumerate(legLength):
-    n01 = float(max(idx,0))/max(float(len(trajectories)-1),1)
-    colorPlot = color0*(1-n01) + color1*(n01)
+    n01 = float(max(idx, 0)) / max(float(len(trajectories) - 1), 1)
+    colorPlot = color0 * (1 - n01) + color1 * (n01)
     traj = trajectories[idx]
-    axLL.plot(traj.t, ll,
-            color=(colorPlot[0],colorPlot[1],colorPlot[2]),
-            label=ground_heights[idx])
-    plt.xlabel('Time (s)')
-    plt.ylabel('Length (m)')
-    plt.title('Leg Length')
-axLL.spines['top'].set_visible(False)
-axLL.spines['right'].set_visible(False)
-plt.legend(loc='upper left')
+    axLL.plot(
+        traj.t,
+        ll,
+        color=(colorPlot[0], colorPlot[1], colorPlot[2]),
+        label=ground_heights[idx],
+    )
+    plt.xlabel("Time (s)")
+    plt.ylabel("Length (m)")
+    plt.title("Leg Length")
+axLL.spines["top"].set_visible(False)
+axLL.spines["right"].set_visible(False)
+plt.legend(loc="upper left")
 
 axLF = plt.subplot(gsBasic[4])
 for idx, sda in enumerate(springDamperActuatorForces):
-    n01 = float(max(idx,0))/max(float(len(trajectories)-1),1)
-    colorPlot = color0*(1-n01) + color1*(n01)
+    n01 = float(max(idx, 0)) / max(float(len(trajectories) - 1), 1)
+    colorPlot = color0 * (1 - n01) + color1 * (n01)
     traj = trajectories[idx]
-    axLF.plot(traj.t, sda[0],
-            color=(colorPlot[0],colorPlot[1],colorPlot[2]),
-            label=ground_heights[idx])
-    plt.xlabel('Time (s)')
-    plt.ylabel('Force (N)')
-    plt.title('Leg Forces')
-axLF.spines['top'].set_visible(False)
-axLF.spines['right'].set_visible(False)
-plt.legend(loc='upper left')
+    axLF.plot(
+        traj.t,
+        sda[0],
+        color=(colorPlot[0], colorPlot[1], colorPlot[2]),
+        label=ground_heights[idx],
+    )
+    plt.xlabel("Time (s)")
+    plt.ylabel("Force (N)")
+    plt.title("Leg Forces")
+axLF.spines["top"].set_visible(False)
+axLF.spines["right"].set_visible(False)
+plt.legend(loc="upper left")
 
 axLW = plt.subplot(gsBasic[5])
 for idx, pkwt in enumerate(energetics):
     traj = trajectories[idx]
-    n01 = float(max(idx,0))/max(float(len(energetics)-1),1)
-    colorPlot = color0*(1-n01) + color1*(n01)
-    axLW.plot(traj.t, pkwt[2]+pkwt[3],color=(colorPlot[0],colorPlot[1],colorPlot[2]))
-    plt.xlabel('Time (s)')
-    plt.ylabel('Energy (J)')
-    plt.title('Leg Work: Actuator+Damper')
-axLW.spines['top'].set_visible(False)
-axLW.spines['right'].set_visible(False)
+    n01 = float(max(idx, 0)) / max(float(len(energetics) - 1), 1)
+    colorPlot = color0 * (1 - n01) + color1 * (n01)
+    axLW.plot(
+        traj.t, pkwt[2] + pkwt[3], color=(colorPlot[0], colorPlot[1], colorPlot[2])
+    )
+    plt.xlabel("Time (s)")
+    plt.ylabel("Energy (J)")
+    plt.title("Leg Work: Actuator+Damper")
+axLW.spines["top"].set_visible(False)
+axLW.spines["right"].set_visible(False)
 
 plt.show()
-
 
 
 # TODO (STEVE) update this intro-documentation

@@ -5,16 +5,17 @@ from pathlib import Path
 import matplotlib
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from matplotlib.colors import ListedColormap, BoundaryNorm
+from matplotlib.colors import ListedColormap
 from matplotlib import rc
-rc('font', **{'family': 'sans-serif', 'sans-serif': ['Helvetica']})
+
+rc("font", **{"family": "sans-serif", "sans-serif": ["Helvetica"]})
 # set to true for nicer plots. Defaults to false for compatability
-rc('text', usetex=False)
-matplotlib.rcParams['figure.figsize'] = 5.5, 7
+rc("text", usetex=False)
+matplotlib.rcParams["figure.figsize"] = 5.5, 7
 
-font = {'size': 8}
+font = {"size": 8}
 
-matplotlib.rc('font', **font)
+matplotlib.rc("font", **font)
 
 # yellow = [255, 225, 25]
 # blue = [0, 130, 200]  # Viable
@@ -48,14 +49,18 @@ unviable_color = yellow
 
 
 def create_set_colormap():
-
-    colors = np.array([
-        unviable_color,  # Q_V_true      0 - 0
-        failure_color,  # failure 1 - 1
-        truth_color,  # Q_V_true      1 - 2
-        optimistic_color,  # Q_V_safe       1 - 3
-        explore_color   # Q_V_explore      1 - 4
-    ])/256.0
+    colors = (
+        np.array(
+            [
+                unviable_color,  # Q_V_true      0 - 0
+                failure_color,  # failure 1 - 1
+                truth_color,  # Q_V_true      1 - 2
+                optimistic_color,  # Q_V_safe       1 - 3
+                explore_color,  # Q_V_explore      1 - 4
+            ]
+        )
+        / 256.0
+    )
     return ListedColormap(colors)
 
 
@@ -64,30 +69,41 @@ def frame_image(img, frame_width):
     # resolution / number of pixels in x and y
     ny, nx = img.shape[0], img.shape[1]
     if img.ndim == 3:  # rgb or rgba array
-        framed_img = np.zeros((b+ny+b, b+nx+b, img.shape[2]))
+        framed_img = np.zeros((b + ny + b, b + nx + b, img.shape[2]))
     elif img.ndim == 2:  # grayscale image
-        framed_img = np.zeros((b+ny+b, b+nx+b))
+        framed_img = np.zeros((b + ny + b, b + nx + b))
     framed_img[b:-b, b:-b] = img
     return framed_img
 
 
-def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
-             samples=None, failed_samples=None, Q_F=None):
+def plot_Q_S(
+    Q_V_true,
+    Q_V_explore,
+    Q_V_safe,
+    S_M_0,
+    S_M_true,
+    grids,
+    samples=None,
+    failed_samples=None,
+    Q_F=None,
+):
     # TODO change S_true, simply have S as a tuple of Ss, and add names
-    extent = [grids['actions'][0][0],
-              grids['actions'][0][-1],
-              grids['states'][0][0],
-              grids['states'][0][-1]]
+    extent = [
+        grids["actions"][0][0],
+        grids["actions"][0][-1],
+        grids["states"][0][0],
+        grids["states"][0][-1],
+    ]
 
     fig = plt.figure(constrained_layout=True, figsize=(5.5, 2.4))
-    gs = fig.add_gridspec(1, 2,  width_ratios=[3, 1])
+    gs = fig.add_gridspec(1, 2, width_ratios=[3, 1])
     gs1 = gridspec.GridSpec(1, 2)
     gs1.update(wspace=0.01, hspace=0.01)
 
     ax_Q = fig.add_subplot(gs[0, 0])
     ax_S = fig.add_subplot(gs[0, 1], sharey=ax_Q)
-    ax_Q.tick_params(direction='in', top=True, right=True)
-    ax_S.tick_params(direction='in', left=False)
+    ax_Q.tick_params(direction="in", top=True, right=True)
+    ax_S.tick_params(direction="in", left=False)
 
     # ax_S.plot(S, grids['states'][0])
     # ax_S.set_ylim(ax_Q.get_ylim())
@@ -100,172 +116,224 @@ def plot_Q_S(Q_V_true, Q_V_explore, Q_V_safe, S_M_0, S_M_true, grids,
     # print(s_max)
     # ax_S.set_xlim((0, s_max + 0.1))
 
-
-
-    c = tuple(c/256 for c in truth_color)
-    #ax_S.plot(S_M_true, grids['states'][0],
+    c = tuple(c / 256 for c in truth_color)
+    # ax_S.plot(S_M_true, grids['states'][0],
     #          color=c)
-    ax_S.fill_betweenx(grids['states'][0], 0, S_M_true, facecolor="none", hatch="--",
-                       edgecolor=tuple(c / 256 for c in truth_color)
-)
+    ax_S.fill_betweenx(
+        grids["states"][0],
+        0,
+        S_M_true,
+        facecolor="none",
+        hatch="--",
+        edgecolor=tuple(c / 256 for c in truth_color),
+    )
 
-    c = tuple(c/256 for c in optimistic_color)
-    ax_S.plot(S_M_0, grids['states'][0],
-              color='k')
-    ax_S.plot(S_M_true, grids['states'][0],
-              color='k')
+    c = tuple(c / 256 for c in optimistic_color)
+    ax_S.plot(S_M_0, grids["states"][0], color="k")
+    ax_S.plot(S_M_true, grids["states"][0], color="k")
 
-    ax_S.fill_betweenx(grids['states'][0], 0, S_M_0, facecolor=c, alpha=0.7)
-
+    ax_S.fill_betweenx(grids["states"][0], 0, S_M_0, facecolor=c, alpha=0.7)
 
     # if S_labels:
     #     ax_S.legend(S_labels, loc=2, ncol=1)
 
-    ax_S.set_xlim((0, max(S_M_true)*1.2))
+    ax_S.set_xlim((0, max(S_M_true) * 1.2))
     ax_S.get_yaxis().set_visible(False)
-    ax_S.set_xlabel('$\Lambda$')
+    ax_S.set_xlabel("$\Lambda$")
     # ax_S.set_ylabel('state space: height at apex')
-    aspect_ratio_Q = 'auto'  # 1.5
+    aspect_ratio_Q = "auto"  # 1.5
     # aspect_ratio_S = ax_Q.get_xlim() / s_max
     # ax_S.set_aspect(aspect_ratio_S)
 
+    X, Y = np.meshgrid(grids["actions"][0], grids["states"][0])
 
-    X, Y = np.meshgrid(grids['actions'][0], grids['states'][0])
-
-    ax_Q.contour(X, Y, Q_V_true, [.5], colors='k')
+    ax_Q.contour(X, Y, Q_V_true, [0.5], colors="k")
     # ax_Q.contour(X, Y, Q_V_explore, [.5], colors='k')
     # ax_Q.contour(X, Y, Q_V_safe, [.5], colors='k')
 
     # Build image from sets
-    ax_Q.contour(X, Y, Q_V_safe, [.5], colors='k')
-    ax_Q.contour(X, Y, Q_V_explore, [.5], colors='k')
+    ax_Q.contour(X, Y, Q_V_safe, [0.5], colors="k")
+    ax_Q.contour(X, Y, Q_V_explore, [0.5], colors="k")
 
-    Q_unviable = (~Q_V_true)*1
+    Q_unviable = (~Q_V_true) * 1
 
-    matplotlib.rcParams['hatch.color'] = tuple(c/256 for c in truth_color)
-    ax_Q.contourf(X, Y, Q_V_true, [.5,2], colors='w', hatches=["--", None])
+    matplotlib.rcParams["hatch.color"] = tuple(c / 256 for c in truth_color)
+    ax_Q.contourf(X, Y, Q_V_true, [0.5, 2], colors="w", hatches=["--", None])
 
     if Q_F is not None:
-        matplotlib.rcParams['hatch.color'] = tuple(c / 256 for c in failure_color)
-        ax_Q.contourf(X, Y, Q_F, [.5,2], colors='w', hatches=["XX", None])
+        matplotlib.rcParams["hatch.color"] = tuple(c / 256 for c in failure_color)
+        ax_Q.contourf(X, Y, Q_F, [0.5, 2], colors="w", hatches=["XX", None])
         Q_unviable[Q_F] = 0
 
-    matplotlib.rcParams['hatch.color'] = tuple(c / 256 for c in unviable_color)
-    ax_Q.contourf(X, Y, Q_unviable, [.5,2], colors='w', hatches=["//", None])
+    matplotlib.rcParams["hatch.color"] = tuple(c / 256 for c in unviable_color)
+    ax_Q.contourf(X, Y, Q_unviable, [0.5, 2], colors="w", hatches=["//", None])
 
+    ax_Q.contourf(
+        X,
+        Y,
+        Q_V_safe,
+        [0.5, 2],
+        colors=[tuple((c) / 256 for c in optimistic_color), (0, 0, 0, 0)],
+        alpha=0.7,
+    )
 
-    ax_Q.contourf(X, Y, Q_V_safe, [.5,2],
-                  colors=[tuple((c)/256 for c in optimistic_color), (0,0,0,0)],
-                  alpha=0.7)
-
-    ax_Q.contourf(X, Y, Q_V_explore, [.5,2],
-                  colors=[tuple((c)/256 for c in explore_color), (0,0,0,0)],
-                  alpha=0.7)
+    ax_Q.contourf(
+        X,
+        Y,
+        Q_V_explore,
+        [0.5, 2],
+        colors=[tuple((c) / 256 for c in explore_color), (0, 0, 0, 0)],
+        alpha=0.7,
+    )
 
     if samples is not None and samples[0] is not None:
         action = samples[0][:, 1]
         state = samples[0][:, 0]
         if failed_samples is not None and len(failed_samples) > 0:
-            ax_Q.scatter(action[failed_samples], state[failed_samples],
-                         marker='x', edgecolors=[[0.9, 0.3, 0.3]], s=30,
-                         facecolors=[[0.9, 0.3, 0.3]])
+            ax_Q.scatter(
+                action[failed_samples],
+                state[failed_samples],
+                marker="x",
+                edgecolors=[[0.9, 0.3, 0.3]],
+                s=30,
+                facecolors=[[0.9, 0.3, 0.3]],
+            )
             failed_samples = np.logical_not(failed_samples)
-            ax_Q.scatter(action[failed_samples], state[failed_samples],
-                         facecolors=[[0.9, 0.3, 0.3]], s=30,
-                         marker='.', edgecolors='none')
+            ax_Q.scatter(
+                action[failed_samples],
+                state[failed_samples],
+                facecolors=[[0.9, 0.3, 0.3]],
+                s=30,
+                marker=".",
+                edgecolors="none",
+            )
         else:
-            ax_Q.scatter(action, state,
-                         facecolors=[[0.9, 0.3, 0.3]], s=30,
-                         marker='.', edgecolors='none')
+            ax_Q.scatter(
+                action,
+                state,
+                facecolors=[[0.9, 0.3, 0.3]],
+                s=30,
+                marker=".",
+                edgecolors="none",
+            )
 
+    ax_Q.set_xlabel("action space $A$")
+    ax_Q.set_ylabel("state space $S$")
 
+    extent = [
+        grids["actions"][0][0],
+        grids["actions"][0][-1],
+        grids["states"][0][0],
+        grids["states"][0][-1],
+    ]
 
-    ax_Q.set_xlabel('action space $A$')
-    ax_Q.set_ylabel('state space $S$')
+    frame_width_x = grids["actions"][0][-1] * 0.03
+    ax_Q.set_xlim(
+        (
+            grids["actions"][0][0] - frame_width_x,
+            grids["actions"][0][-1] + frame_width_x,
+        )
+    )
 
-    extent = [grids['actions'][0][0],
-              grids['actions'][0][-1],
-              grids['states'][0][0],
-              grids['states'][0][-1]]
+    frame_width_y = grids["states"][0][-1] * 0.03
+    ax_Q.set_ylim(
+        (grids["states"][0][0] - frame_width_y, grids["states"][0][-1] + frame_width_y)
+    )
 
-    frame_width_x = grids['actions'][0][-1]*.03
-    ax_Q.set_xlim((grids['actions'][0][0] - frame_width_x,
-                   grids['actions'][0][-1] + frame_width_x))
-
-    frame_width_y = grids['states'][0][-1]*.03
-    ax_Q.set_ylim((grids['states'][0][0] - frame_width_y,
-                   grids['states'][0][-1] + frame_width_y))
-
-    #fig.subplots_adjust(0, 0, 1, 1)
+    # fig.subplots_adjust(0, 0, 1, 1)
     return fig
 
 
-def create_plot_callback(n_samples, experiment_name, random_string, every=50, show_flag=True, save_path='./results/'):
-
+def create_plot_callback(
+    n_samples,
+    experiment_name,
+    random_string,
+    every=50,
+    show_flag=True,
+    save_path="./results/",
+):
     def plot_callback(sampler, ndx, thresholds):
         # Plot every n-th iteration
         if ndx % every == 0 or ndx + 1 == n_samples or ndx == -1:
-
-            Q_map_true = sampler.model_data['Q_map']
+            Q_map_true = sampler.model_data["Q_map"]
             grids = sampler.grids
 
-            Q_M_true = sampler.model_data['Q_M']
-            Q_V_true = sampler.model_data['Q_V']
-            S_M_true = sampler.model_data['S_M']
-            Q_F = sampler.model_data['Q_F']
+            Q_M_true = sampler.model_data["Q_M"]
+            Q_V_true = sampler.model_data["Q_V"]
+            S_M_true = sampler.model_data["S_M"]
+            Q_F = sampler.model_data["Q_F"]
 
-            Q_V = sampler.current_estimation.safe_level_set(safety_threshold=0,
-                                                            confidence_threshold=thresholds['measure_confidence'])
+            Q_V = sampler.current_estimation.safe_level_set(
+                safety_threshold=0,
+                confidence_threshold=thresholds["measure_confidence"],
+            )
             S_M_0 = sampler.current_estimation.project_Q2S(Q_V)
 
-            Q_V_exp = sampler.current_estimation.safe_level_set(safety_threshold=thresholds['safety_threshold'],
-                                                                confidence_threshold=thresholds[
-                                                                    'exploration_confidence'])
+            Q_V_exp = sampler.current_estimation.safe_level_set(
+                safety_threshold=thresholds["safety_threshold"],
+                confidence_threshold=thresholds["exploration_confidence"],
+            )
 
             data2save = {
-                'Q_V_true': Q_V_true,
-                'Q_V_exp': Q_V_exp,
-                'Q_V': Q_V,
-                'S_M_0': S_M_0,
-                'S_M_true': S_M_true,
-                'grids': grids,
-                'sampler.failed_samples': sampler.failed_samples,
-                'ndx': ndx,
-                'threshold': thresholds
+                "Q_V_true": Q_V_true,
+                "Q_V_exp": Q_V_exp,
+                "Q_V": Q_V,
+                "S_M_0": S_M_0,
+                "S_M_true": S_M_true,
+                "grids": grids,
+                "sampler.failed_samples": sampler.failed_samples,
+                "ndx": ndx,
+                "threshold": thresholds,
             }
 
-            fig = plot_Q_S(Q_V_true, Q_V_exp, Q_V, S_M_0, S_M_true, grids,
-                           samples=(sampler.X, sampler.y),
-                           failed_samples=sampler.failed_samples, Q_F=Q_F)
+            fig = plot_Q_S(
+                Q_V_true,
+                Q_V_exp,
+                Q_V,
+                S_M_0,
+                S_M_true,
+                grids,
+                samples=(sampler.X, sampler.y),
+                failed_samples=sampler.failed_samples,
+                Q_F=Q_F,
+            )
 
             if save_path is not None:
-
                 today = [datetime.date.today()]
-                folder_name = str(today[0]) + '_experiment_name_' + experiment_name + '_random_' + random_string
+                folder_name = (
+                    str(today[0])
+                    + "_experiment_name_"
+                    + experiment_name
+                    + "_random_"
+                    + random_string
+                )
 
-                filename = str(ndx).zfill(4) + '_samples_' + experiment_name
+                filename = str(ndx).zfill(4) + "_samples_" + experiment_name
 
-                path = save_path + folder_name + '/'
+                path = save_path + folder_name + "/"
 
                 file = Path(path)
                 file.mkdir(parents=True, exist_ok=True)
 
-                outfile = open(path + filename + '.pickle', 'wb')
+                outfile = open(path + filename + ".pickle", "wb")
                 pickle.dump(data2save, outfile)
                 outfile.close()
 
-                plt.savefig(path + filename + '_fig.pdf', format='pdf')
+                plt.savefig(path + filename + "_fig.pdf", format="pdf")
 
             plt.tight_layout()
             if show_flag:
                 plt.show()
 
-            plt.close('all')
+            plt.close("all")
 
             if sampler.y is not None:
-                print(str(ndx) + " ACCUMULATED ERROR: "
-                      + str(np.sum(np.abs(S_M_0 - S_M_true)))
-                      + " Failure rate: " + str(np.mean(sampler.y < 0)))
+                print(
+                    str(ndx)
+                    + " ACCUMULATED ERROR: "
+                    + str(np.sum(np.abs(S_M_0 - S_M_true)))
+                    + " Failure rate: "
+                    + str(np.mean(sampler.y < 0))
+                )
 
     return plot_callback
-

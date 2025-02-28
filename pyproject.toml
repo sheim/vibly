@@ -15,10 +15,10 @@ license = { text = "MIT" }
 keywords = ["vibly"]  # optional
 dependencies = [
   "joblib>=1.4.2",
-  "matplotlib>=3.0.3,<=3.5.1",
-  "numpy>=1.18.4,<=1.22.3",
+  "matplotlib>=3.0.3",
+  "numpy>=1.18.4",
   "ruff>=0.9.7",
-  "scipy>=1.5.1,<=1.8.0",
+  "scipy>=1.5.1",
   "ttictoc>=0.5.6"
 ]
 
