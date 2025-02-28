@@ -28,7 +28,7 @@ def run_demo(
     infile.close()
 
     # A prior action state pair that is considered safe (from system knowledge)
-    safest_idx = np.unravel_index(np.argmax(data["Q_M"]), data["Q_M"].shape)
+    # safest_idx = np.unravel_index(np.argmax(data["Q_M"]), data["Q_M"].shape)
 
     grids = data["grids"]
 
@@ -65,12 +65,12 @@ def run_demo(
     def plot_callback(sampler, ndx, thresholds):
         # Plot every n-th iteration
         if ndx % 250 == 0 or ndx + 1 == n_samples or ndx == -1:
-            extent = [
-                grids["states"][1][0],
-                grids["states"][1][-1],
-                grids["states"][0][0],
-                grids["states"][0][-1],
-            ]
+            # extent = [
+            #     grids["states"][1][0],
+            #     grids["states"][1][-1],
+            #     grids["states"][0][0],
+            #     grids["states"][0][-1],
+            # ]
 
             S_M_true = sampler.model_data["S_M"]
 
@@ -92,8 +92,8 @@ def run_demo(
             ax2 = fig.add_subplot(1, 2, 2, sharey=ax1, sharex=ax1)
 
             X, Y = np.meshgrid(grids["states"][1], grids["states"][0])
-            cs1 = ax1.contourf(X, Y, S_M_0, 3, cmap="gray")
-            cs2 = ax2.contourf(X, Y, S_M_true, 3, cmap="gray")
+            # cs1 = ax1.contourf(X, Y, S_M_0, 3, cmap="gray")
+            # cs2 = ax2.contourf(X, Y, S_M_true, 3, cmap="gray")
             ax1.title.set_text(r"Learned $\Lambda(s)$")
             ax2.title.set_text(r"True $\Lambda(s)$")
 

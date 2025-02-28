@@ -88,12 +88,6 @@ def plot_Q_S(
     Q_F=None,
 ):
     # TODO change S_true, simply have S as a tuple of Ss, and add names
-    extent = [
-        grids["actions"][0][0],
-        grids["actions"][0][-1],
-        grids["states"][0][0],
-        grids["states"][0][-1],
-    ]
 
     fig = plt.figure(constrained_layout=True, figsize=(5.5, 2.4))
     gs = fig.add_gridspec(1, 2, width_ratios=[3, 1])
@@ -139,11 +133,7 @@ def plot_Q_S(
 
     ax_S.set_xlim((0, max(S_M_true) * 1.2))
     ax_S.get_yaxis().set_visible(False)
-    ax_S.set_xlabel("$\Lambda$")
-    # ax_S.set_ylabel('state space: height at apex')
-    aspect_ratio_Q = "auto"  # 1.5
-    # aspect_ratio_S = ax_Q.get_xlim() / s_max
-    # ax_S.set_aspect(aspect_ratio_S)
+    ax_S.set_xlabel(r"$\Lambda$")
 
     X, Y = np.meshgrid(grids["actions"][0], grids["states"][0])
 
@@ -220,13 +210,6 @@ def plot_Q_S(
     ax_Q.set_xlabel("action space $A$")
     ax_Q.set_ylabel("state space $S$")
 
-    extent = [
-        grids["actions"][0][0],
-        grids["actions"][0][-1],
-        grids["states"][0][0],
-        grids["states"][0][-1],
-    ]
-
     frame_width_x = grids["actions"][0][-1] * 0.03
     ax_Q.set_xlim(
         (
@@ -255,10 +238,8 @@ def create_plot_callback(
     def plot_callback(sampler, ndx, thresholds):
         # Plot every n-th iteration
         if ndx % every == 0 or ndx + 1 == n_samples or ndx == -1:
-            Q_map_true = sampler.model_data["Q_map"]
             grids = sampler.grids
 
-            Q_M_true = sampler.model_data["Q_M"]
             Q_V_true = sampler.model_data["Q_V"]
             S_M_true = sampler.model_data["S_M"]
             Q_F = sampler.model_data["Q_F"]
@@ -286,7 +267,7 @@ def create_plot_callback(
                 "threshold": thresholds,
             }
 
-            fig = plot_Q_S(
+            fig = plot_Q_S(  # noqa: F841
                 Q_V_true,
                 Q_V_exp,
                 Q_V,

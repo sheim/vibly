@@ -162,7 +162,9 @@ for failure_penalty in failure_penalties:
 
     # mynorm = colors.CenteredNorm()
     # mymap = plt.get_cmap('bwr_r')
-    # shrunk_cmap = vplot.shiftedColorMap(mymap, start=0.2, midpoint=0.5, stop=0.8, name='shrunk')
+    # shrunk_cmap = vplot.shiftedColorMap(
+    #     mymap, start=0.2, midpoint=0.5, stop=0.8, name="shrunk"
+    # )
 
     extent = [
         grids["states"][1][0],

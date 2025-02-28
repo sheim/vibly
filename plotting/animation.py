@@ -47,8 +47,9 @@ def animation_visualisation(
         liftoff = t_end
 
     ### Interpolation
-    ## Animate shows frames at regular time intervals, whereas the simulation results are at irregular time intervals
-    ## Therefore we need to interpolate the data to have the values at the times of the frames given by regular_times
+    # Animate shows frames at regular time intervals, whereas the simulation results
+    # are at irregular time intervals. Therefore we need to interpolate the data to have
+    # the values at the times of the frames given by regular_times.
 
     # CoM
     x_interpolate = interp1d(times, x_com)

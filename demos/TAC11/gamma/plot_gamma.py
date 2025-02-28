@@ -24,7 +24,7 @@ fig, ax = plt.subplots(figsize=(colwide, 3 / 6 * colwide), constrained_layout=Tr
 
 ax.semilogy(gammas, pstars)
 ax.set_xlim(1, 0.2)
-ax.set_xlabel("$\gamma$")
+ax.set_xlabel(r"$\gamma$")
 ax.set_ylabel("$p^*$")
 plt.savefig("gamma_pstar" + ".pdf", format="pdf")
 # plt.show()

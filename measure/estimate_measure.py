@@ -37,7 +37,8 @@ class MeasureEstimation:
     def input_dim(self):
         return self.action_dim + self.state_dim
 
-    # The failure value is chosen such that at the point there is only some probability left that the point is viable
+    # The failure value is chosen such that at the point there is only some probability
+    # left that the point is viable
     @property
     def failure_value(self):
         return -2 * np.sqrt(self.gp.likelihood.variance)
@@ -69,7 +70,8 @@ class MeasureEstimation:
         return kernel_1  # + kernel_2
 
     def learn_hyperparameter(self, AS_grid, Q_M, Q_V, save="./model/prior.npy"):
-        # Expects the AS_grid data to be in a n-d grid (e.g. a (3,5,5,5) ndarray) where n**d is the number of samples
+        # Expects the AS_grid data to be in a n-d grid (e.g. a (3,5,5,5) ndarray) where
+        # n**d is the number of samples
         # To create such a grid from the grid points:
         # np.mgrid[action1, action2, state1, state2]
         # or np.meshgrid(np.linspace(0,3,3), np.linspace(0,3,3), np.linspace(0,3,4))
@@ -84,20 +86,20 @@ class MeasureEstimation:
 
         # Sample training points from safe and unsafe prior
         idx_safe = np.argwhere(Q_V.ravel()).ravel()
-        idx_unsafe = np.argwhere(~Q_V.ravel()).ravel()
+        # idx_unsafe = np.argwhere(~Q_V.ravel()).ravel()
 
         if len(idx_safe) > 2000:  # or len(idx_unsafe) > 250:
             print(
-                "Warning: Dataset to big to learn hyperparameter fast. Using a subset to speed things up."
+                "Warning: Dataset to big to learn hyperparameter fast. Using a subset"
+                + " to speed things up."
             )
 
         idx_sample_safe = np.random.choice(
             idx_safe, size=np.min([2000, len(idx_safe)]), replace=False
         )
-        idx_sample_unsafe = np.random.choice(
-            idx_unsafe, size=np.min([250, len(idx_unsafe)]), replace=False
-        )
-
+        # idx_sample_unsafe = np.random.choice(
+        #     idx_unsafe, size=np.min([250, len(idx_unsafe)]), replace=False
+        # )
         # idx = np.concatenate((idx_sample_safe, idx_sample_unsafe))
         idx = idx_sample_safe
 
@@ -137,13 +139,14 @@ class MeasureEstimation:
             gp_prior.update_model(
                 False
             )  # do not call the underlying expensive algebra on load
-            gp_prior.initialize_parameter()  # Initialize the parameters (connect the parameters up)
+            gp_prior.initialize_parameter()  # Initialize the parameters
             gp_prior[:] = gps.item().get("gp_prior")  # Load the parameters
             gp_prior.update_model(True)  # Call the algebra only once
 
         else:
             print(
-                "WARNING: No model found. Using default kernel parameters. Make sure you really want to do this!"
+                "WARNING: No model found. Using default kernel parameters. "
+                + "Make sure you really want to do this!"
             )
 
         self.prior = gp_prior
@@ -174,7 +177,7 @@ class MeasureEstimation:
 
     # Utility function to empty out data set
     def set_data_empty(self):
-        # GPy fails with empty dataset. So put in a data point far removed from everything
+        # GPy fails with empty dataset, put in a data point far removed from everything
         X = np.ones((1, self.input_dim)) * -1000
         y = np.zeros((1, 1))
         self.set_data(X=X, Y=y)
@@ -283,7 +286,7 @@ if __name__ == "__main__":
     AS_grid = np.meshgrid(grids["actions"][0], grids["states"][0])
     estimation = MeasureEstimation(state_dim=1, action_dim=1, seed=1)
 
-    # Uncomment if you want to learn the hyperparameters of the GP. This might take a while
+    # Uncomment if you want to learn the hyperparameters of the GP. This takes a while
     # estimation.learn_hyperparameter(AS_grid, Q_M, Q_V, save='./model/prior.npy')
 
     X_seed = np.atleast_2d(np.array([38 / (180) * np.pi, 0.45]))

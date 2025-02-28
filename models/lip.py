@@ -1,6 +1,6 @@
 import numpy as np
 
-"""
+r"""
 The linear-inverted pendulum in sagittal plane, from Zaytsev & Ruina.
 Poincare section at mid-stance (no x coordinate for high-level).
 state: \dot{x}
@@ -47,7 +47,8 @@ def p_map(x, p):
         return x, True
     else:
         return np.sqrt(v1_squared), False
-    # TODO constraint on velocity at step transition... to make sure you actually reach the next mid-stance...? implicitly included in checking that v1_squared is non-negative
+    # TODO constraint on velocity at step transition... to make sure you actually reach
+    # the next mid-stance...? implicitly included in checking that v1_squared >= 0
 
     # * Numerical implementation
     # def continuous_dynamics(t, x):

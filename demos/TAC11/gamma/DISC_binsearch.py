@@ -41,6 +41,8 @@ def proxy_reward_position(s, a):
 
 
 actuator_penalty = 1.0
+s0_weight = 1.0
+s1_weight = 1.0
 
 
 def actuator_cost(s, a):

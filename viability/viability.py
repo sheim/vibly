@@ -2,7 +2,10 @@ import itertools as it
 import numpy as np
 
 """
-Tools for computing the viable set (in state-action space) and viability kernel (in state space) of a dynamical system. Note, all methods appended with `_2D` are specific to 2D systems and deprecated. They are left here since they are a lot easier to read, in case you're interested in understanding what the code is doing.
+Tools for computing the viable set (in state-action space) and viability kernel (in
+state space) of a dynamical system. Note, all methods appended with `_2D` are specific
+to 2D systems and deprecated. They are left here since they are a lot easier to read,
+in case you're interested in understanding what the code is doing.
 
 For all practical use, refer to the N-D versions.
 """
@@ -552,7 +555,7 @@ def parcompute_Q_mapC(grids, p_map, verbose=0, check_grid=False, keep_coords=Fal
     # initialize 1D, reshape later
     # shape of state-space grid
     s_grid_shape = list(map(np.size, grids["states"]))
-    s_bin_shape = tuple(dim + 1 for dim in s_grid_shape)
+    # s_bin_shape = tuple(dim + 1 for dim in s_grid_shape)
     a_grid_shape = list(map(np.size, grids["actions"]))
     total_gridpoints = np.prod(s_grid_shape) * np.prod(a_grid_shape)
     if verbose > 0:

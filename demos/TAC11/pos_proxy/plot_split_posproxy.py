@@ -2,19 +2,16 @@ import numpy as np
 
 import matplotlib as cm
 
-cm.use("TkAgg")
-cm.rcParams["pdf.fonttype"] = 42
-cm.rcParams["ps.fonttype"] = 42
 import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 import viability as vibly  # algorithms for brute-force viability
-
-# from mpl_toolkits.mplot3d import Axes3D
-# from matplotlib import rcParams
-# from scipy.signal import savgol_filter
 import pickle
 
 import plotting.value_plotters as vplot
+
+cm.use("TkAgg")
+cm.rcParams["pdf.fonttype"] = 42
+cm.rcParams["ps.fonttype"] = 42
 
 colwide = 3.5
 pagewide = 7.16

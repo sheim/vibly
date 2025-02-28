@@ -24,7 +24,8 @@ def run_demo(
     infile.close()
 
     # A prior state action pair that is considered safe (from system knowledge)
-    # Here it is chosen to be outside the viable set to demonstrate that the learner can deal with this case
+    # Here it is chosen to be outside the viable set to demonstrate that the learner can
+    # deal with this case
     X_seed = np.atleast_2d(np.array([1.45, 0.5]))
     y_seed = np.array([[0.8]])
 

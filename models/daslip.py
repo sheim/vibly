@@ -58,22 +58,22 @@ def step(x0, p, prev_sol=None):
     GRAVITY = p["gravity"]
     MASS = p["mass"]
     SPRING_RESTING_LENGTH = p["resting_length"]
-    STIFFNESS = p["stiffness"]
+    # STIFFNESS = p["stiffness"]
 
-    ACTUATOR_RESTING_LENGTH = p["actuator_resting_length"]
+    # ACTUATOR_RESTING_LENGTH = p["actuator_resting_length"]
     SWING_VELOCITY = p["swing_velocity"]
     SWING_EXTENSION_VELOCITY = p["swing_extension_velocity"]
-    ACTUATOR_PERIOD = p["actuator_force_period"]
-    VISCOUS_DAMPING = p["constant_normalized_damping"] * p["stiffness"]
-    ACTIVE_DAMPING = p["linear_normalized_damping"]
-    MIN_DAMPING = (
-        p["linear_normalized_damping"]
-        * p["mass"]
-        * p["gravity"]
-        * p["linear_minimum_normalized_damping"]
-    )
-    DELAY = p["activation_delay"]  # can also be negative
-    AMPLI = p["activation_amplification"]
+    # ACTUATOR_PERIOD = p["actuator_force_period"]
+    # VISCOUS_DAMPING = p["constant_normalized_damping"] * p["stiffness"]
+    # ACTIVE_DAMPING = p["linear_normalized_damping"]
+    # MIN_DAMPING = (
+    #     p["linear_normalized_damping"]
+    #     * p["mass"]
+    #     * p["gravity"]
+    #     * p["linear_minimum_normalized_damping"]
+    # )
+    # DELAY = p["activation_delay"]  # can also be negative
+    # AMPLI = p["activation_amplification"]
 
     # @jit(nopython=True)
     def flight_dynamics(t, x):

@@ -2,9 +2,6 @@ import numpy as np
 
 import matplotlib as cm
 
-cm.use("TkAgg")
-cm.rcParams["pdf.fonttype"] = 42
-cm.rcParams["ps.fonttype"] = 42
 import matplotlib.colors as colors
 import matplotlib.pyplot as plt
 import viability as vibly  # algorithms for brute-force viability
@@ -16,6 +13,10 @@ import pickle
 import matplotlib.collections as collections
 
 import plotting.value_plotters as vplot
+
+cm.use("TkAgg")
+cm.rcParams["pdf.fonttype"] = 42
+cm.rcParams["ps.fonttype"] = 42
 
 # import seaborn as sns
 # sns.set_theme(style="darkgrid")
@@ -138,7 +139,8 @@ for idx in range(num_plots - 1):
     plt.setp(axs[idx].get_xticklabels(), visible=False)
 
 fig.colorbar(
-    pc1,
+    # pc1,
+    pc3,
     ax=axs,
     orientation="horizontal",
     extend="both",

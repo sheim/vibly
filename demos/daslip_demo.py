@@ -28,10 +28,12 @@ def get_step_trajectories(x0, p, ground_heights=None):
 # * initialize parameters. Compared to the original version...
 # * removed:
 # model_type: the type is always a daslip
-# damping_type: both parameters for both damping types need to be set. The resulting forces are summed. To use only one, just set the parameter of the other to 0
+# damping_type: both parameters for both damping types need to be set. The resulting
+# forces are summed. To use only one, just set the parameter of the other to 0
 # swing_type: to choose "no swing', set the swing velocity to 0
 # * added
-# activation_delay: this will add an extra delay (can be negative) to the open-loop trajectory. This is used to adjust the timing to coincide with touch-down
+# activation_delay: this will add an extra delay (can be negative) to the open-loop
+# trajectory. This is used to adjust the timing to coincide with touch-down
 # activation_amplification: a coefficient to modulate the open-loop activation
 # * renamed
 # swing_leg_angular_velcoity --> swing_velocity
@@ -48,7 +50,8 @@ p = {
     "activation_delay": 0.0,  # * a delay for when to start activation
     "activation_amplification": 1.0,
     "constant_normalized_damping": 0.75,  # * s : D/K : [N/m/s]/[N/m]
-    "linear_normalized_damping": 3.5,  # * A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
+    "linear_normalized_damping": 3.5,
+    # A: s/m : D/F : [N/m/s]/N : 0.0035 N/mm/s -> 3.5 1/m/s from Kirch et al. Fig 12
     "linear_minimum_normalized_damping": 0.05,  # *   1/A*(kg*N/kg) :
     "swing_velocity": 0,  # rad/s (set by calculation)
     "angle_of_attack_offset": 0,  # rad   (set by calculation)

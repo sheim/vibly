@@ -12,7 +12,7 @@ import scipy.integrate as integrate
 # p.l2 = p.l1;
 # p.l0 = sqrt(p.l1^2 + p.l2^2 - 2*p.l1*p.l2*np.cos(p.beta0));
 # p.beta10 = acos( (p.l1^2 + p.l2^2 - (0.9*p.l0)^2)/(2*p.l1*p.l2));
-# p.c = p.k10*p.m*p.g/p.l0 * (p.l1*p.l2*0.1)/(0.9) * sin(p.beta10) / (p.beta0 - p.beta10);
+# p.c = p.k10*p.m*p.g/p.l0 * (p.l1*p.l2*0.1)/(0.9) * sin(p.beta10)/(p.beta0 - p.beta10)
 
 
 def feasible(x, p):
@@ -66,7 +66,6 @@ def step(x0, p, prev_sol=None):
     # * nested functions - scroll down to step code * #
 
     # unpacking constants for faster lookup
-    AOA = p["angle_of_attack"]  #
     GRAVITY = p["gravity"]  #
     MASS = p["mass"]  #
     RESTING_ANGLE = p["resting_angle"]
@@ -78,7 +77,6 @@ def step(x0, p, prev_sol=None):
         - 2 * p["upper_leg"] * p["lower_leg"] * np.cos(p["resting_angle"])
     )
     STIFFNESS = p["stiffness"]
-    TOTAL_ENERGY = p["total_energy"]
     # SPECIFIC_STIFFNESS = p['stiffness'] / p['mass']
     MAX_TIME = 5
 

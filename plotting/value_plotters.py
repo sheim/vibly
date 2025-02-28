@@ -29,12 +29,12 @@ def set_size(w, h, ax=None):
     """
     if not ax:
         ax = plt.gca()
-    l = ax.figure.subplotpars.left
-    r = ax.figure.subplotpars.right
-    t = ax.figure.subplotpars.top
-    b = ax.figure.subplotpars.bottom
-    figw = float(w) / (r - l)
-    figh = float(h) / (t - b)
+    left = ax.figure.subplotpars.left
+    right = ax.figure.subplotpars.right
+    top = ax.figure.subplotpars.top
+    bottom = ax.figure.subplotpars.bottom
+    figw = float(w) / (right - left)
+    figh = float(h) / (top - bottom)
     ax.figure.set_size_inches(figw, figh)
 
 
@@ -125,7 +125,7 @@ def value_function(
         cmap=mymap,
     )
     if viability_threshold:
-        cont_vibl = ax.contour(
+        cont_vibl = ax.contour(  # noqa: F841
             grids["states"][1],
             grids["states"][0],
             X_value,
@@ -134,7 +134,7 @@ def value_function(
             ],
             colors="k",
         )
-    cont1 = ax.contour(
+    cont1 = ax.contour(  # noqa: F841
         grids["states"][1], grids["states"][0], X_value, levels=cont_lvls, colors="k"
     )
     if XV is not None:

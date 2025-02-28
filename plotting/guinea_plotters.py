@@ -68,8 +68,6 @@ def get_perturbation_indices(trajectories):
     else:
         if index0 < 0:
             print("WARNING: no nominal trajectory!")
-        num_up = index0 - 1
-        num_down = len(trajectories) - index0
 
     return index0, max_up, max_down
 
@@ -172,7 +170,7 @@ def plot_ground_perturbations(
             sbin = vibly.digitize_s(s_next, grids["states"])
             A_slice = np.copy(Q_M[tuple(sbin) + (slice(None),)])
             viable_actions = grids["actions"][0][np.nonzero(A_slice)]
-            viable_action_M = A_slice[np.nonzero(A_slice)]
+            # viable_action_M = A_slice[np.nonzero(A_slice)]
             # color = plt.cm.hsv(viable_action_M)
             # create an array of foot-points
             foot_x = np.zeros_like(viable_actions)
@@ -245,13 +243,14 @@ def waterfall_plot(fig, ax, X, Y, Z, color="viridis", line_width=2):
         lc.set_linewidth(
             line_width
         )  # set linewidth a little larger to see properly the colormap variation
-        line = ax.add_collection3d(
+        line = ax.add_collection3d(  # noqa: F841
             lc, zs=(Y[j, 1:] + Y[j, :-1]) / 2, zdir="y"
         )  # add line to axes
     ax.tick_params(axis="both", which="both", length=0)
     # divider = make_axes_locatable(ax)
     # cax = divider.append_axes('top', size="5%", pad=0.05)
-    # fig.colorbar(lc, cax=cax)  # add colorbar, as the normalization is the same for all, it doesent matter which of the lc objects we use
+    # fig.colorbar(lc, cax=cax)  # add colorbar, as the normalization is the same for
+    # all, it doesn't matter which of the lc objects we use
     fig.colorbar(lc, shrink=0.45)
 
 

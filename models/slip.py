@@ -302,7 +302,7 @@ def find_limit_cycle(x, p, options):
     # Somewhat hacky, very specific to AoA
     if not feasible(x, p):
         # if we're searching for AOAs, start from a feasible one
-        if p_key_name == "angle_of_attack":
+        if options["parameter_name"] == "angle_of_attack":
             # starting infeasible
             # assuming we're looking for an aoa
             for aoa in np.linspace(p["angle_of_attack"], np.pi / 2, 9):
@@ -315,7 +315,7 @@ def find_limit_cycle(x, p, options):
         else:
             # if not, out of luck
             print("WARNING: requested LC at infeasible point")
-            return key_delta, limit_cycle_found
+            return 0, limit_cycle_found
 
     p["total_energy"] = compute_total_energy(x, p)
     (pm, step_failed) = p_map(x, p)

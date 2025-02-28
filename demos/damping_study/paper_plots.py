@@ -2,13 +2,14 @@ import numpy as np
 
 import matplotlib
 
-matplotlib.use("TkAgg")
-matplotlib.rcParams["pdf.fonttype"] = 42
-matplotlib.rcParams["ps.fonttype"] = 42
 import matplotlib.pyplot as plt
 from scipy.signal import savgol_filter
 import plotting.guinea_plotters as daplot
 import pickle
+
+matplotlib.use("TkAgg")
+matplotlib.rcParams["pdf.fonttype"] = 42
+matplotlib.rcParams["ps.fonttype"] = 42
 
 # install and uncomment seaborn for pretty plots.
 # import seaborn as sns
@@ -80,10 +81,14 @@ try:
 except FileNotFoundError:
     print("ERROR: data not found.")
     print(
-        "Make sure the paths to the files is correct (relative to where you're running the code from), and that the files exist."
+        "Make sure the paths to the files is correct (relative to where you're running"
+        " the code from), and that the files exist."
     )
     print(
-        "If you haven't computed files yourself (which takes a LONG time), you can download them from: https://doi.org/10.5061/dryad.44j0zpcbj. We encourage you to use this code, which may have improvements/bugfixes, and simply copy/paste the dataset from `data/guineafowl` into the `data` folder."
+        "If you haven't computed files yourself (which takes a LONG time), you can "
+        "download them from: https://doi.org/10.5061/dryad.44j0zpcbj. We encourage you "
+        "to use this code, which may have improvements/bugfixes, and simply copy/paste "
+        "the dataset from `data/guineafowl` into the `data` folder."
     )
 
 # * Flags for which plots to generate

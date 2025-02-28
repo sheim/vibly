@@ -55,6 +55,8 @@ def actuator_cost(s, a):
 s0_weight = 1 / (grids["states"][0][-1] - grids["states"][0][0])
 s1_weight = 1 / (grids["states"][1][-1] - grids["states"][1][0])
 
+l2_boost = 0.0
+
 
 def smooth_l2(s, a):
     # close to geocentric orbit
@@ -173,7 +175,9 @@ for failure_penalty in failure_penalties:
 
     # mynorm = colors.CenteredNorm()
     # mymap = plt.get_cmap('bwr_r')
-    # shrunk_cmap = vplot.shiftedColorMap(mymap, start=0.2, midpoint=0.5, stop=0.8, name='shrunk')
+    # shrunk_cmap = vplot.shiftedColorMap(
+    #     mymap, start=0.2, midpoint=0.5, stop=0.8, name="shrunk"
+    # )
 
     extent = [
         grids["states"][1][0],
