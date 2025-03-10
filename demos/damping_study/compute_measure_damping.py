@@ -16,13 +16,19 @@ import os
 # * If you just want to try this out, without computing high-resolution grids,
 # * adjust the number of damping values, and in particular the grid sizes.
 
-if __name__ == '__main__':
-
-    print("WARNING: Computing this data from scratch can take a LONG time (~20 hours on a 24-core machine). We have pre-computed the data for the Guinea Fowl parameter fit (used in 'A Little Damping goes a Long Way' in RSBL), which can be found here: https://doi.org/10.5061/dryad.44j0zpcbj.")
-    print("We encourage you to use this code, which may have improvements/bugfixes, and simply copy/paste the dataset from `data/guineafowl` into the `data` folder.")
+if __name__ == "__main__":
+    print(
+        "WARNING: Computing this data from scratch can take a LONG time (~20 hours on "
+        "a 24-core machine). We have pre-computed the data for the Guinea Fowl "
+        "parameter fit (used in 'A Little Damping goes a Long Way' in RSBL), which can "
+        "be found here: https://doi.org/10.5061/dryad.44j0zpcbj."
+    )
+    print(
+        "We encourage you to use this code, which may have improvements/bugfixes, and "
+        "simply copy/paste the dataset from `data/guineafowl` into the `data` folder."
+    )
 
     def compute_viability(x0, p, name, visualise=False):
-
         # * Solve for nominal open-loop limit-cycle
 
         # * Set-up P maps for computations
@@ -58,15 +64,15 @@ if __name__ == '__main__':
         s_grid_height = np.linspace(0.05, 0.5, 91)
         s_grid_velocity = np.linspace(0, 10.0, 101)
         s_grid = (s_grid_height, s_grid_velocity)
-        a_grid_aoa = np.linspace(0/180*np.pi, 90/180*np.pi, 91)
-        a_grid = (a_grid_aoa, )
+        a_grid_aoa = np.linspace(0 / 180 * np.pi, 90 / 180 * np.pi, 91)
+        a_grid = (a_grid_aoa,)
 
         # * if you use the representation `sa2xp_amp` (see above), the
         # * action grid also includes an extra dimension
         # a_grid_amp = np.linspace(0.75, 1.25, 11)
         # a_grid = (a_grid_aoa, a_grid_amp)
 
-        grids = {'states': s_grid, 'actions': a_grid}
+        grids = {"states": s_grid, "actions": a_grid}
 
         # * compute transition matrix and boolean matrix of failures
         Q_map, Q_F = vibly.parcompute_Q_map(grids, p_map, verbose=1)
@@ -78,17 +84,25 @@ if __name__ == '__main__':
         # * map the measure to Q-space
         Q_M = vibly.map_S2Q(Q_map, S_M, s_grid, Q_V=Q_V)
 
-        print("non-failing portion of Q: " + str(np.sum(~Q_F)/Q_F.size))
-        print("viable portion of Q: " + str(np.sum(Q_V)/Q_V.size))
+        print("non-failing portion of Q: " + str(np.sum(~Q_F) / Q_F.size))
+        print("viable portion of Q: " + str(np.sum(Q_V) / Q_V.size))
 
         # * save data
         if not os.path.exists(name):
             os.makedirs(name)
-        filename = name+'/'+name+'_'+'{:.4f}'.format(damping)
+        filename = name + "/" + name + "_" + "{:.4f}".format(damping)
 
-        data2save = {"grids": grids, "Q_map": Q_map, "Q_F": Q_F, "Q_V": Q_V,
-                    "Q_M": Q_M, "S_M": S_M, "p": p, "x0": x0}
-        outfile = open(filename+'.pickle', 'wb')
+        data2save = {
+            "grids": grids,
+            "Q_map": Q_map,
+            "Q_F": Q_F,
+            "Q_V": Q_V,
+            "Q_M": Q_M,
+            "S_M": S_M,
+            "p": p,
+            "x0": x0,
+        }
+        outfile = open(filename + ".pickle", "wb")
         pickle.dump(data2save, outfile)
         outfile.close()
 
@@ -96,14 +110,14 @@ if __name__ == '__main__':
             print("SAVING FIGURE")
             print(" ")
             plt.figure()
-            plt.imshow(S_M, origin='lower', vmin=0, vmax=1, cmap='viridis')
-            plt.title('bird ' + name)
-            plt.savefig(filename+'.pdf', format='pdf')
+            plt.imshow(S_M, origin="lower", vmin=0, vmax=1, cmap="viridis")
+            plt.title("bird " + name)
+            plt.savefig(filename + ".pdf", format="pdf")
             # plt.show()  # to just see it on the fly
             plt.close()
 
     # * load parameters
-    infile = open('guineafowl_fit.pickle', 'rb')
+    infile = open("guineafowl_fit.pickle", "rb")
     data = pickle.load(infile)
     infile.close()
     # choose bird fit (out of 5)
@@ -112,77 +126,91 @@ if __name__ == '__main__':
     # * Set up parameters for average of a single bird
     # * Note: several parameters (e.g. for swing dynamics, or linear damping)
     # * are not used for this study.
-    p = {'mass': data[bird_id]['mass'],  # kg
-         'stiffness': 650,  # K : N/m  just a guess, this will be fit
-         'resting_length': 0.9*data[bird_id]['virtual_leg_length'],  # m
-         'gravity': 9.81,  # N/kg
-         'angle_of_attack': data[bird_id]['angle_of_attack'],  # rad
-         'actuator_resting_length': 0.1*data[bird_id]['virtual_leg_length'],
-         'actuator_force': [],  # * 2 x M matrix of time and force
-         'actuator_force_period': 10,  # * s
-         'activation_delay': 0.0,  # * a delay for when to start activation
-         'activation_amplification': 1.0,  # 1 for no amplification
-         'constant_normalized_damping': 0.0,  # * s : D/K : [N/m/s]/[N/m]
-         'linear_normalized_damping': 0.0,  # * A: s/m : D/F : [N/m/s]/N
-         'linear_minimum_normalized_damping': 0.015,  # for numerical stability
-         'swing_velocity': 0,  # rad/s
-         'angle_of_attack_offset': 0,  # rad
-         'swing_extension_velocity': 0,  # m/s
-         'swing_leg_length_offset': 0}  # m
+    p = {
+        "mass": data[bird_id]["mass"],  # kg
+        "stiffness": 650,  # K : N/m  just a guess, this will be fit
+        "resting_length": 0.9 * data[bird_id]["virtual_leg_length"],  # m
+        "gravity": 9.81,  # N/kg
+        "angle_of_attack": data[bird_id]["angle_of_attack"],  # rad
+        "actuator_resting_length": 0.1 * data[bird_id]["virtual_leg_length"],
+        "actuator_force": [],  # * 2 x M matrix of time and force
+        "actuator_force_period": 10,  # * s
+        "activation_delay": 0.0,  # * a delay for when to start activation
+        "activation_amplification": 1.0,  # 1 for no amplification
+        "constant_normalized_damping": 0.0,  # * s : D/K : [N/m/s]/[N/m]
+        "linear_normalized_damping": 0.0,  # * A: s/m : D/F : [N/m/s]/N
+        "linear_minimum_normalized_damping": 0.015,  # for numerical stability
+        "swing_velocity": 0,  # rad/s
+        "angle_of_attack_offset": 0,  # rad
+        "swing_extension_velocity": 0,  # m/s
+        "swing_leg_length_offset": 0,
+    }  # m
 
-    x0 = np.array([0, data[bird_id]['height'],  # x_com , y_com
-                  data[bird_id]['velocity'], 0,  # vx_com, vy_com
-                  0, 0,  # foot x, foot y (set below)
-                  p['actuator_resting_length'],  # actuator initial length
-                  0, 0,  # work actuator, work damper
-                  0])  # ground height h
+    x0 = np.array(
+        [
+            0,
+            data[bird_id]["height"],  # x_com , y_com
+            data[bird_id]["velocity"],
+            0,  # vx_com, vy_com
+            0,
+            0,  # foot x, foot y (set below)
+            p["actuator_resting_length"],  # actuator initial length
+            0,
+            0,  # work actuator, work damper
+            0,
+        ]
+    )  # ground height h
     x0 = model.reset_leg(x0, p)
-    p['total_energy'] = model.compute_total_energy(x0, p)
+    p["total_energy"] = model.compute_total_energy(x0, p)
 
     # * Set up experiment parameters
-    damping_vals = np.concatenate((np.array([0.001, 0.005]),
-                                   np.around(np.arange(0.01, 0.2, 0.01),
-                                             decimals=4)))
+    damping_vals = np.concatenate(
+        (np.array([0.001, 0.005]), np.around(np.arange(0.01, 0.2, 0.01), decimals=4))
+    )
     # damping_vals = [0.1, ]
 
     # * start computation
     tictoc.tic()
-    name = 'guineafowl'  # name folder and files to save data
+    name = "guineafowl"  # name folder and files to save data
 
     # * find spring stiffness that results in limit cycle motion
-    legStiffnessSearchWidth = p['stiffness']*0.5
-    limit_cycle_options = {'search_initial_state': False,
-                           'state_index': 2,  # not used
-                           'state_search_width': 2.0,  # not used
-                           'search_parameter': True,
-                           'parameter_name': 'stiffness',
-                           'parameter_search_width': legStiffnessSearchWidth}
+    legStiffnessSearchWidth = p["stiffness"] * 0.5
+    limit_cycle_options = {
+        "search_initial_state": False,
+        "state_index": 2,  # not used
+        "state_search_width": 2.0,  # not used
+        "search_parameter": True,
+        "parameter_name": "stiffness",
+        "parameter_search_width": legStiffnessSearchWidth,
+    }
 
-    print(p['stiffness'], ' N/m :Leg stiffness prior to fitting')
+    print(p["stiffness"], " N/m :Leg stiffness prior to fitting")
     x0, p = model.create_open_loop_trajectories(x0, p, limit_cycle_options)
-    print(p['stiffness'], ' N/m :Leg stiffness after fitting')
+    print(p["stiffness"], " N/m :Leg stiffness after fitting")
 
     # * Save parameter fit
     if not os.path.exists(name):
         os.makedirs(name)
-    filename = name+'/'+name+'_parameter_fit'
+    filename = name + "/" + name + "_parameter_fit"
 
-    data2save = {"p": p, "x0": x0,
-                 "limit_cycle_options":limit_cycle_options,
-                 "damping_vals": damping_vals}
-    outfile = open(filename+'.pickle', 'wb')
+    data2save = {
+        "p": p,
+        "x0": x0,
+        "limit_cycle_options": limit_cycle_options,
+        "damping_vals": damping_vals,
+    }
+    outfile = open(filename + ".pickle", "wb")
     pickle.dump(data2save, outfile)
     outfile.close()
 
     # * For each damping coefficient, compute the viability measure
     for damping in damping_vals:
-        p['constant_normalized_damping'] = damping
+        p["constant_normalized_damping"] = damping
         # p['linear_normalized_damping'] = damping
         # use the commented line if you want to try a damping force that scales
         # linearly with muscle-activation (f(t)). Not discussed in the paper.
-        p['x0'] = x0.copy()
+        p["x0"] = x0.copy()
         compute_viability(x0, p, name, visualise=True)
 
     time_elapsed = tictoc.toc()
-    print("time elapsed for one set of damping values: "
-          + str(time_elapsed/60))
+    print("time elapsed for one set of damping values: " + str(time_elapsed / 60))

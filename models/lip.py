@@ -1,16 +1,16 @@
 import numpy as np
-import scipy.integrate as integrate
-'''
+
+r"""
 The linear-inverted pendulum in sagittal plane, from Zaytsev & Ruina.
 Poincare section at mid-stance (no x coordinate for high-level).
 state: \dot{x}
 actions: step-length, step-time
-'''
+"""
 
 
 # * Transition Map. This is your oracle.
 def p_map(x, p):
-    '''
+    """
     The transition map of your system.
     inputs:
     x: ndarray of the current state
@@ -18,37 +18,37 @@ def p_map(x, p):
     outputs:
     x: ndarray state at next iteration
     failed: boolean indicating if the system has failed
-    '''
+    """
 
     v0 = x[0]
 
-    Tst = p['step_timing']
-    Xst = p['step_location']
+    Tst = p["step_timing"]
+    Xst = p["step_location"]
     # GRAVITY = p['gravity']
     # HEIGHT = p['height']
 
     # * analytical solution
-    v1_squared = v0**2 - Xst**2 + 2*v0*Xst + 2*v0*Xst*np.sinh(Tst)
+    v1_squared = v0**2 - Xst**2 + 2 * v0 * Xst + 2 * v0 * Xst * np.sinh(Tst)
     # print(v0)
     # if v0>=1.0:
     #     print("hello")
 
-    if v1_squared<0:  # does not reach next midstance
+    if v1_squared < 0:  # does not reach next midstance
         # print("Does not reach mid-stance")
         return x, True
-    elif v0*np.sinh(Tst) >= p['max_step']:  # stance leg hits limit
+    elif v0 * np.sinh(Tst) >= p["max_step"]:  # stance leg hits limit
         # print("stretching stance leg")
         return x, True
-    elif v0*np.sinh(Tst) <= Xst - p['max_step']:  # next step too far
+    elif v0 * np.sinh(Tst) <= Xst - p["max_step"]:  # next step too far
         # print("next step too far")
         return x, True
-    elif v0*np.sinh(Tst) >= Xst:  # always step ahead of CoG
+    elif v0 * np.sinh(Tst) >= Xst:  # always step ahead of CoG
         # print("stepping backwards")
         return x, True
     else:
         return np.sqrt(v1_squared), False
-    # TODO constraint on velocity at step transition... to make sure you actually reach the next mid-stance...? implicitly included in checking that v1_squared is non-negative
-
+    # TODO constraint on velocity at step transition... to make sure you actually reach
+    # the next mid-stance...? implicitly included in checking that v1_squared >= 0
 
     # * Numerical implementation
     # def continuous_dynamics(t, x):
@@ -80,7 +80,7 @@ def p_map(x, p):
     #         break
     # else:  # did not reach mid-stance for toooo long
     #     return x, True
-    
+
     # return x, False
 
 
@@ -106,12 +106,13 @@ def p_map(x, p):
 
 # Viability functions
 
+
 # * since the simulation may live in a higher-dimensional state-action space,
 # * (this is the case when using a hierarchical control structure),
 # * we need to map a state-action pair to the x (state) and p (parameters)
 # * we also properly assign the action in the parameter dict
 def sa2xp(state_action, p):
-    '''
+    """
     maps a state-action pair to continuous-time state x and parameter dict p
     inputs:
     state_action: ndarray of state-action pair (s, a)
@@ -119,15 +120,16 @@ def sa2xp(state_action, p):
     outputs:
     x: ndarray of states for simulation
     p: dict of parameters updated with new action
-    '''
-    x = np.atleast_1d(state_action[:p['n_states']])
+    """
+    x = np.atleast_1d(state_action[: p["n_states"]])
     p_new = p.copy()
-    p_new['step_timing'] = np.atleast_1d(state_action[1])
-    p_new['step_location'] = np.atleast_1d(state_action[2])
+    p_new["step_timing"] = np.atleast_1d(state_action[1])
+    p_new["step_location"] = np.atleast_1d(state_action[2])
     return x.flatten(), p_new
 
+
 def sa2xp_num(state_action, p):
-    '''
+    """
     maps a state-action pair to continuous-time state x and parameter dict p
     inputs:
     state_action: ndarray of state-action pair (s, a)
@@ -135,33 +137,35 @@ def sa2xp_num(state_action, p):
     outputs:
     x: ndarray of states for simulation
     p: dict of parameters updated with new action
-    '''
+    """
     x = np.array([0, state_action[0]])  # always start with x0 = 0 (Poinc)
     p_new = p.copy()
-    p_new['step_timing'] = np.atleast_1d(state_action[1])
-    p_new['step_location'] = np.atleast_1d(state_action[2])
+    p_new["step_timing"] = np.atleast_1d(state_action[1])
+    p_new["step_location"] = np.atleast_1d(state_action[2])
     return x.flatten(), p_new
+
 
 # * we also need to provide a function to go back from the continuous-time
 # * state x to the high-level state s
 def xp2s(x, p):
-    '''
+    """
     maps a state x to the high-level state s
     inputs:
     x: ndarray of state
     p: dict of parameters and actions
     outputs:
     s: high-level state used in the viability algorithms
-    '''
+    """
     return x
 
+
 def xp2s_num(x, p):
-    '''
+    """
     maps a state x to the high-level state s
     inputs:
     x: ndarray of state
     p: dict of parameters and actions
     outputs:
     s: high-level state used in the viability algorithms
-    '''
+    """
     return x[1]

@@ -1,21 +1,21 @@
 import numpy as np
 
 import matplotlib as cm
-cm.use("TkAgg")
-cm.rcParams['pdf.fonttype'] = 42
-cm.rcParams['ps.fonttype'] = 42
+
 import matplotlib.colors as colors
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 import viability as vibly  # algorithms for brute-force viability
+
 # from mpl_toolkits.mplot3d import Axes3D
 # from matplotlib import rcParams
 # from scipy.signal import savgol_filter
 import pickle
-import os
-import matplotlib.collections as collections
-
 import plotting.value_plotters as vplot
+
+cm.use("TkAgg")
+cm.rcParams["pdf.fonttype"] = 42
+cm.rcParams["ps.fonttype"] = 42
+
 colwide = 3.5
 pagewide = 7.16
 # import seaborn as sns
@@ -28,7 +28,7 @@ pagewide = 7.16
 filename = "./viability1.pickle"
 # * Load and unpack
 
-infile = open(filename, 'rb')
+infile = open(filename, "rb")
 data = pickle.load(infile)
 infile.close()
 # * unpack invariants
@@ -45,28 +45,34 @@ RX_value = vibly.project_Q2S(R_value, grids, proj_opt=np.mean)
 r_max = RX_value.max()
 r_min = RX_value.min()
 # * limit of values
-alpha = 0.
+alpha = 0.0
 mynorm = colors.TwoSlopeNorm(vmin=-2.5, vcenter=alpha, vmax=0.1)
 # mynorm = colors.CenteredNorm()
 mymap = vplot.get_vmap(2)
 
 
-
-extent = [grids['states'][1][0],
-        grids['states'][1][-1],
-        grids['states'][0][0],
-        grids['states'][0][-1]]
+extent = [
+    grids["states"][1][0],
+    grids["states"][1][-1],
+    grids["states"][0][0],
+    grids["states"][0][-1],
+]
 
 # * plot reward function
-figR, axR = plt.subplots(figsize=(colwide, 3/6*colwide),
-                         constrained_layout=True)
+figR, axR = plt.subplots(figsize=(colwide, 3 / 6 * colwide), constrained_layout=True)
 rmap = colors.ListedColormap(["red", "white"])
 pcR = vplot.reward_function(axR, RX_value, grids, XV=XV, mymap=rmap)
 axR.set_xlabel("$x_2$")
 axR.set_ylabel("$x_1$")
-figR.colorbar(pcR, ax=axR, orientation='horizontal', extend='both',
-                spacing='proportional', shrink=1)
-plt.savefig('viability_R.pdf', format='pdf')
+figR.colorbar(
+    pcR,
+    ax=axR,
+    orientation="horizontal",
+    extend="both",
+    spacing="proportional",
+    shrink=1,
+)
+plt.savefig("viability_R.pdf", format="pdf")
 plt.close()
 
 # # * plot value function

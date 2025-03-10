@@ -1,15 +1,16 @@
 import numpy as np
 import scipy.integrate as integrate
-'''
+
+"""
 A spaceship attempting to reconnoitre the surface of a planet.
 However, the planet has an unusual gravitational field... getting too close to
 the surface may result in getting sucked in, with no escape!
-'''
+"""
 
 
 # * Transition Map. This is your oracle.
 def p_map(x, p):
-    '''
+    """
     The transition map of your system.
     inputs:
     x: ndarray of the current state
@@ -17,7 +18,7 @@ def p_map(x, p):
     outputs:
     x: ndarray state at next iteration
     failed: boolean indicating if the system has failed
-    '''
+    """
 
     # * we first check if the state is already in the failure state
     # * this can happen if the initial state of a new sequence is chosen poorly
@@ -26,29 +27,32 @@ def p_map(x, p):
         return x, True
 
     # unpack the parameter dict
-    THRUST = np.min([p['max_thrust'], p['thrust']])
-    BASE_GRAVITY = p['base_gravity']
-    GRAVITY = p['gravity']
-    MAX_TIME = 1.0/p['control_frequency']
-    CEILING = p['ceiling']
+    THRUST = np.min([p["max_thrust"], p["thrust"]])
+    BASE_GRAVITY = p["base_gravity"]
+    GRAVITY = p["gravity"]
+    MAX_TIME = 1.0 / p["control_frequency"]
+    CEILING = p["ceiling"]
+
     # * for convenience, we define the continuous-time dynamics, and use
     # * scipy.integrate to solve this over one control time-step (MAX_TIME)
     # * what you put in here can be as complicated as you like.
     def continuous_dynamics(t, x):
-        grav_field = np.max([0, np.tanh(0.75*(CEILING - x[0]))])*GRAVITY
-        f = - BASE_GRAVITY - grav_field + THRUST
+        grav_field = np.max([0, np.tanh(0.75 * (CEILING - x[0]))]) * GRAVITY
+        f = -BASE_GRAVITY - grav_field + THRUST
         return f
 
     def ceiling_event(t, x):
-        '''
+        """
         Event function to detect the body hitting the floor (failure)
-        '''
-        return x-CEILING
+        """
+        return x - CEILING
+
     ceiling_event.terminal = True
     ceiling_event.direction = 1
 
-    sol = integrate.solve_ivp(continuous_dynamics, t_span=[0, MAX_TIME], y0=x,
-                              events=ceiling_event)
+    sol = integrate.solve_ivp(
+        continuous_dynamics, t_span=[0, MAX_TIME], y0=x, events=ceiling_event
+    )
 
     # ceiling_event sometime ends integration over CEILING, and sometimes
     # under. This creates discretization problems with computing viability
@@ -61,7 +65,7 @@ def p_map(x, p):
 
 
 def check_failure(x, p):
-    '''
+    """
     Check if a state-action pair is in the failure set.
     inputs:
     x: ndarray of the state
@@ -69,7 +73,7 @@ def check_failure(x, p):
     outputs:
     failed: bool indicating true if the system failed, false otehrwise
 
-    '''
+    """
 
     # * For this example, the system has failed if it ever hits the ground
     if x[0] < 0:
@@ -80,12 +84,13 @@ def check_failure(x, p):
 
 # Viability functions
 
+
 # * since the simulation may live in a higher-dimensional state-action space,
 # * (this is the case when using a hierarchical control structure),
 # * we need to map a state-action pair to the x (state) and p (parameters)
 # * we also properly assign the action in the parameter dict
 def sa2xp(state_action, p):
-    '''
+    """
     maps a state-action pair to continuous-time state x and parameter dict p
     inputs:
     state_action: ndarray of state-action pair (s, a)
@@ -93,21 +98,22 @@ def sa2xp(state_action, p):
     outputs:
     x: ndarray of states for simulation
     p: dict of parameters updated with new action
-    '''
-    x = np.atleast_1d(state_action[:p['n_states']])
+    """
+    x = np.atleast_1d(state_action[: p["n_states"]])
     p_new = p.copy()
-    p_new['thrust'] = state_action[p['n_states']:][0]  # keeping scalar
+    p_new["thrust"] = state_action[p["n_states"] :][0]  # keeping scalar
     return x.flatten(), p_new
+
 
 # * we also need to provide a function to go back from the continuous-time
 # * state x to the high-level state s
 def xp2s(x, p):
-    '''
+    """
     maps a state x to the high-level state s
     inputs:
     x: ndarray of state
     p: dict of parameters and actions
     outputs:
     s: high-level state used in the viability algorithms
-    '''
+    """
     return x
