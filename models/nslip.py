@@ -141,7 +141,7 @@ def step(x0, p, prev_sol=None):
         """
         # x[1]- np.cos(p['angle_of_attack'])*RESTING_LENGTH
         # (which is = x[5])
-        return x[5]
+        return x[5] - x[-1]
 
     touchdown_event.terminal = True  # no longer actually necessary...
     touchdown_event.direction = -1
@@ -297,8 +297,8 @@ def compute_total_energy(x, p):
     )
 
 
-### Functions for Viability
-def map2s(x, p):
+# * Functions for Viability
+def xp2s(x, p):
     """
     map an apex state to its dimensionless normalized height
     TODO: make this accept trajectories
@@ -309,7 +309,7 @@ def map2s(x, p):
     return potential_energy / (potential_energy + kinetic_energy)
 
 
-def map2x(x, p, s):
+def s2x(x, p, s):
     """
     map a desired dimensionless height `s` to it's state-vector
     """
@@ -325,7 +325,7 @@ def map2x(x, p, s):
     x_new[1] = p["total_energy"] * s / p["mass"] / p["gravity"]
     x_new[2] = np.sqrt(p["total_energy"] * (1 - s) / p["mass"] * 2)
     x_new[3] = 0.0  # shouldn't be necessary, but avoids errors accumulating
-    x = reset_leg(x, p)
+    x_new = reset_leg(x_new, p)
     return x_new
 
 
@@ -333,6 +333,7 @@ def sa2xp(state_action, p):
     """
     Specifically map state_actions to x and p
     """
-    p["angle_of_attack"] = state_action[1]
-    x = map2x(p["x0"], p, state_action[0])
-    return x, p
+    p_new = p.copy()
+    p_new["angle_of_attack"] = state_action[1]
+    x = s2x(p_new["x0"], p_new, state_action[0].copy())
+    return x, p_new

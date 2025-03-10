@@ -1,5 +1,6 @@
 import itertools as it
 import numpy as np
+import multiprocessing as mp
 
 """
 Tools for computing the viable set (in state-action space) and viability kernel (in
@@ -464,8 +465,6 @@ def parcompute_Q_map(grids, p_map, verbose=0, check_grid=False, keep_coords=Fals
     - keep_coords: toggle to true to also output an array of actual states
     """
 
-    import multiprocessing as mp
-
     # initialize 1D, reshape later
     # shape of state-space grid
     s_grid_shape = list(map(np.size, grids["states"]))
@@ -550,7 +549,6 @@ def parcompute_Q_mapC(grids, p_map, verbose=0, check_grid=False, keep_coords=Fal
     - keep_coords: toggle to true to also output an array of actual states
     """
     # TODO: integrate this into standard parcompute, and clean up.
-    import multiprocessing as mp
 
     # initialize 1D, reshape later
     # shape of state-space grid

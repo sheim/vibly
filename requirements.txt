@@ -1,3 +1,5 @@
+
+latex
 numpy
 scipy
 matplotlib
