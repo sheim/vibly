@@ -87,3 +87,92 @@ def test_compute_Q_map_and_compute_QV_simple_system():
     assert q_m.shape == q_map.shape
     expected_q_m = np.array([[0.0, 0.25], [0.75, 0.0], [0.25, 0.0]])
     assert np.allclose(q_m, expected_q_m)
+
+
+def test_compute_Q_map_with_check_grid_reports_on_grid_hits():
+    grids = {
+        "states": (np.array([0.0, 1.0, 2.0]),),
+        "actions": (np.array([-1.0, 1.0]),),
+    }
+    p_map = DummyMap()
+
+    q_map, q_fail, q_on_grid, q_reached = vibly.compute_Q_map(
+        grids, p_map, check_grid=True, keep_coords=True
+    )
+
+    assert q_map.shape == (3, 2)
+    assert q_on_grid.shape == q_map.shape
+    assert q_on_grid.dtype == bool
+    assert np.any(q_on_grid)
+
+    total_points = np.prod([grid.size for grid in grids["states"]]) * np.prod(
+        [grid.size for grid in grids["actions"]]
+    )
+    assert q_reached.shape == (len(grids["states"]), total_points)
+
+
+def test_compute_QV_same_with_and_without_on_grid_flag():
+    grids = {
+        "states": (np.array([0.0, 1.0, 2.0]),),
+        "actions": (np.array([-1.0, 1.0]),),
+    }
+    p_map = DummyMap()
+
+    q_map, q_fail, q_on_grid, _ = vibly.compute_Q_map(
+        grids, p_map, check_grid=True, keep_coords=True
+    )
+
+    q_v_default, s_v_default = vibly.compute_QV(q_map, grids, Q_V=~q_fail)
+    q_v_on_grid, s_v_on_grid = vibly.compute_QV(
+        q_map, grids, Q_V=~q_fail, Q_on_grid=q_on_grid
+    )
+
+    assert np.array_equal(q_v_default, q_v_on_grid)
+    assert np.array_equal(s_v_default, s_v_on_grid)
+
+
+def test_is_outside_handles_on_grid_points():
+    s_grid = (np.array([0.0, 1.0, 2.0]),)
+    S_V = np.array([True, False, True])
+
+    idx_viable = np.ravel_multi_index((0,), (3,))
+    assert not vibly.is_outside(idx_viable, s_grid, S_V, on_grid=True)
+
+    idx_outside = np.ravel_multi_index((1,), (3,))
+    assert vibly.is_outside(idx_outside, s_grid, S_V, on_grid=True)
+
+    # also exercise the "not already binned" path (currently treats boundary points as outside)
+    assert vibly.is_outside([0.0], s_grid, S_V, already_binned=False)
+    assert vibly.is_outside([1.5], s_grid, S_V, already_binned=False)
+
+
+def test_map_S2Q_uses_on_grid_lookup():
+    grids = {
+        "states": (np.array([0.0, 1.0, 2.0]),),
+        "actions": (np.array([-1.0, 1.0]),),
+    }
+    p_map = DummyMap()
+
+    q_map, q_fail, q_on_grid, _ = vibly.compute_Q_map(
+        grids, p_map, check_grid=True, keep_coords=True
+    )
+    q_v = ~q_fail
+
+    state_measure = np.array([1.0, 0.5, 0.0])
+    q_m = vibly.map_S2Q(
+        q_map,
+        state_measure,
+        grids["states"],
+        Q_V=q_v,
+        Q_on_grid=q_on_grid,
+    )
+
+    assert q_m.shape == q_map.shape
+
+    mask = q_v & q_on_grid
+    assert np.any(mask)
+    for idx in zip(*np.where(mask)):
+        s_idx = np.unravel_index(q_map[idx], state_measure.shape)
+        neighbors = vibly.get_grid_indices(s_idx, grids["states"])
+        expected = np.mean([state_measure[n] for n in neighbors])
+        assert np.isclose(q_m[idx], expected)

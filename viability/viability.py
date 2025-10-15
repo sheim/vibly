@@ -29,13 +29,6 @@ def get_state_from_ravel(bin_idx, s_grid):
     return s
 
 
-def bin2grid(bin_idx, grids):
-    """
-    To replace `get_state_from_ravel`
-    receiving a tuple of grids, return the grid-
-    """
-
-
 def digitize_s(s, s_grid, shape=None, to_bin=True):
     """
     s_grid is a tuple/list of 1-D grids. digitize_s finds the corresponding

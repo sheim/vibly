@@ -111,6 +111,49 @@ def test_slip_viability_matches_reference():
 
 
 @pytest.mark.slow
+def test_satellite_parcompute_matches_reference():
+    fixture = np.load(FIXTURE_DIR / "closed_satellite11.npz")
+    s_grid = (fixture["s_grid_0"], fixture["s_grid_1"])
+    a_grid = (fixture["a_grid"],)
+    grids = {"states": s_grid, "actions": a_grid}
+
+    p = {
+        "n_states": 2,
+        "geocentric_constant": 10.0,
+        "geocentric_radius": 10.0,
+        "angular_speed": 0.1,
+        "mass": 1.0,
+        "control_frequency": 1,
+        "thrust": 1.0,
+        "radius": 1.0,
+        "radio_range": 15.0,
+    }
+    x0 = fixture["x0"]
+
+    import models.satellite as satellite
+    from models.satellite import p_map as satellite_p_map
+
+    p_map = satellite_p_map
+    p_map.p = p
+    p_map.x = x0
+    p_map.sa2xp = satellite.sa2xp
+    p_map.xp2s = satellite.xp2s
+
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            category=DeprecationWarning,
+            message="Conversion of an array with ndim > 0 to a scalar is deprecated",
+        )
+        q_map, q_fail, _ = vibly.parcompute_Q_mapC(
+            grids, p_map, verbose=1, check_grid=False, keep_coords=True
+        )
+
+    assert np.array_equal(q_map, fixture["Q_map"])
+    assert np.array_equal(q_fail, fixture["Q_F"])
+
+
+@pytest.mark.slow
 def test_satellite_value_iteration_matches_reference():
     fixture = np.load(FIXTURE_DIR / "closed_satellite11.npz")
     q_map = fixture["Q_map"]
