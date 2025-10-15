@@ -1,6 +1,9 @@
 import itertools as it
-import numpy as np
 import multiprocessing as mp
+from dataclasses import dataclass
+from typing import Iterable, Iterator, Optional, Sequence, Tuple
+
+import numpy as np
 
 """
 Tools for computing the viable set (in state-action space) and viability kernel (in
@@ -8,25 +11,20 @@ state space) of a dynamical system in ND.
 """
 
 
-# * Reimplement everything as N-D
+@dataclass
+class TransitionResult:
+    q_map: np.ndarray
+    q_fail: np.ndarray
+    q_on_grid: Optional[np.ndarray] = None
+    q_reached: Optional[np.ndarray] = None
 
-
-def get_state_from_ravel(bin_idx, s_grid):
-    """
-    Get state from bin id. Ideally, interpolate
-    For now, just returning a grid point
-    """
-    bin_idx = np.atleast_1d(bin_idx)
-    grid_idx = np.zeros(len(s_grid), dtype="int")
-    s = np.zeros(len(s_grid))
-    for dim, grid in enumerate(s_grid):
-        if bin_idx[dim] >= grid.size:
-            grid_idx[dim] = grid.size - 1  # upper-est entry
-            s[dim] = grid[grid_idx[dim]]
-        else:
-            grid_idx[dim] = bin_idx[dim]  # just put the right-closest grid
-            s[dim] = grid[grid_idx[dim]]
-    return s
+    def to_legacy_list(self):
+        parts = [self.q_map, self.q_fail]
+        if self.q_on_grid is not None:
+            parts.append(self.q_on_grid)
+        if self.q_reached is not None:
+            parts.append(self.q_reached)
+        return parts
 
 
 def digitize_s(s, s_grid, shape=None, to_bin=True):
@@ -55,86 +53,6 @@ def digitize_s(s, s_grid, shape=None, to_bin=True):
         return s_idx
     else:
         return np.ravel_multi_index(s_idx, shape)
-
-
-def compute_Q_map(grids, p_map, verbose=0, check_grid=False, keep_coords=False):
-    """Compute the transition map of a system
-    NOTES
-    - s_grid and a_grid have to be iterable lists of lists
-    e.g. if they have only 1 dimension, they should be `s_grid = ([1, 2], )`
-    - use p_map to carry parameters
-    - keep_coords: toggle to true to also output an array of actual states
-    """
-    # TODO get rid of check_grid, solve the problem permanently
-
-    # initialize 1D, reshape later
-    # shape of state-space grid
-    s_grid_shape = list(map(np.size, grids["states"]))
-    s_bin_shape = tuple(dim + 1 for dim in s_grid_shape)
-    a_grid_shape = list(map(np.size, grids["actions"]))
-    total_gridpoints = np.prod(s_grid_shape) * np.prod(a_grid_shape)
-
-    if verbose > 0:
-        print("computing a total of " + str(total_gridpoints) + " points.")
-
-    Q_map = np.zeros((total_gridpoints, 1), dtype=int)
-    Q_F = np.zeros((total_gridpoints, 1), dtype=bool)
-    if keep_coords:
-        Q_reached = np.zeros((len(grids["states"]), total_gridpoints))
-
-    if check_grid:
-        Q_on_grid = np.copy(Q_F)  # HACK: keep track of wether you are in a bin
-
-    for idx, state_action in enumerate(
-        np.array(list(it.product(*grids["states"], *grids["actions"])))
-    ):
-        if verbose > 1:
-            # NOTE: requires running python unbuffered (python -u)
-            if idx % (total_gridpoints / 10) == 0:
-                print(".", end=" ")
-
-        x, p = p_map.sa2xp(state_action, p_map.p)
-
-        x_next, failed = p_map(x, p)
-
-        s_next = p_map.xp2s(x_next, p)
-        if keep_coords:
-            Q_reached[:, idx] = s_next
-        if not failed:
-            # note: Q_map is implicitly already excluding transitions that
-            # move straight to a failure. While this is not equivalent to the
-            # algorithm in the paper, for our systems it is a bit faster
-            # bin_idx = np.digitize(state_val, s_grid[state_dx])
-            # sbin = np.digitize(s_next, s)
-            if check_grid:
-                for sdx, sval in enumerate(np.atleast_1d(s_next)):
-                    if ~np.isin(sval, grids["states"][sdx]):
-                        Q_map[idx] = digitize_s(s_next, grids["states"], s_bin_shape)
-                        break
-                else:
-                    Q_on_grid[idx] = True
-                    Q_map[idx] = digitize_s(
-                        s_next, grids["states"], s_grid_shape, to_bin=False
-                    )
-            else:
-                # TODO: should actually do this even when failing.
-                Q_map[idx] = digitize_s(s_next, grids["states"], s_bin_shape)
-
-            # check if s happens to be right on the grid-point
-        else:
-            Q_F[idx] = 1
-
-    Q_map = Q_map.reshape(s_grid_shape + a_grid_shape)
-    Q_F = Q_F.reshape(s_grid_shape + a_grid_shape)
-
-    deliver = [Q_map, Q_F]
-
-    if check_grid:
-        deliver.append(Q_on_grid.reshape(s_grid_shape + a_grid_shape))
-    if keep_coords:
-        deliver.append(Q_reached)
-
-    return deliver
 
 
 def project_Q2S(Q, grids, proj_opt=None):
@@ -209,28 +127,6 @@ def is_outside(s, s_grid, S_V, already_binned=True, on_grid=False):
         return True
 
     return False
-    # for dim_idx, grid in enumerate(s_grid):
-    #     # if outside the left-most or right-most side of grid, mark as outside
-    #     # * NOTE: this can result in disastrous underestimations if the grid is
-    #     # * not larger than the viable set!
-    #     # TODO: this can lead to understimation if s is right on the gridline
-    #     # because it will still check its neighbors. need to first check.
-    #     if bin_idx[dim_idx] == 0:
-    #         return True
-    #     elif bin_idx[dim_idx] >= grid.size:
-    #         return True
-    # # Need to redo the loop. In the first loop, we check if any of the points
-    # # has exited the grid. This needs to be done first to ensure we don't try
-    # # to index outside the grid
-    # for dim_idx, grid in enumerate(s_grid):
-    #     # check if enclosing grid points are viable or not
-    #     index_vec = np.zeros(len(s_grid), dtype=int)
-    #     index_vec[dim_idx] = 1
-    #     if (not S_V[tuple(bin_idx)] or
-    #             not S_V[tuple(bin_idx - index_vec)]):
-    #         return True
-
-    #     return False
 
 
 def get_grid_indices(bin_idx, s_grid):
@@ -308,227 +204,176 @@ def get_feasibility_mask(feasible, sa2xp, grids, x0, p0):
     a_shape = list(map(np.size, grids["actions"]))
     Q_feasible = np.zeros(np.prod(s_shape) * np.prod(a_shape), dtype=bool)
 
-    # TODO: can probably simplify this
-    for idx, state_action in enumerate(
-        np.array(list(it.product(*grids["states"], *grids["actions"])))
-    ):
+    # state_action_iter = it.product(*grids["states"], *grids["actions"])
+    for idx, state_action in enumerate(it.product(*grids["states"], *grids["actions"])):
         x, p = sa2xp(state_action, p0)
         Q_feasible[idx] = feasible(x, p)
 
     return Q_feasible.reshape(s_shape + a_shape)
 
 
-# def compute_Q_cont(grids, p_map, verbose=0):
-#     ''' Compute the transition map of a system, and output the result _without_
-#     discretizing into bins, as an array of coordinate vectors (n, m) where
-#     n is the dimensionality of state, and m are the number of grid-points
-#     NOTES
-#     - s_grid and a_grid have to be iterable lists of lists
-#     e.g. if they have only 1 dimension, they should be `s_grid = ([1, 2], )`
-#     - use p_map to carry parameters
-#     '''
+def _grid_shapes(grids):
+    s_shape = tuple(map(np.size, grids["states"]))
+    a_shape = tuple(map(np.size, grids["actions"]))
+    return s_shape, a_shape
 
-#     # initialize 1D, reshape later
-#     # shape of state-space grid
-#     # initialize 1D, reshape later
-#     # shape of state-space grid
-#     s_grid_shape = list(map(np.size, grids['states']))
-#     a_grid_shape = list(map(np.size, grids['actions']))
-#     total_gridpoints = np.prod(s_grid_shape)*np.prod(a_grid_shape)
 
-#     if verbose > 0:
-#         print('computing a total of ' + str(total_gridpoints) + ' points.')
+def _total_gridpoints(grids):
+    s_shape, a_shape = _grid_shapes(grids)
+    return int(np.prod(s_shape) * np.prod(a_shape))
 
-#     # Q_map = np.zeros((total_gridpoints, 1), dtype=int)
-#     Q_map = np.zeros((len(grids['states']), total_gridpoints))
-#     Q_F = np.zeros((total_gridpoints, 1), dtype=bool)
 
-#     for idx, state_action in enumerate(np.array(list(
-#             it.product(*grids['states'], *grids['actions'])))):
+def _assemble_transition(
+    grids,
+    records: Iterable[Tuple[np.ndarray, bool]],
+    total_count: int,
+    *,
+    check_grid: bool,
+    keep_coords: bool,
+    bin_mode: str,
+) -> TransitionResult:
+    s_grid_shape, a_grid_shape = _grid_shapes(grids)
+    s_bin_shape = tuple(dim + 1 for dim in s_grid_shape)
 
-#         if verbose > 1:
-#             # NOTE: requires running python unbuffered (python -u)
-#             if idx % (total_gridpoints/10) == 0:
-#                 print('.', end=' ')
+    q_map_flat = np.zeros(total_count, dtype=int)
+    q_fail_flat = np.zeros(total_count, dtype=bool)
+    q_on_grid_flat = np.zeros(total_count, dtype=bool) if check_grid else None
+    q_reached = np.zeros((len(grids["states"]), total_count)) if keep_coords else None
 
-#         x, p = p_map.sa2xp(state_action, p_map.p)
-#         x_next, failed = p_map(x, p)
-#         s_next = p_map.xp2s(x_next, p)
-#         Q_map[:, idx] = s_next
-#         if failed:
-#             Q_F[idx] = True
+    if bin_mode == "nearest":
 
-#     return (Q_map, Q_F)
+        def encode(point):
+            return digitize_s(point, grids["states"], shape=s_grid_shape, to_bin=False)
+
+        encode_on_grid = encode
+    else:
+
+        def encode(point):
+            return digitize_s(point, grids["states"], s_bin_shape)
+
+        def encode_on_grid(point):
+            return digitize_s(point, grids["states"], s_grid_shape, to_bin=False)
+
+    for idx, (s_next, failed) in enumerate(records):
+        s_vec = np.atleast_1d(s_next)
+        if keep_coords and q_reached is not None:
+            q_reached[:, idx] = s_vec
+        if failed:
+            q_fail_flat[idx] = True
+            continue
+        if check_grid and q_on_grid_flat is not None:
+            for dim_idx, sval in enumerate(s_vec):
+                if not np.isin(sval, grids["states"][dim_idx]):
+                    q_map_flat[idx] = encode(s_vec)
+                    break
+            else:
+                q_on_grid_flat[idx] = True
+                q_map_flat[idx] = encode_on_grid(s_vec)
+        else:
+            q_map_flat[idx] = encode(s_vec)
+
+    q_map = q_map_flat.reshape(s_grid_shape + a_grid_shape)
+    q_fail = q_fail_flat.reshape(s_grid_shape + a_grid_shape)
+    q_on_grid = (
+        q_on_grid_flat.reshape(s_grid_shape + a_grid_shape)
+        if check_grid and q_on_grid_flat is not None
+        else None
+    )
+
+    return TransitionResult(
+        q_map=q_map,
+        q_fail=q_fail,
+        q_on_grid=q_on_grid,
+        q_reached=q_reached,
+    )
+
+
+def compute_Q_map(grids, p_map, verbose=0, check_grid=False, keep_coords=False):
+    """Compute the transition map of a system."""
+
+    total_gridpoints = _total_gridpoints(grids)
+    if verbose > 0:
+        print("computing a total of " + str(total_gridpoints) + " points.")
+
+    progress_mod = None
+    if verbose > 1 and total_gridpoints >= 10:
+        progress_mod = max(total_gridpoints // 10, 1)
+
+    state_actions = it.product(*grids["states"], *grids["actions"])
+
+    def record_iter():
+        for idx, state_action in enumerate(state_actions):
+            if progress_mod and idx % progress_mod == 0:
+                print(".", end=" ")
+            x, p = p_map.sa2xp(state_action, p_map.p)
+            x_next, failed = p_map(x, p)
+            s_next = p_map.xp2s(x_next, p)
+            yield np.atleast_1d(s_next), bool(failed)
+
+    result = _assemble_transition(
+        grids,
+        record_iter(),
+        total_gridpoints,
+        check_grid=check_grid,
+        keep_coords=keep_coords,
+        bin_mode="bin",
+    )
+    return result.to_legacy_list()
 
 
 def parcompute_Q_map(grids, p_map, verbose=0, check_grid=False, keep_coords=False):
-    """Compute the transition map of a system in parallel
-    - s_grid and a_grid have to be iterable lists of lists
-    e.g. if they have only 1 dimension, they should be `s_grid = ([1, 2], )`
-    - use p_map to carry parameters
-    - keep_coords: toggle to true to also output an array of actual states
-    """
+    """Compute the transition map of a system in parallel."""
 
-    # initialize 1D, reshape later
-    # shape of state-space grid
-    s_grid_shape = list(map(np.size, grids["states"]))
-    s_bin_shape = tuple(dim + 1 for dim in s_grid_shape)
-    a_grid_shape = list(map(np.size, grids["actions"]))
-    total_gridpoints = np.prod(s_grid_shape) * np.prod(a_grid_shape)
+    total_gridpoints = _total_gridpoints(grids)
     if verbose > 0:
         print("computing a total of " + str(total_gridpoints) + " points.")
 
-    # initilize pool
-    pool = mp.Pool()
-    # create list of args
-    SA = list(it.product(*grids["states"], *grids["actions"]))
-    # for sa in SA:
-    #     print(sa[1],end=' in a, and ')
-    p = p_map.p.copy()
-    args = [p_map.sa2xp(sa, p) for sa in SA]
-    # for ar in args:
-    #     print(ar[1]['angle_of_attack'], end='')
-    #     print(" and " + str(ar[0][1]))
-    # start pool with starmap
-    results = pool.starmap(p_map, args)
-    pool.close()
+    state_actions = list(it.product(*grids["states"], *grids["actions"]))
+    args = [p_map.sa2xp(sa, p_map.p) for sa in state_actions]
 
-    # for r in results:
-    #     print(r[0])
+    with mp.Pool() as pool:
+        results = pool.starmap(p_map, args)
 
-    # do the standard stuff (put into bins etc.)
+    records = (
+        (np.atleast_1d(p_map.xp2s(x_next, p)), bool(failed))
+        for (x_next, failed), (_, p) in zip(results, args)
+    )
 
-    Q_map = np.zeros((total_gridpoints, 1), dtype=int)
-    Q_F = np.zeros((total_gridpoints, 1), dtype=bool)
-    if keep_coords:
-        Q_reached = np.zeros((len(grids["states"]), total_gridpoints))
-
-    if check_grid:
-        Q_on_grid = np.copy(Q_F)  # HACK: keep track of wether you are in a bin
-
-    # TODO: no need to use it.product here, since we just use the index
-    for idx, sa in enumerate(
-        np.array(list(it.product(*grids["states"], *grids["actions"])))
-    ):
-        x_next, failed = results[idx]
-        s_next = p_map.xp2s(x_next, p)
-        if keep_coords:
-            Q_reached[:, idx] = s_next
-        if not failed:
-            if check_grid:
-                for sdx, sval in enumerate(np.atleast_1d(s_next)):
-                    if ~np.isin(sval, grids["states"][sdx]):
-                        Q_map[idx] = digitize_s(s_next, grids["states"], s_bin_shape)
-                        break
-                else:
-                    Q_on_grid[idx] = True
-                    Q_map[idx] = digitize_s(
-                        s_next, grids["states"], s_grid_shape, to_bin=False
-                    )
-            else:
-                Q_map[idx] = digitize_s(s_next, grids["states"], s_bin_shape)
-
-            # check if s happens to be right on the grid-point
-        else:
-            Q_F[idx] = 1
-
-    Q_map = Q_map.reshape(s_grid_shape + a_grid_shape)
-    Q_F = Q_F.reshape(s_grid_shape + a_grid_shape)
-
-    deliver = [Q_map, Q_F]
-
-    if check_grid:
-        deliver.append(Q_on_grid.reshape(s_grid_shape + a_grid_shape))
-    if keep_coords:
-        deliver.append(Q_reached)
-
-    return deliver
+    result = _assemble_transition(
+        grids,
+        records,
+        total_gridpoints,
+        check_grid=check_grid,
+        keep_coords=keep_coords,
+        bin_mode="bin",
+    )
+    return result.to_legacy_list()
 
 
 def parcompute_Q_mapC(grids, p_map, verbose=0, check_grid=False, keep_coords=False):
-    """Compute the transition map of a system in parallel
-    - s_grid and a_grid have to be iterable lists of lists
-    e.g. if they have only 1 dimension, they should be `s_grid = ([1, 2], )`
-    - use p_map to carry parameters
-    - keep_coords: toggle to true to also output an array of actual states
-    """
-    # TODO: integrate this into standard parcompute, and clean up.
+    """Compute the transition map of a system in parallel (alternate binning)."""
 
-    # initialize 1D, reshape later
-    # shape of state-space grid
-    s_grid_shape = list(map(np.size, grids["states"]))
-    # s_bin_shape = tuple(dim + 1 for dim in s_grid_shape)
-    a_grid_shape = list(map(np.size, grids["actions"]))
-    total_gridpoints = np.prod(s_grid_shape) * np.prod(a_grid_shape)
+    total_gridpoints = _total_gridpoints(grids)
     if verbose > 0:
         print("computing a total of " + str(total_gridpoints) + " points.")
 
-    # initilize pool
-    pool = mp.Pool()
-    # create list of args
-    SA = list(it.product(*grids["states"], *grids["actions"]))
-    # for sa in SA:
-    #     print(sa[1],end=' in a, and ')
-    p = p_map.p.copy()
-    args = [p_map.sa2xp(sa, p) for sa in SA]
-    # for ar in args:
-    #     print(ar[1]['angle_of_attack'], end='')
-    #     print(" and " + str(ar[0][1]))
-    # start pool with starmap
-    results = pool.starmap(p_map, args)
-    pool.close()
+    state_actions = list(it.product(*grids["states"], *grids["actions"]))
+    args = [p_map.sa2xp(sa, p_map.p) for sa in state_actions]
 
-    # for r in results:
-    #     print(r[0])
+    with mp.Pool() as pool:
+        results = pool.starmap(p_map, args)
 
-    # do the standard stuff (put into bins etc.)
+    records = (
+        (np.atleast_1d(p_map.xp2s(x_next, p)), bool(failed))
+        for (x_next, failed), (_, p) in zip(results, args)
+    )
 
-    Q_map = np.zeros((total_gridpoints, 1), dtype=int)
-    Q_F = np.zeros((total_gridpoints, 1), dtype=bool)
-    if keep_coords:
-        Q_reached = np.zeros((len(grids["states"]), total_gridpoints))
-
-    if check_grid:
-        Q_on_grid = np.copy(Q_F)  # HACK: keep track of wether you are in a bin
-
-    # TODO: no need to use it.product here, since we just use the index
-    for idx, sa in enumerate(
-        np.array(list(it.product(*grids["states"], *grids["actions"])))
-    ):
-        x_next, failed = results[idx]
-        s_next = p_map.xp2s(x_next, p)
-        if keep_coords:
-            Q_reached[:, idx] = s_next
-        if not failed:
-            if check_grid:
-                for sdx, sval in enumerate(np.atleast_1d(s_next)):
-                    if ~np.isin(sval, grids["states"][sdx]):
-                        Q_map[idx] = digitize_s(
-                            s_next, grids["states"], shape=s_grid_shape, to_bin=False
-                        )
-                        break
-                else:
-                    Q_on_grid[idx] = True
-                    Q_map[idx] = digitize_s(
-                        s_next, grids["states"], shape=s_grid_shape, to_bin=False
-                    )
-            else:
-                Q_map[idx] = digitize_s(
-                    s_next, grids["states"], shape=s_grid_shape, to_bin=False
-                )
-
-            # check if s happens to be right on the grid-point
-        else:
-            Q_F[idx] = 1
-
-    Q_map = Q_map.reshape(s_grid_shape + a_grid_shape)
-    Q_F = Q_F.reshape(s_grid_shape + a_grid_shape)
-
-    deliver = [Q_map, Q_F]
-
-    if check_grid:
-        deliver.append(Q_on_grid.reshape(s_grid_shape + a_grid_shape))
-    if keep_coords:
-        deliver.append(Q_reached)
-
-    return deliver
+    result = _assemble_transition(
+        grids,
+        records,
+        total_gridpoints,
+        check_grid=check_grid,
+        keep_coords=keep_coords,
+        bin_mode="nearest",
+    )
+    return result.to_legacy_list()
