@@ -288,8 +288,19 @@ def _assemble_transition(
     )
 
 
-def compute_Q_map(grids, p_map, verbose=0, check_grid=False, keep_coords=False):
+def compute_Q_map(
+    grids,
+    p_map,
+    verbose=0,
+    check_grid=False,
+    keep_coords=False,
+    parallel=False,
+    bin_mode="bin",
+):
     """Compute the transition map of a system."""
+
+    if bin_mode not in {"bin", "nearest"}:
+        raise ValueError(f"Unsupported bin_mode '{bin_mode}'")
 
     total_gridpoints = _total_gridpoints(grids)
     if verbose > 0:
@@ -299,45 +310,32 @@ def compute_Q_map(grids, p_map, verbose=0, check_grid=False, keep_coords=False):
     if verbose > 1 and total_gridpoints >= 10:
         progress_mod = max(total_gridpoints // 10, 1)
 
-    state_actions = it.product(*grids["states"], *grids["actions"])
+    if parallel:
+        state_actions = list(it.product(*grids["states"], *grids["actions"]))
+        base_params = p_map.p.copy()
+        args = [p_map.sa2xp(sa, base_params) for sa in state_actions]
+        with mp.Pool() as pool:
+            results = pool.starmap(p_map, args)
 
-    def record_iter():
-        for idx, state_action in enumerate(state_actions):
+        records = []
+        for idx, ((x_next, failed), (_, params)) in enumerate(zip(results, args)):
             if progress_mod and idx % progress_mod == 0:
                 print(".", end=" ")
-            x, p = p_map.sa2xp(state_action, p_map.p)
-            x_next, failed = p_map(x, p)
-            s_next = p_map.xp2s(x_next, p)
-            yield np.atleast_1d(s_next), bool(failed)
+            s_next = p_map.xp2s(x_next, params)
+            records.append((np.atleast_1d(s_next), bool(failed)))
+    else:
+        state_actions = it.product(*grids["states"], *grids["actions"])
 
-    result = _assemble_transition(
-        grids,
-        record_iter(),
-        total_gridpoints,
-        check_grid=check_grid,
-        keep_coords=keep_coords,
-        bin_mode="bin",
-    )
-    return result.to_legacy_list()
+        def record_iter():
+            for idx, state_action in enumerate(state_actions):
+                if progress_mod and idx % progress_mod == 0:
+                    print(".", end=" ")
+                x, params = p_map.sa2xp(state_action, p_map.p)
+                x_next, failed = p_map(x, params)
+                s_next = p_map.xp2s(x_next, params)
+                yield np.atleast_1d(s_next), bool(failed)
 
-
-def parcompute_Q_map(grids, p_map, verbose=0, check_grid=False, keep_coords=False):
-    """Compute the transition map of a system in parallel."""
-
-    total_gridpoints = _total_gridpoints(grids)
-    if verbose > 0:
-        print("computing a total of " + str(total_gridpoints) + " points.")
-
-    state_actions = list(it.product(*grids["states"], *grids["actions"]))
-    args = [p_map.sa2xp(sa, p_map.p) for sa in state_actions]
-
-    with mp.Pool() as pool:
-        results = pool.starmap(p_map, args)
-
-    records = (
-        (np.atleast_1d(p_map.xp2s(x_next, p)), bool(failed))
-        for (x_next, failed), (_, p) in zip(results, args)
-    )
+        records = record_iter()
 
     result = _assemble_transition(
         grids,
@@ -345,35 +343,6 @@ def parcompute_Q_map(grids, p_map, verbose=0, check_grid=False, keep_coords=Fals
         total_gridpoints,
         check_grid=check_grid,
         keep_coords=keep_coords,
-        bin_mode="bin",
-    )
-    return result.to_legacy_list()
-
-
-def parcompute_Q_mapC(grids, p_map, verbose=0, check_grid=False, keep_coords=False):
-    """Compute the transition map of a system in parallel (alternate binning)."""
-
-    total_gridpoints = _total_gridpoints(grids)
-    if verbose > 0:
-        print("computing a total of " + str(total_gridpoints) + " points.")
-
-    state_actions = list(it.product(*grids["states"], *grids["actions"]))
-    args = [p_map.sa2xp(sa, p_map.p) for sa in state_actions]
-
-    with mp.Pool() as pool:
-        results = pool.starmap(p_map, args)
-
-    records = (
-        (np.atleast_1d(p_map.xp2s(x_next, p)), bool(failed))
-        for (x_next, failed), (_, p) in zip(results, args)
-    )
-
-    result = _assemble_transition(
-        grids,
-        records,
-        total_gridpoints,
-        check_grid=check_grid,
-        keep_coords=keep_coords,
-        bin_mode="nearest",
+        bin_mode=bin_mode,
     )
     return result.to_legacy_list()

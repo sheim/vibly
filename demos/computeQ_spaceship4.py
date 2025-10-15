@@ -48,8 +48,12 @@ if __name__ == "__main__":
     # * Q_on_grid is a helper grid, which marks if a state has not moved
     # * this is used to catch corner cases, and is not important for most systems
     # * setting `check_grid` to False will omit Q_on_grid
-    Q_map, Q_F, Q_on_grid = vibly.parcompute_Q_map(
-        grids, p_map, check_grid=True, verbose=1
+    Q_map, Q_F, Q_on_grid = vibly.compute_Q_map(
+        grids,
+        p_map,
+        check_grid=True,
+        verbose=1,
+        parallel=True,
     )
     # * compute_QV computes the viable set and viability kernel
     Q_V, S_V = vibly.compute_QV(Q_map, grids, ~Q_F, Q_on_grid=Q_on_grid)

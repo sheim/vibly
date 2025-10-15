@@ -71,7 +71,7 @@ if __name__ == "__main__":
     a_grid = (np.linspace(20 / 180 * np.pi, 60 / 180 * np.pi, 25),)
 
     grids = {"states": s_grid, "actions": a_grid}
-    Q_map, Q_F = vibly.parcompute_Q_map(grids, p_map, verbose=2)
+    Q_map, Q_F = vibly.compute_Q_map(grids, p_map, verbose=2, parallel=True)
     Q_V, S_V = vibly.compute_QV(Q_map, grids)
     S_M = vibly.project_Q2S(Q_V, grids, proj_opt=np.mean)
     Q_M = vibly.map_S2Q(Q_map, S_M, s_grid=s_grid, Q_V=Q_V)

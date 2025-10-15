@@ -98,7 +98,7 @@ def test_slip_viability_matches_reference():
             category=DeprecationWarning,
             message="Conversion of an array with ndim > 0 to a scalar is deprecated",
         )
-        q_map, q_fail = vibly.parcompute_Q_map(grids, p_map)
+        q_map, q_fail = vibly.compute_Q_map(grids, p_map, parallel=True)
     q_v, s_v = vibly.compute_QV(q_map, grids, Q_V=~q_fail)
     s_m = vibly.project_Q2S(q_v, grids, proj_opt=np.mean)
     q_m = vibly.map_S2Q(q_map, s_m, grids["states"], Q_V=q_v)
@@ -145,8 +145,8 @@ def test_satellite_parcompute_matches_reference():
             category=DeprecationWarning,
             message="Conversion of an array with ndim > 0 to a scalar is deprecated",
         )
-        q_map, q_fail, _ = vibly.parcompute_Q_mapC(
-            grids, p_map, verbose=1, check_grid=False, keep_coords=True
+        q_map, q_fail, _ = vibly.compute_Q_map(
+            grids, p_map, keep_coords=True, parallel=True, bin_mode="nearest"
         )
 
     assert np.array_equal(q_map, fixture["Q_map"])
