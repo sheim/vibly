@@ -75,7 +75,9 @@ if __name__ == "__main__":
         grids = {"states": s_grid, "actions": a_grid}
 
         # * compute transition matrix and boolean matrix of failures
-        Q_map, Q_F = vibly.compute_Q_map(grids, p_map, verbose=1, parallel=True)
+        result = vibly.compute_Q_map(grids, p_map, verbose=1, parallel=True)
+        Q_map = result.q_map
+        Q_F = result.q_fail
 
         # * compute viable sets
         Q_V, S_V = vibly.compute_QV(Q_map, grids)

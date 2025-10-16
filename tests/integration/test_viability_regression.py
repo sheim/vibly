@@ -54,7 +54,10 @@ def test_hovership_viability_matches_reference():
             category=DeprecationWarning,
             message="Conversion of an array with ndim > 0 to a scalar is deprecated",
         )
-        q_map, q_fail, q_on_grid = vibly.compute_Q_map(grids, p_map, check_grid=True)
+        result = vibly.compute_Q_map(grids, p_map, check_grid=True)
+        q_map = result.q_map
+        q_fail = result.q_fail
+        q_on_grid = result.q_on_grid
         q_v, s_v = vibly.compute_QV(q_map, grids, Q_V=~q_fail, Q_on_grid=q_on_grid)
         s_m = vibly.project_Q2S(q_v, grids, proj_opt=np.mean)
         q_m = vibly.map_S2Q(q_map, s_m, s_grid, Q_V=q_v, Q_on_grid=q_on_grid)
@@ -100,7 +103,9 @@ def test_slip_viability_matches_reference():
             category=DeprecationWarning,
             message="Conversion of an array with ndim > 0 to a scalar is deprecated",
         )
-        q_map, q_fail = vibly.compute_Q_map(grids, p_map, parallel=True)
+        result = vibly.compute_Q_map(grids, p_map, parallel=True)
+        q_map = result.q_map
+        q_fail = result.q_fail
     q_v, s_v = vibly.compute_QV(q_map, grids, Q_V=~q_fail)
     s_m = vibly.project_Q2S(q_v, grids, proj_opt=np.mean)
     q_m = vibly.map_S2Q(q_map, s_m, grids["states"], Q_V=q_v)
@@ -147,9 +152,12 @@ def test_satellite_parcompute_matches_reference():
             category=DeprecationWarning,
             message="Conversion of an array with ndim > 0 to a scalar is deprecated",
         )
-        q_map, q_fail, _ = vibly.compute_Q_map(
+        result = vibly.compute_Q_map(
             grids, p_map, keep_coords=True, parallel=True, bin_mode="nearest"
         )
+
+    q_map = result.q_map
+    q_fail = result.q_fail
 
     assert np.array_equal(q_map, fixture["Q_map"])
     assert np.array_equal(q_fail, fixture["Q_F"])
@@ -297,7 +305,9 @@ def test_compute_Q_map_handles_spaceship4_grid():
         dtype=bool,
     )
 
-    q_map, q_fail = vibly.compute_Q_map(grids, p_map)
+    result = vibly.compute_Q_map(grids, p_map)
+    q_map = result.q_map
+    q_fail = result.q_fail
 
     assert q_map.shape == expected_q_map.shape
     assert np.array_equal(q_map, expected_q_map)

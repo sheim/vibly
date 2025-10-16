@@ -68,7 +68,9 @@ def test_compute_Q_map_and_compute_QV_simple_system():
     }
     p_map = DummyMap()
 
-    q_map, q_fail = vibly.compute_Q_map(grids, p_map)
+    result = vibly.compute_Q_map(grids, p_map)
+    q_map = result.q_map
+    q_fail = result.q_fail
     assert q_map.shape == (3, 2)
     assert q_fail.shape == (3, 2)
 
@@ -96,9 +98,11 @@ def test_compute_Q_map_with_check_grid_reports_on_grid_hits():
     }
     p_map = DummyMap()
 
-    q_map, q_fail, q_on_grid, q_reached = vibly.compute_Q_map(
-        grids, p_map, check_grid=True, keep_coords=True
-    )
+    result = vibly.compute_Q_map(grids, p_map, check_grid=True, keep_coords=True)
+    q_map = result.q_map
+    q_fail = result.q_fail
+    q_on_grid = result.q_on_grid
+    q_reached = result.q_reached
 
     assert q_map.shape == (3, 2)
     assert q_on_grid.shape == q_map.shape
@@ -118,9 +122,10 @@ def test_compute_QV_same_with_and_without_on_grid_flag():
     }
     p_map = DummyMap()
 
-    q_map, q_fail, q_on_grid, _ = vibly.compute_Q_map(
-        grids, p_map, check_grid=True, keep_coords=True
-    )
+    result = vibly.compute_Q_map(grids, p_map, check_grid=True, keep_coords=True)
+    q_map = result.q_map
+    q_fail = result.q_fail
+    q_on_grid = result.q_on_grid
 
     q_v_default, s_v_default = vibly.compute_QV(q_map, grids, Q_V=~q_fail)
     q_v_on_grid, s_v_on_grid = vibly.compute_QV(
@@ -153,9 +158,10 @@ def test_map_S2Q_uses_on_grid_lookup():
     }
     p_map = DummyMap()
 
-    q_map, q_fail, q_on_grid, _ = vibly.compute_Q_map(
-        grids, p_map, check_grid=True, keep_coords=True
-    )
+    result = vibly.compute_Q_map(grids, p_map, check_grid=True, keep_coords=True)
+    q_map = result.q_map
+    q_fail = result.q_fail
+    q_on_grid = result.q_on_grid
     q_v = ~q_fail
 
     state_measure = np.array([1.0, 0.5, 0.0])

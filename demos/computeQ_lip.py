@@ -45,7 +45,9 @@ if __name__ == "__main__":
     grids = {"states": s_grid, "actions": a_grid}
 
     tictoc.tic()
-    Q_map, Q_F = vibly.compute_Q_map(grids, p_map, verbose=1, parallel=True)
+    result = vibly.compute_Q_map(grids, p_map, verbose=1, parallel=True)
+    Q_map = result.q_map
+    Q_F = result.q_fail
     time_elapsed = tictoc.toc()
     print("time elapsed: " + str(time_elapsed / 60.0))
     # * compute_QV computes the viable set and viability kernel

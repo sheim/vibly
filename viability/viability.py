@@ -18,14 +18,6 @@ class TransitionResult:
     q_on_grid: Optional[np.ndarray] = None
     q_reached: Optional[np.ndarray] = None
 
-    def to_legacy_list(self):
-        parts = [self.q_map, self.q_fail]
-        if self.q_on_grid is not None:
-            parts.append(self.q_on_grid)
-        if self.q_reached is not None:
-            parts.append(self.q_reached)
-        return parts
-
 
 def digitize_s(s, s_grid, shape=None, to_bin=True):
     """
@@ -345,4 +337,4 @@ def compute_Q_map(
         keep_coords=keep_coords,
         bin_mode=bin_mode,
     )
-    return result.to_legacy_list()
+    return result
