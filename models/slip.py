@@ -14,35 +14,12 @@ def feasible(x, p):
 
 
 def p_map(x, p):
-    """
-    Wrapper function for step function, returning only x_next, and -1 if failed
-    Essentially, the Poincare map.
-    """
-    if type(p) is dict:
-        if not feasible(x, p):
-            return x, True  # return failed if foot starts underground
-        sol = step(x, p)
-        # if len(sol.t_events) < 7:
-        #     # print(len(sol.t_events))
-        #     return sol.y[:, -1], True
-        return sol.y[:, -1], check_failure(sol.y[:, -1])
-    elif type(p) is tuple:
-        vector_of_x = np.zeros(x.shape)  # initialize result array
-        vector_of_fail = np.zeros(x.shape[1])
-        # TODO: for shorthand, allow just a single tuple to be passed in
-        # this can be done easily with itertools
-        for idx, p0 in enumerate(p):
-            if not feasible(x, p):
-                vector_of_x[:, idx] = x[:, idx]
-                vector_of_fail[idx] = True
-            else:
-                sol = step(x[:, idx], p0)  # p0 = p[idx]
-                vector_of_x[:, idx] = sol.y[:, -1]
-                vector_of_fail[idx] = check_failure(sol.y[:, -1])
-        return vector_of_x, vector_of_fail
-    else:
-        print("WARNING: I got a parameter type that I don't understand.")
-        return (x, True)
+    x_state = np.asarray(x, dtype=float)
+    if not feasible(x_state, p):
+        return x_state, True
+    sol = step(x_state, p)
+    x_next = sol.y[:, -1]
+    return x_next, check_failure(x_next)
 
 
 def step(x0, p, prev_sol=None):
@@ -209,10 +186,11 @@ def check_failure(x, fail_idx=(0, 1, 2)):
 
 
 def reset_leg(x, p):
+    x_new = np.array(x, copy=True)
     leg_length = p["resting_length"] + p["actuator_resting_length"]
-    x[4] = x[0] + np.sin(p["angle_of_attack"]) * leg_length
-    x[5] = x[1] - np.cos(p["angle_of_attack"]) * leg_length
-    return x
+    x_new[4] = x_new[0] + np.sin(p["angle_of_attack"]) * leg_length
+    x_new[5] = x_new[1] - np.cos(p["angle_of_attack"]) * leg_length
+    return x_new
 
 
 def compute_spring_length(x, p):
@@ -279,7 +257,7 @@ def find_limit_cycle(x, p, options):
     # Use the bisection method to get a good initial guess for key
 
     # Initial solution
-    reset_leg(x, p)
+    x = reset_leg(x, p)
     # * check for feasibility
     # Somewhat hacky, very specific to AoA
     if not feasible(x, p):
@@ -289,7 +267,7 @@ def find_limit_cycle(x, p, options):
             # assuming we're looking for an aoa
             for aoa in np.linspace(p["angle_of_attack"], np.pi / 2, 9):
                 p["angle_of_attack"] = aoa
-                reset_leg(x, p)
+                x = reset_leg(x, p)
                 if feasible(x, p):
                     break
             else:
@@ -441,12 +419,11 @@ def s2x(x, p, s):
     # check that we are at apex
     assert np.isclose(x[3], 0), "state x: " + str(x) + " and e: " + str(s)
 
-    x_new = p["x0"]
+    x_new = np.array(p["x0"], copy=True)
     x_new[1] = p["total_energy"] * s / p["mass"] / p["gravity"]
     x_new[2] = np.sqrt(p["total_energy"] * (1 - s) / p["mass"] * 2)
     x_new[3] = 0.0  # shouldn't be necessary, but avoids errors accumulating
-    x = reset_leg(x, p)
-    return x_new
+    return reset_leg(x_new, p)
 
 
 def sa2xp(state_action, p):
@@ -454,6 +431,9 @@ def sa2xp(state_action, p):
     Specifically map state_actions to x and p
     """
     p_new = p.copy()
+    if "x0" in p_new:
+        p_new["x0"] = np.array(p_new["x0"], copy=True)
     p_new["angle_of_attack"] = state_action[1]
-    x = s2x(p_new["x0"], p_new, state_action[0]).copy()
+    x_reference = p_new.get("x0", None)
+    x = s2x(x_reference, p_new, state_action[0])
     return x, p_new
