@@ -3,7 +3,131 @@ import scipy.integrate as integrate
 # from numba import jit
 
 
-def feasible(x, p):
+class _SimpleSolution:
+    def __init__(self, t, y, t_events, y_events, message="Analytic flight segment"):
+        self.t = t
+        self.y = y
+        self.t_events = t_events
+        self.y_events = y_events
+        self.status = 0
+        self.message = message
+        self.success = True
+
+
+def _solve_ballistic_quadratic(offset, velocity, gravity):
+    """
+    Solve offset + velocity * dt - 0.5 * gravity * dt^2 = 0 for the smallest non-negative dt.
+    Returns None if there is no non-negative real solution within numerical tolerance.
+    """
+    a = -0.5 * gravity
+    b = velocity
+    c = offset
+    discriminant = b * b - 4 * a * c
+    if discriminant < 0:
+        if discriminant > -1e-12:
+            discriminant = 0.0
+        else:
+            return None
+    sqrt_disc = np.sqrt(discriminant)
+    denom = 2 * a
+    roots = []
+    for root in ((-b + sqrt_disc) / denom, (-b - sqrt_disc) / denom):
+        if root >= 0:
+            roots.append(max(0.0, root))
+    if not roots:
+        return None
+    return min(roots)
+
+
+def _compute_apex_time(velocity, gravity):
+    if velocity < 0:
+        return None
+    if np.isclose(velocity, 0.0):
+        return 0.0
+    return velocity / gravity
+
+
+def _compute_flight_states(x0, vx0, vy0, gravity, deltas):
+    x_positions = x0[0] + vx0 * deltas
+    y_positions = x0[1] + vy0 * deltas - 0.5 * gravity * deltas**2
+    vx = np.full_like(deltas, vx0, dtype=float)
+    vy = vy0 - gravity * deltas
+    foot_x = x0[4] + vx0 * deltas
+    foot_y = x0[5] + vy0 * deltas - 0.5 * gravity * deltas**2
+    ground = np.full_like(deltas, x0[-1], dtype=float)
+    return np.vstack((x_positions, y_positions, vx, vy, foot_x, foot_y, ground))
+
+
+def _integrate_flight_analytically(x0, p, t_start, max_time, event_types, max_step):
+    gravity = p["gravity"]
+    x0 = np.asarray(x0, dtype=float)
+    vx0 = x0[2]
+    vy0 = x0[3]
+    if max_step <= 0:
+        raise ValueError("max_step must be positive for analytic flight integration.")
+
+    event_times = [None] * len(event_types)
+    for idx, event_name in enumerate(event_types):
+        if event_name == "fall":
+            event_times[idx] = _solve_ballistic_quadratic(x0[1], vy0, gravity)
+        elif event_name == "touchdown":
+            foot_offset = x0[5] - x0[-1]
+            event_times[idx] = _solve_ballistic_quadratic(foot_offset, vy0, gravity)
+        elif event_name == "apex":
+            event_times[idx] = _compute_apex_time(vy0, gravity)
+
+    event_hit_idx = None
+    dt_event = None
+    for idx, candidate in enumerate(event_times):
+        if candidate is None:
+            continue
+        if candidate > max_time:
+            continue
+        if dt_event is None or candidate < dt_event:
+            dt_event = candidate
+            event_hit_idx = idx
+
+    if dt_event is None:
+        duration = max_time
+        event_hit_idx = None
+    else:
+        duration = dt_event
+
+    if duration <= 0:
+        t_samples = np.array([t_start], dtype=float)
+        y_samples = x0.reshape(-1, 1)
+    else:
+        steps = max(int(np.ceil(duration / max_step)), 1)
+        deltas = np.linspace(0.0, duration, steps + 1)
+        t_samples = t_start + deltas
+        y_samples = _compute_flight_states(x0, vx0, vy0, gravity, deltas)
+
+    t_events = [np.array([], dtype=float) for _ in event_types]
+    y_events = [np.zeros((0, x0.size)) for _ in event_types]
+    if event_hit_idx is not None:
+        event_time = t_start + duration
+        t_events[event_hit_idx] = np.array([event_time], dtype=float)
+        y_events[event_hit_idx] = y_samples[:, -1].reshape(1, -1)
+
+    return _SimpleSolution(
+        t=t_samples,
+        y=y_samples,
+        t_events=t_events,
+        y_events=y_events,
+    )
+
+
+def _integrate_flight_numerically(dynamics, state, t_start, max_time, events, max_step):
+    return integrate.solve_ivp(
+        dynamics,
+        t_span=[t_start, t_start + max_time],
+        y0=state,
+        events=events,
+        max_step=max_step,
+    )
+
+
+def is_feasible(x, p):
     """
     check if state is at all feasible (body/foot underground)
     returns a boolean
@@ -15,14 +139,14 @@ def feasible(x, p):
 
 def p_map(x, p):
     x_state = np.asarray(x, dtype=float)
-    if not feasible(x_state, p):
+    if not is_feasible(x_state, p):
         return x_state, True
     sol = step(x_state, p)
     x_next = sol.y[:, -1]
     return x_next, check_failure(x_next)
 
 
-def step(x0, p, prev_sol=None):
+def step(x0, p, prev_sol=None, flight_mode=None):
     """
     Take one step from apex to apex/failure.
     returns a sol object from integrate.solve_ivp, with all phases
@@ -95,18 +219,40 @@ def step(x0, p, prev_sol=None):
 
     # * Start of step code * #
 
-    # TODO: properly update sol object with all info, not just the trajectories
-
     if prev_sol is not None:
         t0 = prev_sol.t[-1]
     else:
         t0 = 0  # starting time
 
+    selected_flight_mode = flight_mode or p.get("flight_solver", "analytic")
+
+    def run_flight_segment(state, event_sequence, start_time):
+        if selected_flight_mode == "numeric":
+            event_lookup = {
+                "fall": fall_event,
+                "touchdown": touchdown_event,
+                "apex": apex_event,
+            }
+            events = [event_lookup[name] for name in event_sequence]
+            return _integrate_flight_numerically(
+                flight_dynamics,
+                state,
+                start_time,
+                MAX_TIME,
+                events,
+                max_step=0.01,
+            )
+        return _integrate_flight_analytically(
+            state,
+            p,
+            t_start=start_time,
+            max_time=MAX_TIME,
+            event_types=event_sequence,
+            max_step=0.01,
+        )
+
     # * FLIGHT: simulate till touchdown
-    events = [fall_event, touchdown_event]
-    sol = integrate.solve_ivp(
-        flight_dynamics, t_span=[t0, t0 + MAX_TIME], y0=x0, events=events, max_step=0.01
-    )
+    sol = run_flight_segment(x0, ("fall", "touchdown"), t0)
 
     if sol.t_events[0].size != 0:  # if empty
         if prev_sol is not None:
@@ -139,16 +285,8 @@ def step(x0, p, prev_sol=None):
         return sol
 
     # * FLIGHT: simulate till apex
-    events = [fall_event, apex_event]
-
     x0 = reset_leg(sol2.y[:, -1], p)
-    sol3 = integrate.solve_ivp(
-        flight_dynamics,
-        t_span=[sol2.t[-1], sol2.t[-1] + MAX_TIME],
-        y0=x0,
-        events=events,
-        max_step=0.01,
-    )
+    sol3 = run_flight_segment(x0, ("fall", "apex"), sol2.t[-1])
 
     # concatenate all solutions
     sol.t = np.concatenate((sol.t, sol2.t, sol3.t))
@@ -260,7 +398,7 @@ def find_limit_cycle(x, p, options):
     x = reset_leg(x, p)
     # * check for feasibility
     # Somewhat hacky, very specific to AoA
-    if not feasible(x, p):
+    if not is_feasible(x, p):
         # if we're searching for AOAs, start from a feasible one
         if options["parameter_name"] == "angle_of_attack":
             # starting infeasible
@@ -268,7 +406,7 @@ def find_limit_cycle(x, p, options):
             for aoa in np.linspace(p["angle_of_attack"], np.pi / 2, 9):
                 p["angle_of_attack"] = aoa
                 x = reset_leg(x, p)
-                if feasible(x, p):
+                if is_feasible(x, p):
                     break
             else:
                 return aoa, limit_cycle_found
