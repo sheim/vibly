@@ -1,6 +1,69 @@
 import numpy as np
 import scipy.integrate as integrate
-# from numba import jit
+from numba import njit
+
+
+@njit(cache=True)
+def _compute_flight_dynamics(x, gravity):
+    return np.array(
+        [x[2], x[3], 0.0, -gravity, x[2], x[3], 0.0],
+        dtype=np.float64,
+    )
+
+
+@njit(cache=True)
+def _compute_stance_dynamics(
+    x,
+    gravity,
+    mass,
+    stiffness,
+    resting_length,
+    leg_length_offset,
+):
+    x_rel = x[0] - x[4]
+    y_rel = x[1] - x[5]
+    alpha = np.arctan2(y_rel, x_rel) - np.pi / 2.0
+    spring_length = np.hypot(x_rel, y_rel) - leg_length_offset
+    leg_force = stiffness / mass * (resting_length - spring_length)
+    xdotdot = -leg_force * np.sin(alpha)
+    ydotdot = leg_force * np.cos(alpha) - gravity
+    result = np.empty(7, dtype=np.float64)
+    result[0] = x[2]
+    result[1] = x[3]
+    result[2] = xdotdot
+    result[3] = ydotdot
+    result[4] = 0.0
+    result[5] = 0.0
+    result[6] = 0.0
+    return result
+
+
+@njit(cache=True)
+def _evaluate_fall_event(x):
+    return x[1]
+
+
+@njit(cache=True)
+def _evaluate_touchdown_event(x):
+    return x[5] - x[6]
+
+
+@njit(cache=True)
+def _evaluate_liftoff_event(x, resting_length, leg_length_offset):
+    x_rel = x[0] - x[4]
+    y_rel = x[1] - x[5]
+    spring_length = np.hypot(x_rel, y_rel) - leg_length_offset
+    return spring_length - resting_length
+
+
+@njit(cache=True)
+def _evaluate_reversal_event(x):
+    return x[2] + 1e-5
+
+
+@njit(cache=True)
+def _evaluate_apex_event(x):
+    return x[3]
 
 
 class _SimpleSolution:
@@ -164,55 +227,59 @@ def step(x0, p, prev_sol=None, flight_mode=None):
 
     # @jit(nopython=True)
     def flight_dynamics(t, x):
-        # code in flight dynamics, xdot_ = f()
-        return np.array([x[2], x[3], 0, -GRAVITY, x[2], x[3], 0])
+        return _compute_flight_dynamics(x, GRAVITY)
 
     # @jit(nopython=True)
     def stance_dynamics(t, x):
         # stance dynamics
-        alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi / 2.0
-        spring_length = np.hypot(x[0] - x[4], x[1] - x[5]) - LEG_LENGTH_OFFSET
-        leg_force = STIFFNESS / MASS * (RESTING_LENGTH - spring_length)
-        xdotdot = -leg_force * np.sin(alpha)
-        ydotdot = leg_force * np.cos(alpha) - GRAVITY
-        return np.array([x[2], x[3], xdotdot, ydotdot, 0, 0, 0])
+        return _compute_stance_dynamics(
+            x,
+            GRAVITY,
+            MASS,
+            STIFFNESS,
+            RESTING_LENGTH,
+            LEG_LENGTH_OFFSET,
+        )
 
     # @jit(nopython=True)
     def fall_event(t, x):
         """
         Event function to detect the body hitting the floor (failure)
         """
-        return x[1]
+        return float(_evaluate_fall_event(x))
 
     fall_event.terminal = True
     fall_event.direction = -1
 
     # @jit(nopython=True)
     def touchdown_event(t, x):
-        return x[5] - x[-1]
+        return float(_evaluate_touchdown_event(x))
 
     touchdown_event.terminal = True  # no longer actually necessary...
     touchdown_event.direction = -1
 
     # @jit(nopython=True)
     def liftoff_event(t, x):
-        spring_length = (
-            np.hypot(x[0] - x[4], x[1] - x[5]) - p["actuator_resting_length"]
+        return float(
+            _evaluate_liftoff_event(
+                x,
+                RESTING_LENGTH,
+                p["actuator_resting_length"],
+            )
         )
-        return spring_length - RESTING_LENGTH
 
     liftoff_event.terminal = True
     liftoff_event.direction = 1
 
     # @jit(nopython=True)
     def apex_event(t, x):
-        return x[3]
+        return float(_evaluate_apex_event(x))
 
     apex_event.terminal = True
 
     # @jit(nopython=True)
     def reversal_event(t, x):
-        return x[2] + 1e-5  # for numerics, allow for "straight up"
+        return float(_evaluate_reversal_event(x))  # allow for "straight up"
 
     reversal_event.terminal = True
     reversal_event.direction = -1
