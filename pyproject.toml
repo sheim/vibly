@@ -82,6 +82,7 @@ line-ending = "auto"
 [dependency-groups]
 dev = [
     "pytest>=8.3.5",
+    "snakeviz>=2.2.1",
 ]
 
 [tool.pytest.ini_options]
