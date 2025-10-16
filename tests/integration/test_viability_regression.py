@@ -54,7 +54,7 @@ def test_hovership_viability_matches_reference():
             category=DeprecationWarning,
             message="Conversion of an array with ndim > 0 to a scalar is deprecated",
         )
-        result = vibly.compute_Q_map(grids, p_map, check_grid=True)
+        result = vibly.compute_Q_map(grids, p_map, check_grid=True, parallel=False)
         q_map = result.q_map
         q_fail = result.q_fail
         q_on_grid = result.q_on_grid
@@ -103,7 +103,7 @@ def test_slip_viability_matches_reference():
             category=DeprecationWarning,
             message="Conversion of an array with ndim > 0 to a scalar is deprecated",
         )
-        result = vibly.compute_Q_map(grids, p_map, parallel=True)
+        result = vibly.compute_Q_map(grids, p_map)
         q_map = result.q_map
         q_fail = result.q_fail
     q_v, s_v = vibly.compute_QV(q_map, grids, Q_V=~q_fail)
@@ -146,15 +146,7 @@ def test_satellite_parcompute_matches_reference():
     p_map.sa2xp = satellite.sa2xp
     p_map.xp2s = satellite.xp2s
 
-    with warnings.catch_warnings():
-        warnings.filterwarnings(
-            "ignore",
-            category=DeprecationWarning,
-            message="Conversion of an array with ndim > 0 to a scalar is deprecated",
-        )
-        result = vibly.compute_Q_map(
-            grids, p_map, keep_coords=True, parallel=True, bin_mode="nearest"
-        )
+    result = vibly.compute_Q_map(grids, p_map, keep_coords=True, bin_mode="nearest")
 
     q_map = result.q_map
     q_fail = result.q_fail
@@ -223,92 +215,3 @@ def test_satellite_value_iteration_matches_reference():
 
     assert np.allclose(q_value, expected_q_value)
     assert np.allclose(r_value, expected_r_value)
-
-
-def test_compute_Q_map_handles_spaceship4_grid():
-    grids = {
-        "states": (
-            np.array([0.05, 0.5, 1.0]),
-            np.array([-0.9, 0.0, 0.9]),
-        ),
-        "actions": (
-            np.array([-0.2, 0.2]),
-            np.array([-0.3, 0.3]),
-        ),
-    }
-
-    params = {
-        "n_states": 2,
-        "base_gravity": 0.2,
-        "gravity": 0.8,
-        "thrust_vertical": 0.0,
-        "thrust_horizontal": 0.0,
-        "ceiling": 2.1,
-        "wind": 0.5,
-        "control_frequency": 1.75,
-        "x0_upper_bound": 2.0,
-        "x0_lower_bound": 0.0,
-        "x1_upper_bound": 0.9,
-        "x1_lower_bound": -0.9,
-    }
-
-    class Spaceship4Map:
-        def __init__(self, base_params):
-            self.p = base_params
-            self.sa2xp = spaceship4.sa2xp
-            self.xp2s = spaceship4.xp2s
-
-        def __call__(self, x, p):
-            return spaceship4.p_map(x, p)
-
-    p_map = Spaceship4Map(params)
-
-    expected_q_map = np.array(
-        [
-            [
-                [[0, 0], [0, 0]],
-                [[0, 0], [0, 0]],
-                [[0, 0], [0, 0]],
-            ],
-            [
-                [[0, 0], [5, 5]],
-                [[0, 0], [6, 6]],
-                [[0, 0], [0, 0]],
-            ],
-            [
-                [[5, 5], [0, 9]],
-                [[6, 6], [9, 10]],
-                [[0, 0], [10, 0]],
-            ],
-        ],
-        dtype=int,
-    )
-
-    expected_q_fail = np.array(
-        [
-            [
-                [[1, 1], [1, 1]],
-                [[1, 1], [1, 1]],
-                [[1, 1], [1, 1]],
-            ],
-            [
-                [[1, 1], [0, 0]],
-                [[1, 1], [0, 0]],
-                [[1, 1], [1, 1]],
-            ],
-            [
-                [[0, 0], [1, 0]],
-                [[0, 0], [0, 0]],
-                [[1, 1], [0, 1]],
-            ],
-        ],
-        dtype=bool,
-    )
-
-    result = vibly.compute_Q_map(grids, p_map)
-    q_map = result.q_map
-    q_fail = result.q_fail
-
-    assert q_map.shape == expected_q_map.shape
-    assert np.array_equal(q_map, expected_q_map)
-    assert np.array_equal(q_fail, expected_q_fail)

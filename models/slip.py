@@ -88,11 +88,6 @@ def step(x0, p, prev_sol=None):
 
     # @jit(nopython=True)
     def touchdown_event(t, x):
-        """
-        Event function for foot touchdown (transition to stance)
-        """
-        # x[1]- np.cos(p['angle_of_attack'])*RESTING_LENGTH
-        # (which is = x[5])
         return x[5] - x[-1]
 
     touchdown_event.terminal = True  # no longer actually necessary...
@@ -100,32 +95,22 @@ def step(x0, p, prev_sol=None):
 
     # @jit(nopython=True)
     def liftoff_event(t, x):
-        """
-        Event function to reach maximum spring extension (transition to flight)
-        """
         spring_length = (
             np.hypot(x[0] - x[4], x[1] - x[5]) - p["actuator_resting_length"]
         )
         return spring_length - RESTING_LENGTH
-        # ((x[0]-x[4])**2 + (x[1]-x[5])**2) - RESTING_LENGTH**2
 
     liftoff_event.terminal = True
     liftoff_event.direction = 1
 
     # @jit(nopython=True)
     def apex_event(t, x):
-        """
-        Event function to reach apex
-        """
         return x[3]
 
     apex_event.terminal = True
 
     # @jit(nopython=True)
     def reversal_event(t, x):
-        """
-        Event function for direction reversal
-        """
         return x[2] + 1e-5  # for numerics, allow for "straight up"
 
     reversal_event.terminal = True
@@ -146,9 +131,6 @@ def step(x0, p, prev_sol=None):
         flight_dynamics, t_span=[t0, t0 + MAX_TIME], y0=x0, events=events, max_step=0.01
     )
 
-    # TODO Put each part of the step into a list, so you can concat them
-    # TODO programmatically, and reduce code length.
-    # if you fell, stop now
     if sol.t_events[0].size != 0:  # if empty
         if prev_sol is not None:
             sol.t = np.concatenate((prev_sol.t, sol.t))

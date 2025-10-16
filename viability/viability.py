@@ -286,7 +286,7 @@ def compute_Q_map(
     verbose=0,
     check_grid=False,
     keep_coords=False,
-    parallel=False,
+    parallel=True,
     bin_mode="bin",
 ):
     """Compute the transition map of a system."""
