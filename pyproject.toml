@@ -7,7 +7,7 @@ name = "vibly"
 version = "0.2"
 description = "vibly"
 readme = "README.md"
-requires-python = ">=3.8"
+requires-python = ">=3.10"
 authors = [
   { name = "Steve Heim", email = "heim.steve@gmail.com" }
 ]
@@ -17,6 +17,7 @@ dependencies = [
   "joblib>=1.4.2",
   "matplotlib>=3.0.3",
   "numpy>=1.18.4",
+  "numba>=0.60.0",
   "ruff>=0.9.7",
   "scipy>=1.5.1",
   "ttictoc>=0.5.6"
