@@ -39,15 +39,16 @@ if __name__ == "__main__":
 
     # * compute_Q_map computes a gridded transition map, `Q_map`, which is used
     # * a look-up table for computing viable sets.
-    # * Switch to `parcompute_Q_map` to use parallelized version
-    # * (requires multiprocessing module)
+    # * Enable `parallel=True` to use the multiprocessing version
     # * Q_F is a grid marking all failing state-action pairs
     # * Q_on_grid is a helper grid, which marks if a state has not moved at all
     # * this is used to catch corner cases, and is not important for most
     # * systems with interesting dynamics
     # * setting `check_grid` to False will omit Q_on_grid
-    Q_map, Q_F, Q_on_grid = vibly.parcompute_Q_map(grids, p_map, check_grid=True)
-    # Q_map, Q_F, Q_on_grid = vibly.compute_Q_map(grids, p_map, check_grid=True)
+    result = vibly.compute_Q_map(grids, p_map, check_grid=True, parallel=True)
+    Q_map = result.q_map
+    Q_F = result.q_fail
+    Q_on_grid = result.q_on_grid
 
     # * compute_QV computes the viable set and viability kernel
     Q_V, S_V = vibly.compute_QV(Q_map, grids, ~Q_F, Q_on_grid=Q_on_grid)

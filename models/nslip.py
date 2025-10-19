@@ -108,15 +108,10 @@ def step(x0, p, prev_sol=None):
     def stance_dynamics(t, x):
         # since legs are massless, the orientation of the knee doesn't matter.
         alpha = np.arctan2(x[1] - x[5], x[0] - x[4]) - np.pi / 2.0
-        leg_length = np.hypot(x[0] - x[4], x[1] - x[5])
-        # if np.greater_equal((UPPER_LEG**2+LOWER_LEG**2 - leg_length**2)
-        #                 /(2*UPPER_LEG*LOWER_LEG), 1):
-        #     print("warning")
+        leg_length = min(UPPER_LEG + LOWER_LEG, np.hypot(x[0] - x[4], x[1] - x[5]))
         beta = np.arccos(
             (UPPER_LEG**2 + LOWER_LEG**2 - leg_length**2) / (2 * UPPER_LEG * LOWER_LEG)
         )
-        # if np.isnan(beta): #TODO test for minimum value...
-        #     print("HELLO!")
         # sinbeta = max(np.sin(beta), 1e-5)
         tau = STIFFNESS * (RESTING_ANGLE - beta)
         leg_force = leg_length / (UPPER_LEG * LOWER_LEG) * tau / np.sin(beta)
@@ -321,7 +316,7 @@ def s2x(x, p, s):
     # check that we are at apex
     assert np.isclose(x[3], 0), "state x: " + str(x) + " and e: " + str(s)
 
-    x_new = x
+    x_new = np.array(x, copy=True)
     x_new[1] = p["total_energy"] * s / p["mass"] / p["gravity"]
     x_new[2] = np.sqrt(p["total_energy"] * (1 - s) / p["mass"] * 2)
     x_new[3] = 0.0  # shouldn't be necessary, but avoids errors accumulating
@@ -336,4 +331,6 @@ def sa2xp(state_action, p):
     p_new = p.copy()
     p_new["angle_of_attack"] = state_action[1]
     x = s2x(p_new["x0"], p_new, state_action[0].copy())
-    return x, p_new
+    if isinstance(p_new["x0"], np.ndarray):
+        p_new["x0"] = p_new["x0"].copy()
+    return x.copy(), p_new

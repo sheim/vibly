@@ -35,9 +35,18 @@ if __name__ == "__main__":
     grids = {"states": s_grid, "actions": a_grid}
 
     tictoc.tic()
-    Q_map, Q_F, Q_coords = vibly.parcompute_Q_mapC(
-        grids, p_map, verbose=1, check_grid=False, keep_coords=True
+    result = vibly.compute_Q_map(
+        grids,
+        p_map,
+        verbose=1,
+        check_grid=False,
+        keep_coords=True,
+        parallel=True,
+        bin_mode="nearest",
     )
+    Q_map = result.q_map
+    Q_F = result.q_fail
+    Q_coords = result.q_reached
     # Q_map, Q_F, Q_on_grid = vibly.compute_Q_map(grids, p_map, check_grid=True)
 
     # * compute_QV computes the viable set and viability kernel
